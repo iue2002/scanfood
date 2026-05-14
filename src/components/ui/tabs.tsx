@@ -1,7 +1,8 @@
 import * as React from "react"
 import { View } from "@tarojs/components"
-import { type ITouchEvent } from "@tarojs/taro"
 import { cn } from "@/lib/utils"
+
+type ITouchEvent = any
 
 const TabsContext = React.createContext<{
   value?: string

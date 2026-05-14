@@ -12,7 +12,7 @@ const toNumber = (v: unknown) => {
     return 0
 }
 
-const normalizeRect = (r: Record<string, unknown> | null | undefined): Rect | null => {
+const normalizeRect = (r: any): Rect | null => {
     if (!r) return null
     return {
         left: toNumber(r.left),

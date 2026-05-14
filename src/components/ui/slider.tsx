@@ -1,8 +1,10 @@
 import * as React from "react"
 import { View } from "@tarojs/components"
-import Taro, { type ITouchEvent } from "@tarojs/taro"
+import Taro from "@tarojs/taro"
 
 import { cn } from "@/lib/utils"
+
+type ITouchEvent = any
 
 const Slider = React.forwardRef<
   React.ElementRef<typeof View>,

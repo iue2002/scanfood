@@ -1,0 +1,37 @@
+<!--pages/order/detail.wxml-->
+<view class="detail-container">
+  <view class="status-card">
+    <view class="status-text">{{statusMap[order.status]}}</view>
+    <view class="status-tips" wx:if="{{order.status === 'submitted'}}">厨师正在准备您的菜品，请稍候</view>
+    <view class="status-tips" wx:if="{{order.status === 'printed'}}">订单已打印，即将出餐</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">桌台信息：{{order.tables.table_number}}</view>
+    <view class="order-no">订单号：{{order.order_number}}</view>
+    <view class="order-time">下单时间：{{order.created_at}}</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">菜品明细</view>
+    <view wx:for="{{order.order_items}}" wx:key="id" class="item">
+      <view class="name">{{item.dish_name}}</view>
+      <view class="qty">x{{item.quantity}}</view>
+      <view class="price">￥{{item.subtotal}}</view>
+    </view>
+    <view class="total-row">
+      <text>合计</text>
+      <text class="total-price">￥{{order.total_amount}}</text>
+    </view>
+    <view class="payment-status" wx:if="{{order.status !== 'settled'}}">
+      待支付 (请餐后到前台结账)
+    </view>
+    <view class="payment-status settled" wx:else>
+      已结账 (支付时间：{{order.settled_at}})
+    </view>
+  </view>
+
+  <view class="action-bar" wx:if="{{order.status === 'submitted' || order.status === 'printed'}}">
+    <button class="add-dish-btn" bindtap="goToOrder">继续加菜</button>
+  </view>
+</view>

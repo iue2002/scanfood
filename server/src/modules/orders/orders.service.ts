@@ -17,7 +17,7 @@ export class OrdersService {
     const result = await db.select().from(orders)
       .where(and(
         eq(orders.table_id, tableId),
-        inArray(orders.status, ['submitted', 'printed'])
+        inArray(orders.status, ['draft', 'submitted', 'printed'])
       ))
       .orderBy(desc(orders.created_at))
       .limit(1);
@@ -33,6 +33,69 @@ export class OrdersService {
       order_items: items,
       tables: tableResult[0] || null,
     };
+  }
+
+  async syncDraft(dto: CreateOrderDto) {
+    const tableId = dto.table_id;
+    // 查找该桌台是否已有活跃订单（draft, submitted, printed）
+    const activeOrder = await this.getTableCurrentOrder(tableId);
+
+    if (activeOrder && activeOrder.status !== 'draft') {
+      // 如果已有正式订单，则不能再创建或更新草稿，除非业务逻辑允许加餐
+      // 这里暂定如果已有正式订单，syncDraft 逻辑可能需要调整为加餐逻辑，或者提示错误
+      // 为了简化，如果是 submitted/printed，我们直接返回该订单，让前端处理
+      return activeOrder;
+    }
+
+    let orderId = activeOrder?.id;
+    const orderNumber = activeOrder?.order_number || this.generateOrderNumber();
+
+    let totalAmount = 0;
+    const itemsToInsert = dto.items.map(item => {
+      const subtotal = item.price * item.quantity;
+      totalAmount += subtotal;
+      return {
+        dish_id: item.dish_id,
+        spec_id: item.spec_id,
+        dish_name: item.dish_name,
+        spec_name: item.spec_name,
+        quantity: item.quantity,
+        price: item.price.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+      };
+    });
+
+    if (orderId && activeOrder) {
+      // 更新现有草稿
+      await db.update(orders).set({
+        total_amount: totalAmount.toFixed(2),
+        user_id: dto.user_id || activeOrder.user_id,
+        remark: dto.remark || activeOrder.remark,
+        updated_at: new Date(),
+      }).where(eq(orders.id, orderId));
+
+      // 简单处理：删除旧明细，插入新明细
+      await db.delete(order_items).where(eq(order_items.order_id, orderId));
+      await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: orderId as number })));
+    } else {
+      // 创建新草稿
+      const insertResult = await db.insert(orders).values({
+        table_id: tableId,
+        order_number: orderNumber,
+        total_amount: totalAmount.toFixed(2),
+        user_id: dto.user_id,
+        remark: dto.remark,
+        status: 'draft',
+      });
+      const newOrderId = (insertResult as any)[0].insertId;
+      orderId = newOrderId;
+      await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: newOrderId })));
+      
+      // 更新桌台状态
+      await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, tableId));
+    }
+
+    return await this.getOrderById(orderId as number);
   }
 
   async getOrders(status?: string, tableId?: number) {

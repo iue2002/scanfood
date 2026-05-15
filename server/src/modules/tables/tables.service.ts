@@ -76,7 +76,15 @@ export class TablesService {
 
   async generateQrCode(id: number) {
     const table = await this.getTableById(id);
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://your-domain.com/order?table=${table.table_number}`;
+    // 微信官方小程序码接口参数
+    // scene: 桌台ID, page: 点餐页面
+    const scene = `id=${table.id}`;
+    
+    // 生产环境下，这里应该调用微信 API 获取二进制流并保存为文件
+    // 目前为了在管理后台正常显示，我们先生成一个可用的预览链接
+    // 同时也保留了对微信接口的逻辑适配说明
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scene)}`;
+    
     await db.update(tables).set({ qr_code_url: qrCodeUrl }).where(eq(tables.id, id));
     return await this.getTableById(id);
   }

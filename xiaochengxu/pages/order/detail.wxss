@@ -1,0 +1,95 @@
+/* pages/order/detail.wxss */
+.detail-container {
+  padding: 30rpx;
+  background: #f8f8f8;
+  min-height: 100vh;
+}
+
+.status-card {
+  background: #ff9d00;
+  padding: 60rpx 40rpx;
+  border-radius: 12rpx;
+  color: #fff;
+  margin-bottom: 30rpx;
+}
+
+.status-text {
+  font-size: 40rpx;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+.status-tips {
+  font-size: 26rpx;
+  opacity: 0.9;
+}
+
+.section {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-bottom: 20rpx;
+}
+
+.order-no, .order-time {
+  font-size: 26rpx;
+  color: #999;
+  margin-top: 10rpx;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.total-row {
+  border-top: 1rpx solid #eee;
+  padding-top: 20rpx;
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  font-size: 30rpx;
+  font-weight: bold;
+}
+
+.total-price {
+  color: #ff4d4f;
+}
+
+.payment-status {
+  margin-top: 30rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #ff9d00;
+  background: #fff9f0;
+  padding: 20rpx;
+  border-radius: 8rpx;
+}
+
+.payment-status.settled {
+  color: #52c41a;
+  background: #f6ffed;
+}
+
+.action-bar {
+  position: fixed;
+  bottom: 30rpx;
+  left: 30rpx;
+  right: 30rpx;
+}
+
+.add-dish-btn {
+  background: #fff !important;
+  color: #ff9d00 !important;
+  border: 1px solid #ff9d00 !important;
+  border-radius: 50rpx !important;
+}

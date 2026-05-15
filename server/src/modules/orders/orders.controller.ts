@@ -13,7 +13,13 @@ export class OrdersController {
     return await this.ordersService.getTableCurrentOrder(tableId);
   }
 
-  // 获取所有订单（管理后台）
+  // 同步草稿订单（购物车同步）
+  @Post('sync-draft')
+  async syncDraft(@Body() dto: CreateOrderDto) {
+    console.log('[POST /api/orders/sync-draft]', dto);
+    return await this.ordersService.syncDraft(dto);
+  }
+
   @Get()
   async getOrders(
     @Query('status') status?: string,

@@ -48,6 +48,6 @@ export class AddOrderItemDto {
 
 export class UpdateOrderStatusDto {
   @IsString()
-  @IsEnum(['submitted', 'printed', 'settled', 'cancelled', 'refunded'])
+  @IsEnum(['draft', 'submitted', 'printed', 'settled', 'cancelled', 'refunded'])
   status: string;
 }

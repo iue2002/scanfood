@@ -1,0 +1,23 @@
+<!--pages/me/me.wxml-->
+<view class="me-container">
+  <view class="user-card">
+    <image class="avatar" src="{{userInfo.avatar_url || userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+    <view class="nickname">{{userInfo.nickname || userInfo.nickName || '微信用户'}}</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">我的订单</view>
+    <view wx:if="{{orders.length === 0}}" class="empty">暂无订单</view>
+    <view wx:for="{{orders}}" wx:key="id" class="order-item" bindtap="goToDetail" data-id="{{item.id}}">
+      <view class="order-header">
+        <text class="order-no">单号：{{item.order_number}}</text>
+        <text class="order-status">{{statusMap[item.status]}}</text>
+      </view>
+      <view class="order-content">
+        <text class="order-info">桌台：{{item.tables.table_number}}</text>
+        <text class="order-price">￥{{item.total_amount}}</text>
+      </view>
+      <view class="order-time">{{item.created_at}}</view>
+    </view>
+  </view>
+</view>

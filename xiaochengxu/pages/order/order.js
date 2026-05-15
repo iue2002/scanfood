@@ -18,23 +18,36 @@ Page({
   isFetchingOrder: false, // 防止轮询重叠
 
   onLoad(options) {
+    let tableNumber = null;
     let rawTableId = options.tableId || getApp().globalData.tableId;
     
     // 处理微信官方小程序码扫码进入的情况 (options.scene)
     if (options.scene) {
       const scene = decodeURIComponent(options.scene);
-      // 使用正则精准提取数字 ID
-      const match = scene.match(/id=(\d+)/) || scene.match(/^(\d+)$/);
-      rawTableId = match ? match[1] : scene;
+      console.log('解析 scene:', scene);
+      // 先尝试匹配 tableNumber
+      const tableNumberMatch = scene.match(/tableNumber=([^&]+)/);
+      if (tableNumberMatch) {
+        tableNumber = tableNumberMatch[1];
+      } else {
+        // 兼容旧版本：匹配 id
+        const idMatch = scene.match(/id=(\d+)/) || scene.match(/^(\d+)$/);
+        rawTableId = idMatch ? idMatch[1] : scene;
+      }
     }
 
-    // 确保 tableId 是纯数字字符串，防止 400 错误
-    const tableId = String(rawTableId).replace(/[^\d]/g, '');
-
-    if (tableId) {
-      this.setData({ tableId });
-      this.fetchTableInfo(tableId);
-      getApp().globalData.tableId = tableId; 
+    // 优先使用 tableNumber 获取桌台信息
+    if (tableNumber) {
+      this.setData({ tableNumber });
+      this.fetchTableInfoByNumber(tableNumber);
+    } else if (rawTableId) {
+      // 确保 tableId 是纯数字字符串，防止 400 错误
+      const tableId = String(rawTableId).replace(/[^\d]/g, '');
+      if (tableId) {
+        this.setData({ tableId });
+        this.fetchTableInfo(tableId);
+        getApp().globalData.tableId = tableId; 
+      }
     }
     this.fetchData();
     this.startPolling();
@@ -47,7 +60,18 @@ Page({
   async fetchTableInfo(id) {
     try {
       const table = await request({ url: `/tables/${id}`, noLoading: true });
-      this.setData({ tableNumber: table.table_number });
+      this.setData({ tableId: table.id, tableNumber: table.table_number });
+      getApp().globalData.tableId = table.id;
+    } catch (err) {
+      console.error('获取桌台信息失败', err);
+    }
+  },
+
+  async fetchTableInfoByNumber(tableNumber) {
+    try {
+      const table = await request({ url: `/tables/number/${tableNumber}`, noLoading: true });
+      this.setData({ tableId: table.id, tableNumber: table.table_number });
+      getApp().globalData.tableId = table.id;
     } catch (err) {
       console.error('获取桌台信息失败', err);
     }

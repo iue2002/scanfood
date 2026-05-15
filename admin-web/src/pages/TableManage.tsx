@@ -37,21 +37,47 @@ export default function TableManage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (editing) {
-      await request.put(`/tables/${editing.id}`, form)
-    } else {
-      await request.post('/tables', form)
+    if (!form.table_number.trim() || !form.capacity) {
+      alert('请填写完整信息');
+      return;
     }
-    setShowModal(false)
-    setEditing(null)
-    setForm({ table_number: '', capacity: 4 })
-    fetchTables()
+
+    try {
+      if (editing) {
+        await request.put(`/tables/${editing.id}`, form)
+        alert('桌台更新成功！');
+      } else {
+        await request.post('/tables', form)
+        alert('桌台创建成功！');
+      }
+      setShowModal(false)
+      setEditing(null)
+      setForm({ table_number: '', capacity: 4 })
+      fetchTables()
+    } catch (error: any) {
+      console.error('保存桌台失败:', error);
+      if (error.response?.data?.message) {
+        alert(error.response.data.message);
+      } else {
+        alert('保存失败，请重试');
+      }
+    }
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定删除该桌台吗？')) return
-    await request.delete(`/tables/${id}`)
-    fetchTables()
+    const table = tables.find(t => t.id === id);
+    const confirmed = window.confirm(table ? `确定要删除桌台「${table.table_number}」吗？` : '确定删除该桌台吗？');
+    if (!confirmed) {
+      return; // 用户点击取消，直接返回
+    }
+    try {
+      await request.delete(`/tables/${id}`);
+      await fetchTables();
+      alert('删除成功！');
+    } catch (error) {
+      console.error('删除桌台失败:', error);
+      alert('删除失败，请重试');
+    }
   }
 
   const handleGenerateQr = async (id: number) => {

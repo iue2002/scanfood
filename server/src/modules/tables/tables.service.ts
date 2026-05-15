@@ -55,6 +55,11 @@ export class TablesService {
   }
 
   async createTable(dto: CreateTableDto) {
+    // 检查桌台编号是否已存在
+    const existing = await db.select().from(tables).where(eq(tables.table_number, dto.table_number));
+    if (existing.length > 0) {
+      throw new BadRequestException('桌台编号已存在');
+    }
     // 先插入数据，设置一个临时URL
     const insertResult = await db.insert(tables).values({
       ...dto,
@@ -84,7 +89,8 @@ export class TablesService {
   async generateQrCode(id: number) {
     const table = await this.getTableById(id);
     
-    const scene = `id=${table.id}`;
+    // 使用桌台编号而不是数据库ID，这样更直观且便于用户使用
+    const scene = `tableNumber=${table.table_number}`;
     // 先尝试使用首页，因为它一定存在
     const page = 'pages/index/index';
     

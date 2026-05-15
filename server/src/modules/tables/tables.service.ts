@@ -85,11 +85,19 @@ export class TablesService {
     const table = await this.getTableById(id);
     
     const scene = `id=${table.id}`;
-    const page = 'pages/order/order';
+    // 先尝试使用首页，因为它一定存在
+    const page = 'pages/index/index';
     
     try {
       console.log('生成微信小程序码...');
-      const qrCodeUrl = await this.wechatService.generateQrCode(scene, page, 430);
+      // 先尝试使用 createQRCode 接口（对未发布小程序更友好）
+      let qrCodeUrl;
+      try {
+        qrCodeUrl = await this.wechatService.createQRCode(scene, page, 430);
+      } catch (error) {
+        console.log('createQRCode 失败，尝试使用 getUnlimited 接口');
+        qrCodeUrl = await this.wechatService.generateQrCode(scene, page, 430);
+      }
       await db.update(tables).set({ qr_code_url: qrCodeUrl }).where(eq(tables.id, id));
       console.log('微信小程序码生成成功');
       return await this.getTableById(id);

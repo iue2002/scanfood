@@ -13,6 +13,8 @@ export class WechatService {
   
   // 微信API基础URL
   private readonly baseUrl = 'https://api.weixin.qq.com/cgi-bin';
+  // 微信小程序码API基础URL
+  private readonly wxacodeBaseUrl = 'https://api.weixin.qq.com';
   
   // 配置项
   private readonly appId: string;
@@ -64,7 +66,7 @@ export class WechatService {
   async generateQrCode(scene: string, page: string = 'pages/order/order', width: number = 430): Promise<string> {
     try {
       const accessToken = await this.getAccessToken();
-      const url = `${this.baseUrl}/wxa/getwxacodeunlimit?access_token=${accessToken}`;
+      const url = `${this.wxacodeBaseUrl}/wxa/getwxacodeunlimit?access_token=${accessToken}`;
       
       const postData = JSON.stringify({
         scene: scene,
@@ -102,7 +104,7 @@ export class WechatService {
   }
 
   /**
-   * 生成小程序码（使用wxacode/createQRCode接口，有限制：10000个）
+   * 生成小程序码（使用createwxaqrcode接口，有限制：10000个）
    * 这个接口在小程序未发布时可能可用
    * @param scene 场景值
    * @param page 页面路径
@@ -112,16 +114,20 @@ export class WechatService {
     try {
       const accessToken = await this.getAccessToken();
       // 使用小程序码专用接口
-      const url = `${this.baseUrl}/wxacode/createQRCode?access_token=${accessToken}`;
+      const url = `${this.wxacodeBaseUrl}/cgi-bin/wxaapp/createwxaqrcode?access_token=${accessToken}`;
       
       const postData = JSON.stringify({
         path: `${page}?scene=${scene}`,
         width: width
       });
 
+      this.logger.log(`调用微信API createQRCode: ${url}`);
+      this.logger.log(`请求参数: path=${page}?scene=${scene}, width=${width}`);
+
       const imageBuffer = await this.requestBinary(url, postData);
       
-      const fileName = `qrcode_${scene}_${Date.now()}.png`;
+      // createQRCode 返回的是 JPEG 格式
+      const fileName = `qrcode_${scene}_${Date.now()}.jpg`;
       const filePath = path.join(this.uploadPath, fileName);
       
       if (!fs.existsSync(this.uploadPath)) {
@@ -210,12 +216,18 @@ export class WechatService {
             }
           }
           
-          // 检查是否是图片（PNG的magic bytes是89 50 4E 47）
+          // 检查是否是图片（支持PNG和JPEG格式）
+          // PNG的magic bytes是89 50 4E 47
+          // JPEG的magic bytes是FF D8 FF
           const isPng = buffer.length >= 4 && 
             buffer[0] === 0x89 && buffer[1] === 0x50 && 
             buffer[2] === 0x4E && buffer[3] === 0x47;
           
-          if (!isPng) {
+          const isJpeg = buffer.length >= 3 && 
+            buffer[0] === 0xFF && buffer[1] === 0xD8 && 
+            buffer[2] === 0xFF;
+          
+          if (!isPng && !isJpeg) {
             // 尝试解析为JSON错误信息
             try {
               const errorData = JSON.parse(buffer.toString('utf-8'));
@@ -227,9 +239,9 @@ export class WechatService {
               // 不是JSON
             }
             
-            this.logger.error(`微信API返回的不是有效PNG图片，内容长度: ${buffer.length} bytes`);
+            this.logger.error(`微信API返回的不是有效图片，内容长度: ${buffer.length} bytes`);
             this.logger.error(`响应内容(前200字符): ${buffer.toString('utf-8').substring(0, 200)}`);
-            reject(new Error(`微信API返回的不是有效PNG图片`));
+            reject(new Error(`微信API返回的不是有效图片`));
             return;
           }
           

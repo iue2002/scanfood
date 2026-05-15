@@ -39,10 +39,11 @@ export class DishesController {
 
   // 获取所有菜品
   @Get()
-  async getDishes(@Query('category_id') categoryId?: string) {
-    console.log('[GET /api/dishes]', { categoryId });
+  async getDishes(@Query('category_id') categoryId?: string, @Query('include_unavailable') includeUnavailable?: string) {
+    console.log('[GET /api/dishes]', { categoryId, includeUnavailable });
     const id = categoryId ? parseInt(categoryId, 10) : undefined;
-    return await this.dishesService.getDishes(id);
+    const include = includeUnavailable === 'true';
+    return await this.dishesService.getDishes(id, include);
   }
 
   // 获取单个菜品

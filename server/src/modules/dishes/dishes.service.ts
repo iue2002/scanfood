@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { db } from '@/storage/database/mysql-client';
 import { dishes, dish_categories, dish_specs } from '@/storage/database/shared/schema';
 import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 
 @Injectable()
 export class DishesService {
@@ -28,12 +28,20 @@ export class DishesService {
     return { message: '删除成功' };
   }
 
-  async getDishes(categoryId?: number) {
+  async getDishes(categoryId?: number, includeUnavailable?: boolean) {
     let dishList;
     if (categoryId) {
-      dishList = await db.select().from(dishes).where(eq(dishes.category_id, categoryId)).orderBy(asc(dishes.sort_order));
+      if (includeUnavailable) {
+        dishList = await db.select().from(dishes).where(eq(dishes.category_id, categoryId)).orderBy(asc(dishes.sort_order));
+      } else {
+        dishList = await db.select().from(dishes).where(and(eq(dishes.category_id, categoryId), eq(dishes.status, 'available'))).orderBy(asc(dishes.sort_order));
+      }
     } else {
-      dishList = await db.select().from(dishes).orderBy(asc(dishes.sort_order));
+      if (includeUnavailable) {
+        dishList = await db.select().from(dishes).orderBy(asc(dishes.sort_order));
+      } else {
+        dishList = await db.select().from(dishes).where(eq(dishes.status, 'available')).orderBy(asc(dishes.sort_order));
+      }
     }
 
     const categoryList = await db.select().from(dish_categories);

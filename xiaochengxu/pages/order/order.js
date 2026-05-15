@@ -60,8 +60,14 @@ Page({
       
       const { serverURL } = require('../../utils/request');
       allDishes = allDishes.map(dish => {
-        if (dish.image_url && !dish.image_url.startsWith('http')) {
-          dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
+        if (dish.image_url) {
+          if (!dish.image_url.startsWith('http')) {
+            // 本地文件路径，拼接服务器地址
+            dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
+          } else {
+            // 外部图片URL，在真机上转换为https（开发者工具可以不校验）
+            // 注意：这里我们不强制转换，让微信自己处理
+          }
         }
         return dish;
       });

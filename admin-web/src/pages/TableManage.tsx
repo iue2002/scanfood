@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import request from '@/api/request'
 import { Plus, QrCode, Trash2, Edit2 } from 'lucide-react'
 
+// 获取服务器基础地址
+const getServerBaseURL = () => {
+  return import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000'
+}
+
 interface Table {
   id: number
   table_number: string
@@ -97,7 +102,15 @@ export default function TableManage() {
               </div>
               {table.qr_code_url && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <img src={table.qr_code_url} alt="二维码" className="w-24 h-24 mx-auto" />
+                  <img 
+                    src={
+                      table.qr_code_url.startsWith('http') 
+                        ? table.qr_code_url 
+                        : getServerBaseURL() + table.qr_code_url
+                    } 
+                    alt="二维码" 
+                    className="w-24 h-24 mx-auto" 
+                  />
                 </div>
               )}
             </div>

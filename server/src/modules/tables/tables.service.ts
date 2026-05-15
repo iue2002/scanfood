@@ -1,11 +1,17 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { tables, orders, order_items } from '@/storage/database/shared/schema';
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
 import { eq, asc, and, inArray, desc } from 'drizzle-orm';
+import { WechatService } from '@/modules/wechat/wechat.service';
 
 @Injectable()
 export class TablesService {
+  constructor(
+    @Inject(WechatService)
+    private readonly wechatService: WechatService,
+  ) {}
+
   async getTables() {
     return await db.select().from(tables).orderBy(asc(tables.table_number));
   }
@@ -49,14 +55,15 @@ export class TablesService {
   }
 
   async createTable(dto: CreateTableDto) {
-    const qrCodeUrl = `https://example.com/qr/${dto.table_number}`;
+    // 先插入数据，设置一个临时URL
     const insertResult = await db.insert(tables).values({
       ...dto,
-      qr_code_url: qrCodeUrl,
+      qr_code_url: '',
       status: 'idle',
     });
     const newId = (insertResult as any)[0].insertId;
-    return await this.getTableById(newId);
+    // 立即生成真正的二维码
+    return await this.generateQrCode(newId);
   }
 
   async updateTable(id: number, dto: UpdateTableDto) {
@@ -76,16 +83,19 @@ export class TablesService {
 
   async generateQrCode(id: number) {
     const table = await this.getTableById(id);
-    // 微信官方小程序码接口参数
-    // scene: 桌台ID, page: 点餐页面
+    
     const scene = `id=${table.id}`;
+    const page = 'pages/order/order';
     
-    // 生产环境下，这里应该调用微信 API 获取二进制流并保存为文件
-    // 目前为了在管理后台正常显示，我们先生成一个可用的预览链接
-    // 同时也保留了对微信接口的逻辑适配说明
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scene)}`;
-    
-    await db.update(tables).set({ qr_code_url: qrCodeUrl }).where(eq(tables.id, id));
-    return await this.getTableById(id);
+    try {
+      console.log('生成微信小程序码...');
+      const qrCodeUrl = await this.wechatService.generateQrCode(scene, page, 430);
+      await db.update(tables).set({ qr_code_url: qrCodeUrl }).where(eq(tables.id, id));
+      console.log('微信小程序码生成成功');
+      return await this.getTableById(id);
+    } catch (error) {
+      console.error('微信小程序码生成失败:', error.message);
+      throw error;
+    }
   }
 }

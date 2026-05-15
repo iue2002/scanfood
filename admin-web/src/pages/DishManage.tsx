@@ -17,7 +17,7 @@ interface Dish {
   dish_specs?: Array<{ id: number; spec_name: string; price: string }>
 }
 
-const API_BASE = 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000'
 
 export default function DishManage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -35,7 +35,7 @@ export default function DishManage() {
 
   const fetchData = () => {
     request.get('/dishes/categories').then((res: any) => setCategories(res || []))
-    request.get('/dishes').then((res: any) => setDishes(res || []))
+    request.get('/dishes', { params: { include_unavailable: true } }).then((res: any) => setDishes(res || []))
   }
 
   useEffect(() => {
@@ -185,7 +185,14 @@ export default function DishManage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                      {dish.image_url ? <img src={dish.image_url} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>}
+                      {dish.image_url ? 
+                        <img 
+                          src={dish.image_url.startsWith('http') ? dish.image_url : API_BASE + dish.image_url} 
+                          className="w-full h-full object-cover" 
+                          alt="" 
+                        /> : 
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
+                      }
                     </div>
                     <span className="font-medium">{dish.name}</span>
                   </div>

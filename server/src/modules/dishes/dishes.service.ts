@@ -1,156 +1,107 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { db } from '@/storage/database/mysql-client';
+import { dishes, dish_categories, dish_specs } from '@/storage/database/shared/schema';
 import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
+import { eq, asc } from 'drizzle-orm';
 
 @Injectable()
 export class DishesService {
-  private client = getSupabaseClient();
-
-  // 获取所有菜品分类
   async getCategories() {
-    const { data, error } = await this.client
-      .from('dish_categories')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (error) throw new BadRequestException(`获取分类失败: ${error.message}`);
-    return data;
+    return await db.select().from(dish_categories).orderBy(asc(dish_categories.sort_order));
   }
 
-  // 创建菜品分类
   async createCategory(dto: CreateCategoryDto) {
-    const { data, error } = await this.client
-      .from('dish_categories')
-      .insert(dto)
-      .select()
-      .single();
-
-    if (error) throw new BadRequestException(`创建分类失败: ${error.message}`);
-    return data;
+    const insertResult = await db.insert(dish_categories).values(dto);
+    const newId = (insertResult as any)[0].insertId;
+    const result = await db.select().from(dish_categories).where(eq(dish_categories.id, newId));
+    return result[0];
   }
 
-  // 获取所有菜品（含规格）
-  async getDishes(categoryId?: number) {
-    let query = this.client
-      .from('dishes')
-      .select(`
-        *,
-        dish_categories(name),
-        dish_specs(*)
-      `)
-      .order('sort_order', { ascending: true });
-
-    if (categoryId) {
-      query = query.eq('category_id', categoryId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw new BadRequestException(`获取菜品失败: ${error.message}`);
-    return data;
+  async updateCategory(id: number, dto: CreateCategoryDto) {
+    await db.update(dish_categories).set(dto).where(eq(dish_categories.id, id));
+    const result = await db.select().from(dish_categories).where(eq(dish_categories.id, id));
+    return result[0];
   }
 
-  // 获取单个菜品详情
-  async getDishById(id: number) {
-    const { data, error } = await this.client
-      .from('dishes')
-      .select(`
-        *,
-        dish_categories(name),
-        dish_specs(*)
-      `)
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error) throw new BadRequestException(`获取菜品失败: ${error.message}`);
-    if (!data) throw new NotFoundException('菜品不存在');
-
-    return data;
-  }
-
-  // 创建菜品
-  async createDish(dto: CreateDishDto) {
-    const { data, error } = await this.client
-      .from('dishes')
-      .insert({
-        ...dto,
-        status: 'available',
-      })
-      .select()
-      .single();
-
-    if (error) throw new BadRequestException(`创建菜品失败: ${error.message}`);
-    return data;
-  }
-
-  // 更新菜品
-  async updateDish(id: number, dto: UpdateDishDto) {
-    const { data, error } = await this.client
-      .from('dishes')
-      .update({
-        ...dto,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .maybeSingle();
-
-    if (error) throw new BadRequestException(`更新菜品失败: ${error.message}`);
-    if (!data) throw new NotFoundException('菜品不存在');
-
-    return data;
-  }
-
-  // 菜品上架/下架
-  async toggleDishStatus(id: number) {
-    const dish = await this.getDishById(id);
-    const newStatus = dish.status === 'available' ? 'unavailable' : 'available';
-
-    const { data, error } = await this.client
-      .from('dishes')
-      .update({
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new BadRequestException(`操作失败: ${error.message}`);
-    return data;
-  }
-
-  // 删除菜品
-  async deleteDish(id: number) {
-    const { error } = await this.client
-      .from('dishes')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new BadRequestException(`删除菜品失败: ${error.message}`);
+  async deleteCategory(id: number) {
+    await db.delete(dish_categories).where(eq(dish_categories.id, id));
     return { message: '删除成功' };
   }
 
-  // 添加菜品规格
-  async addDishSpec(dto: CreateDishSpecDto) {
-    const { data, error } = await this.client
-      .from('dish_specs')
-      .insert(dto)
-      .select()
-      .single();
+  async getDishes(categoryId?: number) {
+    let dishList;
+    if (categoryId) {
+      dishList = await db.select().from(dishes).where(eq(dishes.category_id, categoryId)).orderBy(asc(dishes.sort_order));
+    } else {
+      dishList = await db.select().from(dishes).orderBy(asc(dishes.sort_order));
+    }
 
-    if (error) throw new BadRequestException(`添加规格失败: ${error.message}`);
-    return data;
+    const categoryList = await db.select().from(dish_categories);
+    const specList = await db.select().from(dish_specs);
+
+    return dishList.map(dish => ({
+      ...dish,
+      category: categoryList.find(c => c.id === dish.category_id)?.name || '',
+      dish_specs: specList.filter(s => s.dish_id === dish.id),
+    }));
   }
 
-  // 删除菜品规格
-  async deleteDishSpec(id: number) {
-    const { error } = await this.client
-      .from('dish_specs')
-      .delete()
-      .eq('id', id);
+  async getDishById(id: number) {
+    const result = await db.select().from(dishes).where(eq(dishes.id, id));
+    const dish = result[0];
+    if (!dish) throw new NotFoundException('菜品不存在');
 
-    if (error) throw new BadRequestException(`删除规格失败: ${error.message}`);
+    const categoryResult = await db.select().from(dish_categories).where(eq(dish_categories.id, dish.category_id));
+    const specResult = await db.select().from(dish_specs).where(eq(dish_specs.dish_id, id));
+
+    return {
+      ...dish,
+      category: categoryResult[0]?.name || '',
+      dish_specs: specResult,
+    };
+  }
+
+  async createDish(dto: CreateDishDto) {
+    const insertResult = await db.insert(dishes).values({
+      ...dto,
+      price: dto.price.toFixed(2),
+      status: 'available',
+    });
+    const newId = (insertResult as any)[0].insertId;
+    return await this.getDishById(newId);
+  }
+
+  async updateDish(id: number, dto: UpdateDishDto) {
+    const updateData: any = { ...dto };
+    if (dto.price !== undefined) updateData.price = dto.price.toFixed(2);
+    await db.update(dishes).set(updateData).where(eq(dishes.id, id));
+    return await this.getDishById(id);
+  }
+
+  async toggleDishStatus(id: number) {
+    const dish = await this.getDishById(id);
+    const newStatus = dish.status === 'available' ? 'unavailable' : 'available';
+    await db.update(dishes).set({ status: newStatus }).where(eq(dishes.id, id));
+    return await this.getDishById(id);
+  }
+
+  async deleteDish(id: number) {
+    await db.delete(dishes).where(eq(dishes.id, id));
+    return { message: '删除成功' };
+  }
+
+  async addDishSpec(dto: CreateDishSpecDto) {
+    const insertResult = await db.insert(dish_specs).values({
+      ...dto,
+      price: dto.price.toFixed(2),
+    });
+    const newId = (insertResult as any)[0].insertId;
+    const result = await db.select().from(dish_specs).where(eq(dish_specs.id, newId));
+    return result[0];
+  }
+
+  async deleteDishSpec(id: number) {
+    await db.delete(dish_specs).where(eq(dish_specs.id, id));
     return { message: '删除成功' };
   }
 }

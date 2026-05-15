@@ -1,7 +1,10 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 
 function parsePort(): number {
   const args = process.argv.slice(2);
@@ -22,6 +25,14 @@ async function bootstrap() {
     origin: true,
     credentials: true,
   });
+
+  // 静态文件服务：上传的图片
+  const uploadsDir = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadsDir)) {
+    mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
   app.setGlobalPrefix('api');
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));

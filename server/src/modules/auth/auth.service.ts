@@ -1,132 +1,99 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { JwtService } from '@nestjs/jwt';
+import { db } from '@/storage/database/mysql-client';
+import { users } from '@/storage/database/shared/schema';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class AuthService {
-  private client = getSupabaseClient();
+  constructor(private readonly jwtService: JwtService) {}
 
-  // 账号密码登录
   async login(dto: LoginDto) {
-    const { data, error } = await this.client
-      .from('users')
-      .select('*')
-      .eq('username', dto.username)
-      .maybeSingle();
+    const result = await db.select().from(users).where(eq(users.username, dto.username));
+    const user = result[0];
+    if (!user) throw new UnauthorizedException('用户名或密码错误');
 
-    if (error) throw new BadRequestException(`查询用户失败: ${error.message}`);
-    if (!data) throw new UnauthorizedException('用户名或密码错误');
-
-    // 验证密码
-    const isValid = await bcrypt.compare(dto.password, data.password);
+    const isValid = await bcrypt.compare(dto.password, user.password);
     if (!isValid) throw new UnauthorizedException('用户名或密码错误');
 
-    // 返回用户信息（不包含密码）
-    const { password, ...userInfo } = data;
+    const { password, ...userInfo } = user;
     return {
       user: userInfo,
-      token: this.generateToken(data.id), // 简单token生成，实际应使用JWT
+      token: this.jwtService.sign({ userId: user.id, role: user.role }),
     };
   }
 
-  // 用户注册
   async register(dto: RegisterDto) {
-    // 检查用户名是否已存在
-    const { data: existingUser } = await this.client
-      .from('users')
-      .select('id')
-      .eq('username', dto.username)
-      .maybeSingle();
+    const existing = await db.select().from(users).where(eq(users.username, dto.username));
+    if (existing.length > 0) throw new BadRequestException('用户名已存在');
 
-    if (existingUser) throw new BadRequestException('用户名已存在');
-
-    // 加密密码
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const insertResult = await db.insert(users).values({
+      username: dto.username,
+      password: hashedPassword,
+      role: dto.role,
+      nickname: dto.nickname || dto.username,
+      avatar_url: dto.avatar_url,
+    });
 
-    // 创建用户
-    const { data, error } = await this.client
-      .from('users')
-      .insert({
-        username: dto.username,
-        password: hashedPassword,
-        role: dto.role,
-        nickname: dto.nickname || dto.username,
-        avatar_url: dto.avatar_url,
-      })
-      .select()
-      .single();
-
-    if (error) throw new BadRequestException(`注册失败: ${error.message}`);
-
-    const { password, ...userInfo } = data;
+    const newId = (insertResult as any)[0].insertId;
+    const newUserResult = await db.select().from(users).where(eq(users.id, newId));
+    const newUser = newUserResult[0];
+    const { password, ...userInfo } = newUser;
     return {
       user: userInfo,
-      token: this.generateToken(data.id),
+      token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),
     };
   }
 
-  // 微信登录（简化版，实际需要调用微信API）
   async wechatLogin(code: string) {
-    // TODO: 实际应该调用微信API获取openid
-    // 这里简化处理，直接使用code作为openid
     const openid = code;
-
-    // 查找是否已有该微信用户
-    const { data: existingUser } = await this.client
-      .from('users')
-      .select('*')
-      .eq('openid', openid)
-      .maybeSingle();
-
-    if (existingUser) {
-      const { password, ...userInfo } = existingUser;
+    const existing = await db.select().from(users).where(eq(users.openid, openid));
+    if (existing.length > 0) {
+      const user = existing[0];
+      const { password, ...userInfo } = user;
       return {
         user: userInfo,
-        token: this.generateToken(existingUser.id),
+        token: this.jwtService.sign({ userId: user.id, role: user.role }),
         isNewUser: false,
       };
     }
 
-    // 新用户，创建账号
-    const { data, error } = await this.client
-      .from('users')
-      .insert({
-        username: `wx_${openid.substring(0, 10)}`,
-        password: await bcrypt.hash(Math.random().toString(36), 10),
-        role: 'customer',
-        openid: openid,
-        nickname: '微信用户',
-      })
-      .select()
-      .single();
+    const hashedPassword = await bcrypt.hash(Math.random().toString(36), 10);
+    const insertResult = await db.insert(users).values({
+      username: `wx_${openid.substring(0, 10)}`,
+      password: hashedPassword,
+      role: 'customer',
+      openid,
+      nickname: '微信用户',
+    });
 
-    if (error) throw new BadRequestException(`微信登录失败: ${error.message}`);
-
-    const { password, ...userInfo } = data;
+    const newId = (insertResult as any)[0].insertId;
+    const newUserResult = await db.select().from(users).where(eq(users.id, newId));
+    const newUser = newUserResult[0];
+    const { password, ...userInfo } = newUser;
     return {
       user: userInfo,
-      token: this.generateToken(data.id),
+      token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),
       isNewUser: true,
     };
   }
 
-  // 获取用户信息
   async getUserInfo(userId: number) {
-    const { data, error } = await this.client
-      .from('users')
-      .select('id, username, role, openid, nickname, avatar_url, created_at')
-      .eq('id', userId)
-      .maybeSingle();
+    const result = await db.select({
+      id: users.id,
+      username: users.username,
+      role: users.role,
+      openid: users.openid,
+      nickname: users.nickname,
+      avatar_url: users.avatar_url,
+      created_at: users.created_at,
+    }).from(users).where(eq(users.id, userId));
 
-    if (error) throw new BadRequestException(`获取用户信息失败: ${error.message}`);
-    if (!data) throw new UnauthorizedException('用户不存在');
-
-    return data;
-  }
-
-  // 简单token生成（实际应使用JWT）
-  private generateToken(userId: number): string {
-    return Buffer.from(`${userId}:${Date.now()}`).toString('base64');
+    const user = result[0];
+    if (!user) throw new UnauthorizedException('用户不存在');
+    return user;
   }
 }

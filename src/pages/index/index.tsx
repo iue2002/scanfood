@@ -1,136 +1,177 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { Card, CardContent } from '@/components/ui/card'
-import { ScanLine, User, ShoppingBag } from 'lucide-react-taro'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Network } from '@/network'
+import { Loader, ScanLine } from 'lucide-react-taro'
+
+interface Dish {
+  id: number
+  name: string
+  price: string
+  image_url?: string
+  description?: string
+  category: string
+  status: string
+}
+
+interface Category {
+  id: number
+  name: string
+}
+
+const parseTableInfo = (raw: string): { tableId: string; tableNumber: string } | null => {
+  const tableIdMatch = raw.match(/(?:^|[?&])table_id=(\d+)/)
+  const tableMatch = raw.match(/(?:^|[?&])table=([^&]+)/)
+  if (!tableIdMatch || !tableMatch) {
+    return null
+  }
+  return {
+    tableId: tableIdMatch[1],
+    tableNumber: decodeURIComponent(tableMatch[1]),
+  }
+}
 
 export default function Index() {
+  const [loading, setLoading] = useState(true)
+  const [dishes, setDishes] = useState<Dish[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [currentCategory, setCurrentCategory] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [categoriesRes, dishesRes] = await Promise.all([
+          Network.request({ url: '/api/dishes/categories' }),
+          Network.request({ url: '/api/dishes' }),
+        ])
+        setCategories(categoriesRes.data?.data ?? [])
+        const allDishes = dishesRes.data?.data ?? []
+        setDishes(allDishes.filter((dish: Dish) => dish.status === 'available'))
+      } catch (error) {
+        console.error('[首页] 获取菜品失败:', error)
+        Taro.showToast({ title: '获取菜品失败', icon: 'none' })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
   const handleScanQRCode = () => {
-    // 检查是否在小程序环境
     if (!([Taro.ENV_TYPE.WEAPP, Taro.ENV_TYPE.TT].includes(Taro.getEnv() as any))) {
-      // H5环境提示
-      Taro.showToast({
-        title: '请在微信小程序中扫码',
-        icon: 'none',
-        duration: 2000
-      })
+      Taro.showToast({ title: '请在微信小程序中扫码', icon: 'none' })
       return
     }
 
     Taro.scanCode({
-      success: (res) => {
-        console.log('[扫码结果]', res)
-        // 解析二维码内容，提取桌台编号
-        // 假设二维码格式为: https://your-domain.com/order?table=A1&table_id=1
-        const result = res.result
-        const urlMatch = result.match(/table=([^&]+).*table_id=(\d+)/)
-
-        if (urlMatch) {
-          const tableNumber = urlMatch[1]
-          const tableId = urlMatch[2]
-
-          // 跳转到点餐页
-          Taro.navigateTo({
-            url: `/pages/order/index?table_id=${tableId}&table_number=${tableNumber}`
-          })
-        } else {
-          Taro.showToast({
-            title: '无效的桌台二维码',
-            icon: 'none'
-          })
+      success: ({ result }) => {
+        const tableInfo = parseTableInfo(result)
+        if (!tableInfo) {
+          Taro.showToast({ title: '无效的桌台二维码', icon: 'none' })
+          return
         }
-      },
-      fail: (err) => {
-        console.error('[扫码失败]', err)
-        Taro.showToast({
-          title: '扫码失败',
-          icon: 'none'
+        Taro.navigateTo({
+          url: `/pages/order/index?table_id=${tableInfo.tableId}&table_number=${encodeURIComponent(tableInfo.tableNumber)}`,
         })
-      }
+      },
+      fail: (error) => {
+        console.error('[扫码失败]', error)
+        Taro.showToast({ title: '扫码失败', icon: 'none' })
+      },
     })
   }
 
-  const handleGoToLogin = () => {
-    Taro.navigateTo({ url: '/pages/login/index' })
-  }
+  const filteredDishes = currentCategory ? dishes.filter((d) => d.category === currentCategory) : dishes
 
-  const handleGoToAdmin = () => {
-    const userInfo = Taro.getStorageSync('userInfo')
-    if (userInfo && (userInfo.role === 'admin' || userInfo.role === 'staff')) {
-      Taro.switchTab({ url: '/pages/admin/index/index' })
-    } else {
-      Taro.navigateTo({ url: '/pages/login/index' })
-    }
+  if (loading) {
+    return (
+      <View className="min-h-screen flex items-center justify-center bg-gray-50">
+        <View className="text-center">
+          <Loader size={32} className="animate-spin mx-auto mb-4" color="#f97316" />
+          <Text className="block text-gray-500">加载中...</Text>
+        </View>
+      </View>
+    )
   }
 
   return (
-    <View className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-      {/* 顶部欢迎区 */}
-      <View className="px-4 pt-12 pb-8 text-center">
-        <View className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center mb-4 mx-auto shadow-lg">
-          <Text className="text-white text-4xl font-bold">餐</Text>
-        </View>
-        <Text className="block text-3xl font-bold text-gray-900 mb-2">桌码点餐</Text>
-        <Text className="block text-base text-gray-500">扫码点餐，便捷用餐</Text>
+    <View className="min-h-screen bg-gray-50 pb-6">
+      <View className="bg-orange-500 text-white px-4 pt-5 pb-4">
+        <Text className="block text-xl font-semibold">菜品浏览</Text>
+        <Text className="block text-sm opacity-90 mt-1">先看菜单，入座后扫码下单</Text>
       </View>
 
-      {/* 主要功能区 */}
-      <View className="px-4 space-y-3">
-        {/* 扫码点餐卡片 */}
-        <Card className="shadow-md">
-          <CardContent className="p-6">
-            <View className="flex items-center gap-4" onClick={handleScanQRCode}>
-              <View className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center">
-                <ScanLine size={28} color="#f97316" />
-              </View>
-              <View className="flex-1">
-                <Text className="block text-lg font-semibold text-gray-900">扫码点餐</Text>
-                <Text className="block text-sm text-gray-500 mt-1">扫描桌上二维码开始点餐</Text>
-              </View>
-              <Text className="text-orange-500 text-lg">→</Text>
-            </View>
-          </CardContent>
-        </Card>
-
-        {/* 管理员登录卡片 */}
-        <Card className="shadow-md">
-          <CardContent className="p-6">
-            <View className="flex items-center gap-4" onClick={handleGoToLogin}>
-              <View className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <User size={28} color="#3b82f6" />
-              </View>
-              <View className="flex-1">
-                <Text className="block text-lg font-semibold text-gray-900">账号登录</Text>
-                <Text className="block text-sm text-gray-500 mt-1">管理员或前台登录</Text>
-              </View>
-              <Text className="text-blue-500 text-lg">→</Text>
-            </View>
-          </CardContent>
-        </Card>
-
-        {/* 后台管理卡片 */}
-        <Card className="shadow-md">
-          <CardContent className="p-6">
-            <View className="flex items-center gap-4" onClick={handleGoToAdmin}>
-              <View className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
-                <ShoppingBag size={28} color="#9333ea" />
-              </View>
-              <View className="flex-1">
-                <Text className="block text-lg font-semibold text-gray-900">后台管理</Text>
-                <Text className="block text-sm text-gray-500 mt-1">管理桌台、订单、菜品</Text>
-              </View>
-              <Text className="text-purple-500 text-lg">→</Text>
-            </View>
-          </CardContent>
-        </Card>
+      <View className="bg-white px-4 py-3 border-b">
+        <Button className="bg-orange-500 w-full" onClick={handleScanQRCode}>
+          <View className="flex items-center gap-2">
+            <ScanLine size={16} color="#fff" />
+            <Text>扫码点餐</Text>
+          </View>
+        </Button>
       </View>
 
-      {/* 底部提示 */}
-      <View className="px-4 mt-8 text-center">
-        <Text className="block text-xs text-gray-400">
-          使用说明：{'\n'}
-          顾客请扫描桌台二维码开始点餐{'\n'}
-          管理员可通过账号密码登录后台管理
-        </Text>
+      <View className="bg-white px-4 py-2 sticky top-0 z-10 border-b">
+        <ScrollView scrollX className="whitespace-nowrap">
+          <View className="inline-flex gap-2">
+            <View
+              className={`px-4 py-2 rounded-full text-sm ${currentCategory === null ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              onClick={() => setCurrentCategory(null)}
+            >
+              <Text>全部</Text>
+            </View>
+            {categories.map((cat) => (
+              <View
+                key={cat.id}
+                className={`px-4 py-2 rounded-full text-sm ${currentCategory === cat.name ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+                onClick={() => setCurrentCategory(cat.name)}
+              >
+                <Text>{cat.name}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      <View className="p-4">
+        {filteredDishes.length === 0 ? (
+          <View className="text-center py-12">
+            <Text className="block text-gray-400">暂无菜品</Text>
+          </View>
+        ) : (
+          filteredDishes.map((dish) => (
+            <Card key={dish.id} className="mb-3">
+              <CardContent className="p-3">
+                <View className="flex gap-3">
+                  <View className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+                    {dish.image_url ? (
+                      <Image src={dish.image_url} mode="aspectFill" className="w-full h-full" />
+                    ) : (
+                      <View className="w-full h-full flex items-center justify-center">
+                        <Text className="text-2xl text-gray-300">🍽</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View className="flex-1 min-w-0">
+                    <View className="flex items-center justify-between gap-2">
+                      <Text className="block text-base font-semibold text-gray-900 truncate">{dish.name}</Text>
+                      <Badge variant="outline">{dish.category || '未分类'}</Badge>
+                    </View>
+                    {dish.description ? (
+                      <Text className="block text-xs text-gray-500 mt-1 line-clamp-2">{dish.description}</Text>
+                    ) : null}
+                    <Text className="block text-lg font-bold text-orange-600 mt-2">
+                      ¥{(Number(dish.price) || 0).toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </View>
     </View>
   )

@@ -10,6 +10,7 @@ import { Loader, Clock, Circle } from 'lucide-react-taro'
 
 interface Order {
   id: number
+  table_id: number
   order_number: string
   total_amount: string
   status: string
@@ -28,12 +29,12 @@ interface Order {
   }>
 }
 
-const statusMap: Record<string, { label: string; color: string; icon: any }> = {
-  submitted: { label: '已提交', color: 'warning', icon: Clock },
-  printed: { label: '已打印', color: 'default', icon: Circle },
-  settled: { label: '已结账', color: 'success', icon: Circle },
-  cancelled: { label: '已取消', color: 'destructive', icon: Circle },
-  refunded: { label: '已退款', color: 'destructive', icon: Circle },
+const statusMap: Record<string, { label: string; icon: any }> = {
+  submitted: { label: '已提交', icon: Clock },
+  printed: { label: '已打印', icon: Circle },
+  settled: { label: '已结账', icon: Circle },
+  cancelled: { label: '已取消', icon: Circle },
+  refunded: { label: '已退款', icon: Circle },
 }
 
 export default function OrderDetailPage() {
@@ -187,7 +188,7 @@ export default function OrderDetailPage() {
             onClick={() => {
               // 继续加餐
               Taro.navigateTo({
-                url: `/pages/order/index?table_id=${order.tables?.table_number}&table_number=${order.tables?.table_number}`
+                url: `/pages/order/index?table_id=${order.table_id}&table_number=${encodeURIComponent(order.tables?.table_number || '')}`
               })
             }}
           >

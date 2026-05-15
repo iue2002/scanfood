@@ -13,6 +13,13 @@ export class TablesController {
     return await this.tablesService.getTables();
   }
 
+  // 获取桌台看板数据（含当前订单）
+  @Get('board')
+  async getTableBoard() {
+    console.log('[GET /api/tables/board]');
+    return await this.tablesService.getTableBoard();
+  }
+
   // 获取单个桌台
   @Get(':id')
   async getTableById(@Param('id', ParseIntPipe) id: number) {

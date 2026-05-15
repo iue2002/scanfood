@@ -1,59 +1,49 @@
-import { IsString, IsNumber, IsOptional, IsIn, Min, IsBoolean } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class CreateDishDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
   @IsNumber()
   category_id: number;
 
-  @IsString()
-  name: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  image_url?: string;
-
   @IsNumber()
-  @Min(0)
   price: number;
 
+  @IsString()
   @IsOptional()
-  @IsNumber()
-  sort_order?: number;
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  image_url?: string;
 }
 
 export class UpdateDishDto {
-  @IsOptional()
-  @IsNumber()
-  category_id?: number;
-
-  @IsOptional()
   @IsString()
+  @IsOptional()
   name?: string;
 
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  image_url?: string;
-
-  @IsOptional()
   @IsNumber()
-  @Min(0)
+  @IsOptional()
+  category_id?: number;
+
+  @IsNumber()
+  @IsOptional()
   price?: number;
 
-  @IsOptional()
   @IsString()
-  @IsIn(['available', 'unavailable'])
-  status?: string;
-
   @IsOptional()
-  @IsNumber()
-  sort_order?: number;
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  image_url?: string;
+
+  @IsString()
+  @IsOptional()
+  status?: string;
 }
 
 export class CreateDishSpecDto {
@@ -61,18 +51,19 @@ export class CreateDishSpecDto {
   dish_id: number;
 
   @IsString()
+  @IsNotEmpty()
   spec_name: string;
 
   @IsNumber()
-  @Min(0)
   price: number;
 }
 
 export class CreateCategoryDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @IsOptional()
   @IsNumber()
+  @IsOptional()
   sort_order?: number;
 }

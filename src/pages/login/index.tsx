@@ -81,15 +81,9 @@ export default function LoginPage() {
 
         Taro.showToast({ title: '登录成功', icon: 'success' })
 
-        // 根据角色跳转不同页面
+        // 小程序端仅保留用户侧入口
         setTimeout(() => {
-          if (user.role === 'admin' || user.role === 'staff') {
-            // 管理员跳转到后台管理
-            Taro.redirectTo({ url: '/pages/admin/index/index' })
-          } else {
-            // 顾客跳转到首页
-            Taro.redirectTo({ url: '/pages/index/index' })
-          }
+          Taro.redirectTo({ url: '/pages/index/index' })
         }, 1500)
       }
     } catch (error: any) {
@@ -183,8 +177,7 @@ export default function LoginPage() {
 
       {/* 提示文字 */}
       <Text className="block text-xs text-gray-400 mt-8 text-center">
-        提示：顾客请扫描桌台二维码进入点餐{'\n'}
-        管理员可使用账号密码登录
+        提示：顾客请扫描桌台二维码进入点餐
       </Text>
     </View>
   )

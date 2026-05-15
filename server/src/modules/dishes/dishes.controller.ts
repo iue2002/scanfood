@@ -20,6 +20,23 @@ export class DishesController {
     return await this.dishesService.createCategory(dto);
   }
 
+  // 更新菜品分类
+  @Put('categories/:id')
+  async updateCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateCategoryDto,
+  ) {
+    console.log('[PUT /api/dishes/categories/:id]', { id, dto });
+    return await this.dishesService.updateCategory(id, dto);
+  }
+
+  // 删除菜品分类
+  @Delete('categories/:id')
+  async deleteCategory(@Param('id', ParseIntPipe) id: number) {
+    console.log('[DELETE /api/dishes/categories/:id]', { id });
+    return await this.dishesService.deleteCategory(id);
+  }
+
   // 获取所有菜品
   @Get()
   async getDishes(@Query('category_id') categoryId?: string) {

@@ -34,6 +34,8 @@ interface CartItem {
 export default function OrderPage() {
   const router = useRouter()
   const { table_id, table_number } = router.params
+  const decodedTableNumber = table_number ? decodeURIComponent(table_number as string) : ''
+  const hasTable = Boolean(table_id && Number(table_id))
 
   const [dishes, setDishes] = useState<Dish[]>([])
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
@@ -75,6 +77,11 @@ export default function OrderPage() {
 
   // 添加到购物车
   const addToCart = (dish: Dish, spec?: { id: number; spec_name: string; price: string }) => {
+    if (!hasTable) {
+      Taro.showToast({ title: '请先扫码桌台二维码', icon: 'none' })
+      return
+    }
+
     const price = spec ? parseFloat(spec.price) : parseFloat(dish.price)
     const specId = spec?.id
     const specName = spec?.spec_name
@@ -105,6 +112,11 @@ export default function OrderPage() {
 
   // 从购物车减少
   const removeFromCart = (dishId: number, specId?: number) => {
+    if (!hasTable) {
+      Taro.showToast({ title: '请先扫码桌台二维码', icon: 'none' })
+      return
+    }
+
     setCart(prev => {
       const existing = prev.find(
         item => item.dish_id === dishId && item.spec_id === specId
@@ -189,7 +201,10 @@ export default function OrderPage() {
       }
     } catch (error: any) {
       console.error('[提交订单错误]', error)
-      Taro.showToast({ title: error.message || '下单失败', icon: 'none' })
+      const message = typeof error === 'object' && error && 'message' in error
+        ? String((error as { message?: unknown }).message || '')
+        : ''
+      Taro.showToast({ title: message || '下单失败', icon: 'none' })
     } finally {
       setSubmitting(false)
     }
@@ -215,8 +230,12 @@ export default function OrderPage() {
     <View className="min-h-screen bg-gray-50 pb-24">
       {/* 顶部桌台信息 */}
       <View className="bg-orange-500 text-white px-4 py-3">
-        <Text className="block text-lg font-semibold">桌台：{table_number || '未知'}</Text>
-        <Text className="block text-sm opacity-90">请选择菜品后提交订单</Text>
+          <Text className="block text-lg font-semibold">
+            {hasTable ? `桌台：${decodedTableNumber || '未知'}` : '菜品浏览'}
+          </Text>
+          <Text className="block text-sm opacity-90">
+            {hasTable ? '请选择菜品后提交订单' : '请先扫码桌台二维码后再下单'}
+          </Text>
       </View>
 
       {/* 菜品分类标签 */}
@@ -355,7 +374,7 @@ export default function OrderPage() {
       </View>
 
       {/* 底部购物车栏 */}
-      {cart.length > 0 && (
+      {cart.length > 0 && hasTable && (
         <View
           style={{
             position: 'fixed',

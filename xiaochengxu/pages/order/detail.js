@@ -7,9 +7,9 @@ Page({
     order: null,
     statusMap: {
       'draft': '待提交',
-      'submitted': '已下单',
+      'submitted': '已提交',
       'printed': '已下单',
-      'settled': '已完成',
+      'settled': '已结账',
       'cancelled': '已取消',
       'refunded': '已退款'
     },
@@ -106,8 +106,9 @@ Page({
   },
 
   goToOrder() {
-    wx.redirectTo({
-      url: '/pages/order/order?addMore=true'
+    getApp().globalData.addMore = true;
+    wx.switchTab({
+      url: '/pages/order/order'
     });
   }
 })

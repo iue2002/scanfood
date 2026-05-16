@@ -14,6 +14,7 @@ Page({
     totalCount: 0,
     totalPrice: 0,
     currentOrderId: null,
+    orderStatus: null,
     hasScannedTable: false
   },
 
@@ -24,8 +25,9 @@ Page({
     let tableNumber = null;
     let rawTableId = options.tableId || getApp().globalData.tableId;
     
-    if (options.addMore) {
+    if (options.addMore || getApp().globalData.addMore) {
       this.isAddMore = true;
+      getApp().globalData.addMore = false;
     }
     
     const userInfo = wx.getStorageSync('userInfo');
@@ -63,6 +65,7 @@ Page({
 
   onShow() {
     if (this.data.tableId && !this.isAddMore) {
+      this.setData({ cartCount: {}, currentOrderId: null, totalCount: 0, totalPrice: '0.00' });
       this.fetchCurrentOrder();
     }
     this.updateTabBar();
@@ -145,12 +148,19 @@ Page({
       this.calculateTotal();
     } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
       if (this.isAddMore) {
-        this.isAddMore = false;
+        const cartCount = {};
+        order.order_items.forEach(item => {
+          cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
+        });
+        this.setData({ cartCount, currentOrderId: order.id });
+        this.calculateTotal();
         return;
       }
       wx.redirectTo({
         url: `/pages/order/detail?id=${order.id}`,
       });
+    } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
+      this.setData({ cartCount: {}, currentOrderId: null, totalCount: 0, totalPrice: '0.00' });
     }
   },
 
@@ -217,10 +227,10 @@ Page({
       
       const { serverURL } = require('../../utils/request');
       allDishes = allDishes.map(dish => {
-        if (dish.image_url) {
-          if (dish.image_url.startsWith('http://')) {
-            dish.image_url = dish.image_url.replace('http://', 'https://');
-          } else if (!dish.image_url.startsWith('http')) {
+        if (dish.image_url && !dish.image_url.startsWith('http')) {
+          if (dish.image_url.includes('__tmp__') || dish.image_url.includes('tmp/')) {
+            dish.image_url = '';
+          } else {
             dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
           }
         }
@@ -233,6 +243,7 @@ Page({
         currentCategory: categories.length > 0 ? categories[0].id : '',
         currentCategoryName: categories.length > 0 ? categories[0].name : ''
       });
+      getApp().globalData.allDishes = allDishes;
       this.filterDishes();
       this.fetchCurrentOrder();
     } catch (err) {
@@ -257,16 +268,36 @@ Page({
         order.order_items.forEach(item => {
           cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
         });
-        this.setData({ cartCount, currentOrderId: order.id });
+        this.setData({ cartCount, currentOrderId: order.id, orderStatus: 'draft' });
+        const cart = getApp().getCart(this.data.tableId);
+        cart.cartCount = { ...cartCount };
+        cart.currentOrderId = order.id;
+        cart.orderStatus = 'draft';
         this.calculateTotal();
       } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
         if (this.isAddMore) {
           this.isAddMore = false;
+          const cartCount = {};
+          order.order_items.forEach(item => {
+            cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
+          });
+          this.setData({ cartCount, currentOrderId: order.id, orderStatus: order.status });
+          const cart = getApp().getCart(this.data.tableId);
+          cart.cartCount = { ...cartCount };
+          cart.currentOrderId = order.id;
+          cart.orderStatus = order.status;
+          this.calculateTotal();
           return;
         }
         wx.redirectTo({
           url: `/pages/order/detail?id=${order.id}`,
         });
+      } else {
+        this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+        const cart = getApp().getCart(this.data.tableId);
+        cart.cartCount = {};
+        cart.currentOrderId = null;
+        cart.orderStatus = null;
       }
     } catch (err) {
       console.error('获取当前订单失败', err);
@@ -379,6 +410,21 @@ Page({
       return;
     }
 
+    if (!getApp().globalData.userInfo) {
+      wx.showModal({
+        title: '提示',
+        content: '请先登录后再点餐',
+        confirmText: '去登录',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            wx.switchTab({ url: '/pages/me/me' });
+          }
+        }
+      });
+      return;
+    }
+
     const { id, type } = e.currentTarget.dataset;
     const { cartCount } = this.data;
     const count = cartCount[id] || 0;
@@ -390,6 +436,8 @@ Page({
     }
 
     this.setData({ cartCount });
+    const cart = getApp().getCart(this.data.tableId);
+    cart.cartCount = { ...cartCount };
     this.calculateTotal();
     this.syncCartToBackend();
   },
@@ -417,7 +465,7 @@ Page({
   },
 
   async syncCartToBackend() {
-    const { cartCount, allDishes, tableId } = this.data;
+    const { cartCount, allDishes, tableId, currentOrderId } = this.data;
     if (!tableId) return;
     const items = [];
     
@@ -436,20 +484,55 @@ Page({
       }
     }
 
+    if (items.length === 0) {
+      if (currentOrderId) {
+        const { orderStatus } = this.data;
+        if (orderStatus === 'draft') {
+          await request({
+            url: `/orders/${currentOrderId}`,
+            method: 'DELETE',
+            noLoading: true
+          });
+        }
+        this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+        const cart = getApp().getCart(this.data.tableId);
+        cart.cartCount = {};
+        cart.currentOrderId = null;
+        cart.orderStatus = null;
+      }
+      return;
+    }
+
     try {
-      await request({
-        url: '/orders/sync-draft',
-        method: 'POST',
-        data: {
-          table_id: parseInt(tableId),
-          items: items,
-          user_id: getApp().globalData.userInfo?.id
-        },
-        noLoading: true
-      });
+      const { orderStatus } = this.data;
+      if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
+        await request({
+          url: `/orders/${currentOrderId}/sync-add-more`,
+          method: 'POST',
+          data: { items },
+          noLoading: true
+        });
+      } else {
+        await request({
+          url: '/orders/sync-draft',
+          method: 'POST',
+          data: {
+            table_id: parseInt(tableId),
+            items: items,
+            user_id: getApp().globalData.userInfo?.id
+          },
+          noLoading: true
+        });
+      }
     } catch (err) {
       console.error('同步购物车失败', err);
     }
+  },
+
+  goToCart() {
+    wx.navigateTo({
+      url: `/pages/order/cart?tableId=${this.data.tableId}&tableNumber=${this.data.tableNumber}`,
+    });
   },
 
   goToConfirm() {

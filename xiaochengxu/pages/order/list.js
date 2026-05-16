@@ -9,9 +9,9 @@ Page({
     currentTab: 'all',
     statusMap: {
       'draft': '待提交',
-      'submitted': '已下单',
+      'submitted': '已提交',
       'printed': '已下单',
-      'settled': '已完成',
+      'settled': '已结账',
       'cancelled': '已取消',
       'refunded': '已退款'
     },
@@ -140,40 +140,6 @@ Page({
             console.error('提交订单失败', err);
             wx.showToast({
               title: '提交失败，请重试',
-              icon: 'none'
-            });
-          }
-        }
-      }
-    });
-  },
-
-  async cancelOrder(e) {
-    const orderId = e.currentTarget.dataset.id;
-    
-    wx.showModal({
-      title: '确认取消',
-      content: '确定要取消此订单吗？',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            await request({
-              url: `/orders/${orderId}/status`,
-              method: 'PUT',
-              data: { status: 'cancelled' },
-              noLoading: true
-            });
-            
-            wx.showToast({
-              title: '订单已取消',
-              icon: 'success'
-            });
-            
-            this.fetchOrders();
-          } catch (err) {
-            console.error('取消订单失败', err);
-            wx.showToast({
-              title: '取消失败，请重试',
               icon: 'none'
             });
           }

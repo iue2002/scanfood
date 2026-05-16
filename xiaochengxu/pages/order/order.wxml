@@ -61,7 +61,7 @@
 
   <!-- 购物车栏 (悬浮) -->
   <view class="cart-bar" wx:if="{{totalCount > 0}}">
-    <view class="cart-info" bindtap="toggleCartDetail">
+    <view class="cart-info" bindtap="goToCart">
       <view class="cart-icon">🛒</view>
       <view class="badge">{{totalCount}}</view>
       <view class="total-price">￥{{totalPrice}}</view>

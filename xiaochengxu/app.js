@@ -77,6 +77,22 @@ App({
   globalData: {
     userInfo: null,
     token: null,
-    tableId: null
+    tableId: null,
+    carts: {},
+    allDishes: [],
+    addMore: false
+  },
+
+  getCart(tableId) {
+    const key = String(tableId);
+    if (!this.globalData.carts[key]) {
+      this.globalData.carts[key] = { cartCount: {}, currentOrderId: null, orderStatus: null };
+    }
+    return this.globalData.carts[key];
+  },
+
+  clearCart(tableId) {
+    const key = String(tableId);
+    this.globalData.carts[key] = { cartCount: {}, currentOrderId: null, orderStatus: null };
   }
 })

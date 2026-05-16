@@ -11,11 +11,11 @@
       <view class="tab-line" wx:if="{{currentTab === 'draft'}}"></view>
     </view>
     <view class="tab-item {{currentTab === 'submitted' ? 'active' : ''}}" bindtap="switchTab" data-tab="submitted">
-      <text class="tab-text">已下单</text>
+      <text class="tab-text">已提交</text>
       <view class="tab-line" wx:if="{{currentTab === 'submitted'}}"></view>
     </view>
     <view class="tab-item {{currentTab === 'settled' ? 'active' : ''}}" bindtap="switchTab" data-tab="settled">
-      <text class="tab-text">已完成</text>
+      <text class="tab-text">已结账</text>
       <view class="tab-line" wx:if="{{currentTab === 'settled'}}"></view>
     </view>
   </view>
@@ -68,8 +68,6 @@
         <!-- 订单底部操作 -->
         <view class="order-footer">
           <view class="order-actions">
-            <view class="action-btn" wx:if="{{item.status === 'draft'}}" catchtap="submitOrder" data-id="{{item.id}}">提交订单</view>
-            <view class="action-btn" wx:if="{{item.status === 'submitted'}}" catchtap="cancelOrder" data-id="{{item.id}}">取消订单</view>
             <view class="action-btn primary" catchtap="goToDetail" data-id="{{item.id}}">查看详情</view>
           </view>
         </view>

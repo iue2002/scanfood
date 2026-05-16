@@ -4,6 +4,7 @@
     "pages/order/confirm",
     "pages/order/detail",
     "pages/order/list",
+    "pages/order/cart",
     "pages/me/me",
     "pages/logs/logs"
   ],

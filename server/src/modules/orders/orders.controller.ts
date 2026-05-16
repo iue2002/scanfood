@@ -1,25 +1,37 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  // 获取桌台当前订单（扫码进入时使用）
+  @UseGuards(JwtAuthGuard)
   @Get('current/:tableId')
   async getTableCurrentOrder(@Param('tableId', ParseIntPipe) tableId: number) {
     console.log('[GET /api/orders/current/:tableId]', { tableId });
     return await this.ordersService.getTableCurrentOrder(tableId);
   }
 
-  // 同步草稿订单（购物车同步）
+  @UseGuards(JwtAuthGuard)
   @Post('sync-draft')
   async syncDraft(@Body() dto: CreateOrderDto) {
     console.log('[POST /api/orders/sync-draft]', dto);
     return await this.ordersService.syncDraft(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/sync-add-more')
+  async syncAddMore(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number }> },
+  ) {
+    console.log('[POST /api/orders/:id/sync-add-more]', { id, dto });
+    return await this.ordersService.syncAddMore(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getOrders(
     @Query('status') status?: string,
@@ -30,21 +42,21 @@ export class OrdersController {
     return await this.ordersService.getOrders(status, tableIdNum);
   }
 
-  // 获取订单详情
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getOrderById(@Param('id', ParseIntPipe) id: number) {
     console.log('[GET /api/orders/:id]', { id });
     return await this.ordersService.getOrderById(id);
   }
 
-  // 创建订单（下单）
+  @UseGuards(JwtAuthGuard)
   @Post()
   async createOrder(@Body() dto: CreateOrderDto) {
     console.log('[POST /api/orders]', dto);
     return await this.ordersService.createOrder(dto);
   }
 
-  // 加餐
+  @UseGuards(JwtAuthGuard)
   @Post(':id/items')
   async addOrderItem(
     @Param('id', ParseIntPipe) id: number,
@@ -54,7 +66,7 @@ export class OrdersController {
     return await this.ordersService.addOrderItem(id, dto);
   }
 
-  // 减餐
+  @UseGuards(JwtAuthGuard)
   @Delete(':id/items/:itemId')
   async removeOrderItem(
     @Param('id', ParseIntPipe) id: number,
@@ -66,7 +78,7 @@ export class OrdersController {
     return await this.ordersService.removeOrderItem(id, itemId, qty);
   }
 
-  // 更新订单状态（结账、取消等）
+  @UseGuards(JwtAuthGuard)
   @Post(':id/status')
   async updateOrderStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -74,5 +86,12 @@ export class OrdersController {
   ) {
     console.log('[POST /api/orders/:id/status]', { id, dto });
     return await this.ordersService.updateOrderStatus(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deleteOrder(@Param('id', ParseIntPipe) id: number) {
+    console.log('[DELETE /api/orders/:id]', { id });
+    return await this.ordersService.deleteOrder(id);
   }
 }

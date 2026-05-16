@@ -38,6 +38,10 @@ export class OrdersService {
   }
 
   async syncDraft(dto: CreateOrderDto) {
+    if (!dto.items || dto.items.length === 0) {
+      throw new BadRequestException('购物车不能为空');
+    }
+
     const tableId = dto.table_id;
     // 查找该桌台是否已有活跃订单（draft, submitted, printed）
     const activeOrder = await this.getTableCurrentOrder(tableId);
@@ -100,6 +104,43 @@ export class OrdersService {
     const order = await this.getOrderById(orderId as number);
     this.ordersGateway.notifyTableUpdate(tableId, order);
     return order;
+  }
+
+  async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number }> }) {
+    const order = await this.getOrderById(orderId);
+    if (!['submitted', 'printed'].includes(order.status)) {
+      throw new BadRequestException('订单状态不允许加餐');
+    }
+
+    let totalAmount = 0;
+    const itemsToInsert = dto.items.map(item => {
+      const subtotal = item.price * item.quantity;
+      totalAmount += subtotal;
+      return {
+        dish_id: item.dish_id,
+        spec_id: item.spec_id,
+        dish_name: item.dish_name,
+        spec_name: item.spec_name,
+        quantity: item.quantity,
+        price: item.price.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+      };
+    });
+
+    await db.delete(order_items).where(eq(order_items.order_id, orderId));
+    await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: orderId as number })));
+    await db.update(orders).set({
+      total_amount: totalAmount.toFixed(2),
+      updated_at: new Date(),
+    }).where(eq(orders.id, orderId));
+
+    this.printReceipt(orderId).catch(err => {
+      console.error('打印小票失败:', err);
+    });
+
+    const updatedOrder = await this.getOrderById(orderId);
+    this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    return updatedOrder;
   }
 
   async getOrders(status?: string, tableId?: number) {
@@ -297,5 +338,28 @@ export class OrdersService {
         error_message: String(err),
       }).where(eq(print_records.id, printId));
     }
+  }
+
+  async deleteOrder(orderId: number) {
+    const order = await this.getOrderById(orderId);
+    if (order.status !== 'draft') {
+      throw new BadRequestException('只能删除草稿状态的订单');
+    }
+
+    await db.delete(order_items).where(eq(order_items.order_id, orderId));
+    await db.delete(orders).where(eq(orders.id, orderId));
+
+    const tableResult = await db.select().from(tables).where(eq(tables.id, order.table_id));
+    const activeOrders = await db.select().from(orders)
+      .where(and(
+        eq(orders.table_id, order.table_id),
+        inArray(orders.status, ['draft', 'submitted', 'printed'])
+      ));
+    if (activeOrders.length === 0 && tableResult.length > 0) {
+      await db.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));
+    }
+
+    this.ordersGateway.notifyTableUpdate(order.table_id, null);
+    return { success: true };
   }
 }

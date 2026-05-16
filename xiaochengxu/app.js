@@ -3,13 +3,24 @@ const { request } = require('./utils/request');
 
 App({
   onLaunch() {
-    // 展示本地存储能力
     const logs = wx.getStorageSync('logs') || []
     logs.unshift(Date.now())
     wx.setStorageSync('logs', logs)
 
-    // 自动登录
-    this.login();
+    this.checkLoginStatus();
+  },
+
+  checkLoginStatus() {
+    const token = wx.getStorageSync('token');
+    const userInfo = wx.getStorageSync('userInfo');
+    
+    if (token && userInfo && userInfo.id) {
+      this.globalData.userInfo = userInfo;
+      this.globalData.token = token;
+    } else {
+      wx.removeStorageSync('token');
+      wx.removeStorageSync('userInfo');
+    }
   },
 
   login() {
@@ -20,7 +31,8 @@ App({
             request({
               url: '/auth/wechat-login',
               method: 'POST',
-              data: { code: res.code }
+              data: { code: res.code },
+              noLoading: true
             }).then(data => {
               wx.setStorageSync('token', data.token);
               wx.setStorageSync('userInfo', data.user);
@@ -31,15 +43,27 @@ App({
               console.error('登录失败', err);
               reject(err);
             });
+          } else {
+            console.error('获取登录code失败', res.errMsg);
+            reject(new Error('获取登录code失败'));
           }
+        },
+        fail: (err) => {
+          console.error('wx.login调用失败', err);
+          reject(err);
         }
       });
     });
   },
 
+  updateUserInfo(userInfo) {
+    this.globalData.userInfo = userInfo;
+    wx.setStorageSync('userInfo', userInfo);
+  },
+
   globalData: {
     userInfo: null,
     token: null,
-    tableId: null // 当前扫码绑定的桌台ID
+    tableId: null
   }
 })

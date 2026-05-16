@@ -1,14 +1,77 @@
 <!--pages/me/me.wxml-->
 <view class="me-container">
-  <view class="user-card">
-    <image class="avatar" src="{{userInfo.avatar_url || userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
-    <view class="nickname">{{userInfo.nickname || userInfo.nickName || '微信用户'}}</view>
+  <!-- 用户信息 -->
+  <view class="user-card" bindtap="showAuthModal" wx:if="{{!userInfo}}">
+    <image class="avatar" src="/images/default-avatar.png"></image>
+    <view class="user-info">
+      <view class="nickname">点击登录</view>
+      <view class="login-hint">登录后查看订单记录</view>
+    </view>
   </view>
 
+  <view class="user-card" wx:if="{{userInfo}}">
+    <image class="avatar" src="{{userInfo.avatar_url || userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+    <view class="user-info">
+      <view class="nickname">{{userInfo.nickname || userInfo.nickName || '微信用户'}}</view>
+    </view>
+  </view>
+
+  <!-- 授权弹窗 -->
+  <view class="auth-modal" wx:if="{{showAuthModal}}">
+    <view class="modal-mask" bindtap="hideAuthModal"></view>
+    <view class="modal-content">
+      <view class="modal-header">
+        <text class="modal-title">用户信息授权</text>
+      </view>
+      <view class="modal-body">
+        <view class="auth-desc">
+          <text class="desc-title">我们需要获取您的以下信息：</text>
+          <view class="desc-item">
+            <text class="item-icon">👤</text>
+            <text class="item-text">微信昵称 - 用于显示您的用户名</text>
+          </view>
+          <view class="desc-item">
+            <text class="item-icon">🖼️</text>
+            <text class="item-text">微信头像 - 用于个性化展示</text>
+          </view>
+        </view>
+        <view class="auth-notice">
+          <text class="notice-icon">🔒</text>
+          <text class="notice-text">我们承诺保护您的隐私安全，获取的信息仅用于小程序内展示，不会泄露给第三方。</text>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="hideAuthModal">暂不授权</button>
+        <button class="btn-confirm" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          同意并授权
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 昵称输入弹窗 -->
+  <view class="nickname-modal" wx:if="{{showNicknameModal}}">
+    <view class="modal-mask" bindtap="hideNicknameModal"></view>
+    <view class="modal-content">
+      <view class="modal-header">
+        <text class="modal-title">设置昵称</text>
+      </view>
+      <view class="modal-body">
+        <input class="nickname-input-modal" type="nickname" placeholder="请输入您的昵称" value="{{tempNickname}}" bindinput="onNicknameInputChange" focus="{{showNicknameModal}}" />
+      </view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="hideNicknameModal">取消</button>
+        <button class="btn-confirm" bindtap="confirmLogin">确认登录</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 我的订单 -->
   <view class="section">
     <view class="section-title">我的订单</view>
-    <view wx:if="{{orders.length === 0}}" class="empty">暂无订单</view>
-    <view wx:for="{{orders}}" wx:key="id" class="order-item" bindtap="goToDetail" data-id="{{item.id}}">
+    <view wx:if="{{!userInfo}}" class="empty">请先登录后查看订单</view>
+    <view wx:if="{{userInfo && orders.length === 0}}" class="empty">暂无订单</view>
+    <view wx:if="{{userInfo && orders.length > 0}}" wx:for="{{orders}}" wx:key="id" class="order-item" bindtap="goToDetail" data-id="{{item.id}}">
       <view class="order-header">
         <text class="order-no">单号：{{item.order_number}}</text>
         <text class="order-status">{{statusMap[item.status]}}</text>

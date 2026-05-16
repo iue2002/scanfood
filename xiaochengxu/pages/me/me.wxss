@@ -1,8 +1,10 @@
 /* pages/me/me.wxss */
 .me-container {
   padding: 30rpx;
+  padding-bottom: 140rpx;
   background: #f8f8f8;
   min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .user-card {
@@ -20,12 +22,24 @@
   border-radius: 60rpx;
   background: #eee;
   margin-right: 30rpx;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .nickname {
   font-size: 36rpx;
   font-weight: bold;
   color: #333;
+}
+
+.login-hint {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
 }
 
 .section {
@@ -93,4 +107,180 @@
 .order-time {
   font-size: 24rpx;
   color: #ccc;
+}
+
+/* 授权弹窗样式 */
+.auth-modal,
+.nickname-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 40rpx 30rpx 20rpx;
+  text-align: center;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.modal-body {
+  padding: 30rpx;
+}
+
+.auth-desc {
+  margin-bottom: 30rpx;
+}
+
+.desc-title {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  font-weight: bold;
+  margin-bottom: 20rpx;
+}
+
+.desc-item {
+  display: flex;
+  align-items: center;
+  padding: 15rpx 0;
+}
+
+.item-icon {
+  font-size: 32rpx;
+  margin-right: 15rpx;
+}
+
+.item-text {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.auth-notice {
+  display: flex;
+  align-items: flex-start;
+  background: #f8f9fa;
+  padding: 20rpx;
+  border-radius: 8rpx;
+}
+
+.notice-icon {
+  font-size: 28rpx;
+  margin-right: 10rpx;
+  flex-shrink: 0;
+}
+
+.notice-text {
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.6;
+}
+
+.modal-footer {
+  display: flex;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.btn-cancel,
+.btn-confirm {
+  flex: 1;
+  height: 90rpx;
+  line-height: 90rpx;
+  text-align: center;
+  font-size: 30rpx;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.btn-cancel {
+  color: #999;
+  background: #fff;
+}
+
+.btn-confirm {
+  color: #fff;
+  background: #ff9d00;
+}
+
+.btn-cancel::after,
+.btn-confirm::after {
+  border: none;
+}
+
+/* 昵称输入框 */
+.nickname-input-modal {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 20rpx;
+  border: 2rpx solid #eee;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.nickname-input-modal:focus {
+  border-color: #ff9d00;
+}
+
+/* 头像按钮 */
+.avatar-btn {
+  padding: 0;
+  margin: 0;
+  margin-right: 30rpx;
+  background: none;
+  border: none;
+  line-height: 1;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.avatar-btn .avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  background: #eee;
+}
+
+/* 昵称输入框（已登录状态） */
+.nickname-input {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  border: none;
+  background: none;
+  padding: 0;
+  width: 100%;
 }

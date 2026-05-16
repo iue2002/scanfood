@@ -3,8 +3,11 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   background: #f8f8f8;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
 }
 
 /* 顶部桌号栏 */
@@ -175,7 +178,7 @@
 /* 购物车栏 (悬浮) */
 .cart-bar {
   position: fixed;
-  bottom: 130rpx; /* 位于底部导航栏之上 */
+  bottom: 20rpx;
   left: 30rpx;
   right: 30rpx;
   height: 100rpx;
@@ -227,36 +230,4 @@
   padding: 0 50rpx;
   margin-right: -40rpx;
   border-radius: 0 50rpx 50rpx 0;
-}
-
-/* 全局底部导航栏 */
-.tab-bar {
-  height: 110rpx;
-  background: #fff;
-  display: flex;
-  border-top: 1rpx solid #eee;
-  padding-bottom: env(safe-area-inset-bottom);
-  flex-shrink: 0;
-}
-
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.tab-icon {
-  font-size: 40rpx;
-  margin-bottom: 4rpx;
-}
-
-.tab-text {
-  font-size: 20rpx;
-  color: #999;
-}
-
-.tab-item.active .tab-text {
-  color: #ff9d00;
 }

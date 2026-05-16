@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { LoginDto, RegisterDto, WechatLoginDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -26,8 +26,15 @@ export class AuthController {
   @Post('wechat-login')
   async wechatLogin(@Body() dto: WechatLoginDto) {
     console.log('[POST /api/auth/wechat-login]', dto);
-    const result = await this.authService.wechatLogin(dto.code);
+    const result = await this.authService.wechatLogin(dto.code, dto.nickname, dto.avatar_url);
     console.log('[Response]', result);
+    return result;
+  }
+
+  @Post('update-profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    const result = await this.authService.updateProfile(req.user.userId, dto);
     return result;
   }
 

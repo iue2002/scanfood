@@ -31,5 +31,23 @@ export class RegisterDto {
 
 export class WechatLoginDto {
   @IsString()
-  code: string; // 微信登录code
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  nickname?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar_url?: string;
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  nickname?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar_url?: string;
 }

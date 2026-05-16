@@ -13,35 +13,31 @@ Page({
     cartCount: {}, 
     totalCount: 0,
     totalPrice: 0,
+    currentOrderId: null
   },
 
-  isFetchingOrder: false, // 防止轮询重叠
+  isFetchingOrder: false,
 
   onLoad(options) {
     let tableNumber = null;
     let rawTableId = options.tableId || getApp().globalData.tableId;
     
-    // 处理微信官方小程序码扫码进入的情况 (options.scene)
     if (options.scene) {
       const scene = decodeURIComponent(options.scene);
       console.log('解析 scene:', scene);
-      // 先尝试匹配 tableNumber
       const tableNumberMatch = scene.match(/tableNumber=([^&]+)/);
       if (tableNumberMatch) {
         tableNumber = tableNumberMatch[1];
       } else {
-        // 兼容旧版本：匹配 id
         const idMatch = scene.match(/id=(\d+)/) || scene.match(/^(\d+)$/);
         rawTableId = idMatch ? idMatch[1] : scene;
       }
     }
 
-    // 优先使用 tableNumber 获取桌台信息
     if (tableNumber) {
       this.setData({ tableNumber });
       this.fetchTableInfoByNumber(tableNumber);
     } else if (rawTableId) {
-      // 确保 tableId 是纯数字字符串，防止 400 错误
       const tableId = String(rawTableId).replace(/[^\d]/g, '');
       if (tableId) {
         this.setData({ tableId });
@@ -51,6 +47,12 @@ Page({
     }
     this.fetchData();
     this.startPolling();
+  },
+
+  onShow() {
+    if (this.data.tableId) {
+      this.fetchCurrentOrder();
+    }
   },
 
   onUnload() {
@@ -64,6 +66,10 @@ Page({
       getApp().globalData.tableId = table.id;
     } catch (err) {
       console.error('获取桌台信息失败', err);
+      wx.showToast({
+        title: '获取桌台信息失败',
+        icon: 'none'
+      });
     }
   },
 
@@ -74,23 +80,27 @@ Page({
       getApp().globalData.tableId = table.id;
     } catch (err) {
       console.error('获取桌台信息失败', err);
+      wx.showToast({
+        title: '获取桌台信息失败',
+        icon: 'none'
+      });
     }
   },
 
   async fetchData() {
     try {
-      const categories = await request({ url: '/dishes/categories' });
-      let allDishes = await request({ url: '/dishes' });
+      console.log('开始获取菜品数据...');
+      const categories = await request({ url: '/dishes/categories', noLoading: true });
+      console.log('获取到分类:', categories);
+      
+      let allDishes = await request({ url: '/dishes', noLoading: true });
+      console.log('获取到菜品:', allDishes);
       
       const { serverURL } = require('../../utils/request');
       allDishes = allDishes.map(dish => {
         if (dish.image_url) {
           if (!dish.image_url.startsWith('http')) {
-            // 本地文件路径，拼接服务器地址
             dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
-          } else {
-            // 外部图片URL，在真机上转换为https（开发者工具可以不校验）
-            // 注意：这里我们不强制转换，让微信自己处理
           }
         }
         return dish;
@@ -106,6 +116,10 @@ Page({
       this.fetchCurrentOrder();
     } catch (err) {
       console.error('加载数据失败', err);
+      wx.showToast({
+        title: '加载数据失败，请重试',
+        icon: 'none'
+      });
     }
   },
 
@@ -125,7 +139,6 @@ Page({
         this.setData({ cartCount, currentOrderId: order.id });
         this.calculateTotal();
       } else if (order && (order.status === 'submitted' || order.status === 'printed')) {
-        // 已经下单，跳转到详情页
         wx.redirectTo({
           url: `/pages/order/detail?id=${order.id}`,
         });
@@ -149,28 +162,37 @@ Page({
     }
   },
 
-  goToMe() {
-    wx.navigateTo({
-      url: '/pages/me/me',
-    });
-  },
-
   startScan() {
     wx.scanCode({
       onlyFromCamera: true,
       success: (res) => {
         let tableId = '';
+        let tableNumber = '';
+        
         if (res.result.includes('table_id=')) {
           tableId = res.result.split('table_id=')[1];
+        } else if (res.result.includes('tableNumber=')) {
+          tableNumber = res.result.split('tableNumber=')[1];
         } else {
           tableId = res.result;
         }
 
-        if (tableId) {
+        if (tableNumber) {
+          this.setData({ tableNumber });
+          this.fetchTableInfoByNumber(tableNumber);
+        } else if (tableId) {
           getApp().globalData.tableId = tableId;
           this.setData({ tableId });
           this.fetchTableInfo(tableId);
-          this.fetchCurrentOrder(); 
+        }
+        this.fetchCurrentOrder(); 
+      },
+      fail: (err) => {
+        if (err.errMsg !== 'scanCode:fail cancel') {
+          wx.showToast({
+            title: '扫码失败',
+            icon: 'none'
+          });
         }
       }
     });

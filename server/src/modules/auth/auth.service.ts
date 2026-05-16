@@ -2,13 +2,41 @@ import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { db } from '@/storage/database/mysql-client';
 import { users } from '@/storage/database/shared/schema';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, UpdateProfileDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
+import * as https from 'https';
 
 @Injectable()
 export class AuthService {
   constructor(private readonly jwtService: JwtService) {}
+
+  async getOpenIdFromCode(code: string): Promise<string> {
+    const appId = process.env.WX_APP_ID || process.env.WECHAT_APPID;
+    const appSecret = process.env.WX_APP_SECRET || process.env.WECHAT_APPSECRET;
+    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${appSecret}&js_code=${code}&grant_type=authorization_code`;
+
+    return new Promise((resolve, reject) => {
+      https.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            if (result.errcode) {
+              reject(new Error(`微信API错误: ${result.errmsg}`));
+            } else {
+              resolve(result.openid);
+            }
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }).on('error', (err) => {
+        reject(err);
+      });
+    });
+  }
 
   async login(dto: LoginDto) {
     const result = await db.select().from(users).where(eq(users.username, dto.username));
@@ -48,8 +76,10 @@ export class AuthService {
     };
   }
 
-  async wechatLogin(code: string) {
-    const openid = code;
+  async wechatLogin(code: string, nickname?: string, avatar_url?: string) {
+    const openid = await this.getOpenIdFromCode(code);
+    console.log('获取到openid:', openid);
+    
     const existing = await db.select().from(users).where(eq(users.openid, openid));
     if (existing.length > 0) {
       const user = existing[0];
@@ -67,7 +97,8 @@ export class AuthService {
       password: hashedPassword,
       role: 'customer',
       openid,
-      nickname: '微信用户',
+      nickname: nickname || '微信用户',
+      avatar_url: avatar_url || '',
     });
 
     const newId = (insertResult as any)[0].insertId;
@@ -79,6 +110,32 @@ export class AuthService {
       token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),
       isNewUser: true,
     };
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const updateData: any = {};
+    if (dto.nickname !== undefined) updateData.nickname = dto.nickname;
+    if (dto.avatar_url !== undefined) updateData.avatar_url = dto.avatar_url;
+
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestException('没有需要更新的字段');
+    }
+
+    await db.update(users).set(updateData).where(eq(users.id, userId));
+
+    const result = await db.select({
+      id: users.id,
+      username: users.username,
+      role: users.role,
+      openid: users.openid,
+      nickname: users.nickname,
+      avatar_url: users.avatar_url,
+      created_at: users.created_at,
+    }).from(users).where(eq(users.id, userId));
+
+    const user = result[0];
+    if (!user) throw new UnauthorizedException('用户不存在');
+    return user;
   }
 
   async getUserInfo(userId: number) {

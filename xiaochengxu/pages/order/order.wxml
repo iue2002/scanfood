@@ -62,20 +62,4 @@
     </view>
     <view class="submit-btn" bindtap="goToConfirm">选好了</view>
   </view>
-
-  <!-- 全局底部导航栏 -->
-  <view class="tab-bar">
-    <view class="tab-item active">
-      <text class="tab-icon">🍴</text>
-      <text class="tab-text">点餐</text>
-    </view>
-    <view class="tab-item" bindtap="goToMe">
-      <text class="tab-icon">📋</text>
-      <text class="tab-text">订单</text>
-    </view>
-    <view class="tab-item" bindtap="goToMe">
-      <text class="tab-icon">👤</text>
-      <text class="tab-text">我的</text>
-    </view>
-  </view>
 </view>

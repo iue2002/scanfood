@@ -1,5 +1,12 @@
 <!--pages/order/order.wxml-->
 <view class="order-container">
+  <!-- 未扫码提示 -->
+  <view class="scan-prompt" wx:if="{{!hasScannedTable}}" bindtap="startScan">
+    <text class="prompt-icon"></text>
+    <text class="prompt-text">请先扫描桌码</text>
+    <text class="prompt-arrow">›</text>
+  </view>
+
   <!-- 顶部桌号 -->
   <view class="header-bar">
     <view class="table-info">
@@ -60,6 +67,6 @@
       <view class="badge">{{totalCount}}</view>
       <view class="total-price">￥{{totalPrice}}</view>
     </view>
-    <view class="submit-btn" bindtap="goToConfirm">选好了</view>
+    <view class="submit-btn" bindtap="goToConfirm">下单</view>
   </view>
 </view>

@@ -1,30 +1,30 @@
 /* pages/order/confirm.wxss */
 .confirm-container {
-  padding: 30rpx;
+  padding: 20rpx;
   background: #f8f8f8;
   min-height: 100vh;
-  padding-bottom: 120rpx;
+  padding-bottom: 100rpx;
 }
 
 .section {
   background: #fff;
-  border-radius: 12rpx;
-  padding: 30rpx;
-  margin-bottom: 30rpx;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: 28rpx;
   font-weight: bold;
-  margin-bottom: 30rpx;
+  margin-bottom: 16rpx;
   color: #333;
 }
 
 .item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20rpx;
-  font-size: 28rpx;
+  margin-bottom: 12rpx;
+  font-size: 26rpx;
   color: #666;
 }
 
@@ -33,23 +33,23 @@
 }
 
 .qty {
-  width: 100rpx;
+  width: 80rpx;
   text-align: center;
 }
 
 .price {
-  width: 150rpx;
+  width: 120rpx;
   text-align: right;
   color: #333;
 }
 
 .total-row {
   border-top: 1rpx solid #eee;
-  padding-top: 20rpx;
-  margin-top: 20rpx;
+  padding-top: 12rpx;
+  margin-top: 12rpx;
   display: flex;
   justify-content: space-between;
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: bold;
 }
 
@@ -61,7 +61,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20rpx 0;
+  padding: 14rpx 0;
   border-bottom: 1rpx solid #eee;
 }
 
@@ -70,20 +70,20 @@
 }
 
 .label {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #333;
 }
 
 .picker {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #666;
 }
 
 .input {
   text-align: right;
-  font-size: 28rpx;
+  font-size: 26rpx;
   flex: 1;
-  margin-left: 30rpx;
+  margin-left: 20rpx;
 }
 
 .footer {
@@ -91,24 +91,24 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 100rpx;
+  height: 90rpx;
   background: #fff;
   display: flex;
   align-items: center;
-  padding: 0 30rpx;
-  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.05);
+  padding: 0 20rpx;
+  box-shadow: 0 -2rpx 8rpx rgba(0,0,0,0.05);
 }
 
 .total {
   flex: 1;
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #333;
 }
 
 .submit-btn {
-  width: 240rpx !important;
+  width: 200rpx !important;
   margin: 0 !important;
-  border-radius: 50rpx !important;
-  font-size: 30rpx !important;
+  border-radius: 40rpx !important;
+  font-size: 28rpx !important;
   background: #ff9d00 !important;
 }

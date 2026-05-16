@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
+import { OrdersGateway } from '@/modules/orders/orders.gateway';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 
@@ -45,8 +46,14 @@ async function bootstrap() {
   // 2. 解析端口
   const port = parsePort();
   try {
+    const httpServer = app.getHttpServer();
     await app.listen(port);
     console.log(`Server running on http://localhost:${port}`);
+
+    // 初始化 WebSocket 服务器
+    const ordersGateway = app.get(OrdersGateway);
+    ordersGateway.init(httpServer);
+    console.log(`WebSocket server running on ws://localhost:${port}/ws`);
   } catch (err) {
     if (err.code === 'EADDRINUSE') {
       console.error(`❌ 端口 \({port} 被占用! 请运行 'npx kill-port \){port}' 然后重试。`);

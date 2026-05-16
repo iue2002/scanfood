@@ -1,19 +1,43 @@
 <!--pages/me/me.wxml-->
 <view class="me-container">
-  <!-- 用户信息 -->
-  <view class="user-card" bindtap="showAuthModal" wx:if="{{!userInfo}}">
-    <image class="avatar" src="/images/default-avatar.png"></image>
-    <view class="user-info">
-      <view class="nickname">点击登录</view>
-      <view class="login-hint">登录后查看订单记录</view>
+  <!-- 用户信息头部 -->
+  <view class="user-header">
+    <view class="user-card" wx:if="{{userInfo}}" bindtap="showAuthModal">
+      <image wx:if="{{userInfo.avatar_url || userInfo.avatarUrl}}" class="avatar" src="{{userInfo.avatar_url || userInfo.avatarUrl}}" mode="aspectFill"></image>
+      <view wx:else class="avatar avatar-placeholder">
+        <text class="avatar-icon">👤</text>
+      </view>
+      <view class="user-detail">
+        <view class="user-name">{{userInfo.nickname || userInfo.nickName || '微信用户'}}</view>
+        <view class="user-id">ID: {{userInfo.id || '未登录'}}</view>
+      </view>
+    </view>
+    <view class="user-card" wx:else bindtap="showAuthModal">
+      <view class="avatar avatar-placeholder">
+        <text class="avatar-icon">👤</text>
+      </view>
+      <view class="user-detail">
+        <view class="user-name">点击登录</view>
+        <view class="user-id">登录后查看订单记录</view>
+      </view>
     </view>
   </view>
 
-  <view class="user-card" wx:if="{{userInfo}}">
-    <image class="avatar" src="{{userInfo.avatar_url || userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
-    <view class="user-info">
-      <view class="nickname">{{userInfo.nickname || userInfo.nickName || '微信用户'}}</view>
+  <!-- 功能入口 -->
+  <view class="menu-section" wx:if="{{userInfo}}">
+    <view class="menu-item" bindtap="goToOrders">
+      <view class="menu-icon">📋</view>
+      <view class="menu-text">我的订单</view>
+      <view class="menu-arrow">›</view>
     </view>
+  </view>
+
+  <!-- 未登录提示 -->
+  <view class="empty" wx:if="{{!userInfo}}">
+    <view class="empty-icon">🔐</view>
+    <view class="empty-text">请先登录</view>
+    <view class="empty-desc">登录后查看您的订单记录</view>
+    <view class="login-btn" bindtap="showAuthModal">立即登录</view>
   </view>
 
   <!-- 授权弹窗 -->
@@ -63,24 +87,6 @@
         <button class="btn-cancel" bindtap="hideNicknameModal">取消</button>
         <button class="btn-confirm" bindtap="confirmLogin">确认登录</button>
       </view>
-    </view>
-  </view>
-
-  <!-- 我的订单 -->
-  <view class="section">
-    <view class="section-title">我的订单</view>
-    <view wx:if="{{!userInfo}}" class="empty">请先登录后查看订单</view>
-    <view wx:if="{{userInfo && orders.length === 0}}" class="empty">暂无订单</view>
-    <view wx:if="{{userInfo && orders.length > 0}}" wx:for="{{orders}}" wx:key="id" class="order-item" bindtap="goToDetail" data-id="{{item.id}}">
-      <view class="order-header">
-        <text class="order-no">单号：{{item.order_number}}</text>
-        <text class="order-status">{{statusMap[item.status]}}</text>
-      </view>
-      <view class="order-content">
-        <text class="order-info">桌台：{{item.tables.table_number}}</text>
-        <text class="order-price">￥{{item.total_amount}}</text>
-      </view>
-      <view class="order-time">{{item.created_at}}</view>
     </view>
   </view>
 </view>

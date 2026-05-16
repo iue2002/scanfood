@@ -89,10 +89,10 @@ export class TablesService {
   async generateQrCode(id: number) {
     const table = await this.getTableById(id);
     
-    // 使用桌台编号而不是数据库ID，这样更直观且便于用户使用
-    const scene = `tableNumber=${table.table_number}`;
-    // 先尝试使用首页，因为它一定存在
-    const page = 'pages/index/index';
+    // scene参数只传桌台编号，不带前缀（与yanshi项目一致）
+    const scene = table.table_number;
+    // 使用 order 页面
+    const page = 'pages/order/order';
     
     try {
       console.log('生成微信小程序码...');

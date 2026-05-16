@@ -3,6 +3,7 @@
     "pages/order/order",
     "pages/order/confirm",
     "pages/order/detail",
+    "pages/order/list",
     "pages/me/me",
     "pages/logs/logs"
   ],
@@ -13,6 +14,7 @@
     "backgroundColor": "#f8f8f8"
   },
   "tabBar": {
+    "custom": true,
     "color": "#999999",
     "selectedColor": "#ff9d00",
     "backgroundColor": "#ffffff",

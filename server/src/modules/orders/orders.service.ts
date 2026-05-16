@@ -3,9 +3,11 @@ import { db } from '@/storage/database/mysql-client';
 import { orders, order_items, tables, users, print_records } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { eq, and, inArray, desc } from 'drizzle-orm';
+import { OrdersGateway } from './orders.gateway';
 
 @Injectable()
 export class OrdersService {
+  constructor(private readonly ordersGateway: OrdersGateway) {}
   private generateOrderNumber(): string {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
@@ -95,7 +97,9 @@ export class OrdersService {
       await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, tableId));
     }
 
-    return await this.getOrderById(orderId as number);
+    const order = await this.getOrderById(orderId as number);
+    this.ordersGateway.notifyTableUpdate(tableId, order);
+    return order;
   }
 
   async getOrders(status?: string, tableId?: number) {
@@ -181,7 +185,9 @@ export class OrdersService {
       console.error('打印小票失败:', err);
     });
 
-    return await this.getOrderById(orderId);
+    const order = await this.getOrderById(orderId);
+    this.ordersGateway.notifyOrderStatusChange(dto.table_id, order);
+    return order;
   }
 
   async addOrderItem(orderId: number, dto: AddOrderItemDto) {
@@ -209,7 +215,9 @@ export class OrdersService {
       console.error('打印小票失败:', err);
     });
 
-    return await this.getOrderById(orderId);
+    const updatedOrder = await this.getOrderById(orderId);
+    this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    return updatedOrder;
   }
 
   async removeOrderItem(orderId: number, itemId: number, quantity?: number) {
@@ -238,7 +246,9 @@ export class OrdersService {
       await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
     }
 
-    return await this.getOrderById(orderId);
+    const updatedOrder = await this.getOrderById(orderId);
+    this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    return updatedOrder;
   }
 
   async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
@@ -251,7 +261,9 @@ export class OrdersService {
     }
 
     await db.update(orders).set(updateData).where(eq(orders.id, orderId));
-    return await this.getOrderById(orderId);
+    const updatedOrder = await this.getOrderById(orderId);
+    this.ordersGateway.notifyOrderStatusChange(order.table_id, updatedOrder);
+    return updatedOrder;
   }
 
   private async printReceipt(orderId: number) {

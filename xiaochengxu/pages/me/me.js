@@ -4,15 +4,6 @@ const { request } = require('../../utils/request');
 Page({
   data: {
     userInfo: null,
-    orders: [],
-    statusMap: {
-      'draft': '草稿',
-      'submitted': '待接单',
-      'printed': '制作中',
-      'settled': '已结账',
-      'cancelled': '已取消',
-      'refunded': '已退款'
-    },
     isLoading: false,
     showAuthModal: false,
     showNicknameModal: false,
@@ -23,6 +14,13 @@ Page({
   onShow() {
     this.setData({ isLoading: false });
     this.loadUserInfo();
+    this.updateTabBar();
+  },
+
+  updateTabBar() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 1 });
+    }
   },
 
   loadUserInfo() {
@@ -34,7 +32,6 @@ Page({
       this.setData({ userInfo: backendUser });
       app.globalData.userInfo = backendUser;
       app.globalData.token = token;
-      this.fetchOrders();
     }
   },
 
@@ -126,7 +123,6 @@ Page({
       });
 
       this.setData({ isLoading: false });
-      this.fetchOrders();
     } catch (err) {
       console.error('微信登录失败', err);
       this.setData({ isLoading: false });
@@ -137,74 +133,9 @@ Page({
     }
   },
 
-  updateUserProfile(userId, nickname, avatarUrl) {
-    const data = {};
-    if (nickname) data.nickname = nickname;
-    if (avatarUrl) data.avatar_url = avatarUrl;
-    
-    if (Object.keys(data).length === 0) return;
-
-    request({
-      url: '/auth/update-profile',
-      method: 'POST',
-      data: data,
-      noLoading: true
-    }).then(() => {
-      console.log('更新用户资料成功');
-    }).catch(err => {
-      console.error('更新用户资料失败（不影响使用）', err);
-    });
-  },
-
-  async fetchOrders() {
-    if (this.data.isLoading) return;
-    this.setData({ isLoading: true });
-    
-    try {
-      const userInfo = this.data.userInfo;
-      
-      if (!userInfo || !userInfo.id) {
-        console.warn('用户信息未加载，无法获取订单');
-        this.setData({ isLoading: false });
-        return;
-      }
-      
-      const orders = await request({ url: '/orders' });
-      
-      const myOrders = orders
-        .filter(o => o.user_id === userInfo.id && o.status !== 'draft')
-        .map(order => {
-          if (order.created_at) {
-            order.created_at = this.formatDate(order.created_at);
-          }
-          return order;
-        });
-      
-      this.setData({ orders: myOrders, isLoading: false });
-    } catch (err) {
-      console.error('获取订单列表失败', err);
-      this.setData({ isLoading: false });
-      wx.showToast({
-        title: '获取订单失败',
-        icon: 'none'
-      });
-    }
-  },
-
-  formatDate(dateStr) {
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hour = String(date.getHours()).padStart(2, '0');
-    const minute = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hour}:${minute}`;
-  },
-
-  goToDetail(e) {
-    const id = e.currentTarget.dataset.id;
+  goToOrders() {
     wx.navigateTo({
-      url: `/pages/order/detail?id=${id}`,
+      url: '/pages/order/list'
     });
   }
 })

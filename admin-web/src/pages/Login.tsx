@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/api/request'
 import { UtensilsCrossed, Loader } from 'lucide-react'
+import { useModal } from '@/components/ModalProvider'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -10,6 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const { showToast } = useModal()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,7 +25,7 @@ export default function Login() {
         navigate('/')
       }
     } catch (err: any) {
-      alert(err.message || '登录失败')
+      showToast(err.message || '登录失败', 'error')
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import request from '@/api/request'
 import { CheckCircle, XCircle, Eye } from 'lucide-react'
+import { useModal } from '@/components/ModalProvider'
 
 interface Order {
   id: number
@@ -32,6 +33,7 @@ export default function OrderManage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [filterStatus, setFilterStatus] = useState('')
   const [detail, setDetail] = useState<Order | null>(null)
+  const { showToast, showConfirm } = useModal()
 
   const fetchOrders = () => {
     const params: any = {}
@@ -44,15 +46,19 @@ export default function OrderManage() {
   }, [filterStatus])
 
   const handleSettle = async (id: number) => {
-    if (!confirm('确认标记该订单为已结账？')) return
-    await request.post(`/orders/${id}/status`, { status: 'settled' })
-    fetchOrders()
+    showConfirm('确认结账', '确认标记该订单为已结账？', async () => {
+      await request.post(`/orders/${id}/status`, { status: 'settled' })
+      fetchOrders()
+      showToast('订单已结账', 'success')
+    })
   }
 
   const handleCancel = async (id: number) => {
-    if (!confirm('确认取消该订单？')) return
-    await request.post(`/orders/${id}/status`, { status: 'cancelled' })
-    fetchOrders()
+    showConfirm('确认取消', '确认取消该订单？', async () => {
+      await request.post(`/orders/${id}/status`, { status: 'cancelled' })
+      fetchOrders()
+      showToast('订单已取消', 'success')
+    })
   }
 
   return (

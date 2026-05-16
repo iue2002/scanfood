@@ -9,6 +9,7 @@ import OrderManage from './pages/OrderManage'
 import DishManage from './pages/DishManage'
 import RefundManage from './pages/RefundManage'
 import Statistics from './pages/Statistics'
+import { ModalProvider } from './components/ModalProvider'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -17,24 +18,26 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <PrivateRoute>
-            <Layout />
-          </PrivateRoute>
-        }
-      >
-        <Route index element={<TableBoard />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="tables" element={<TableManage />} />
-        <Route path="orders" element={<OrderManage />} />
-        <Route path="dishes" element={<DishManage />} />
-        <Route path="refunds" element={<RefundManage />} />
-        <Route path="statistics" element={<Statistics />} />
-      </Route>
-    </Routes>
+    <ModalProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <Layout />
+            </PrivateRoute>
+          }
+        >
+          <Route index element={<TableBoard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="tables" element={<TableManage />} />
+          <Route path="orders" element={<OrderManage />} />
+          <Route path="dishes" element={<DishManage />} />
+          <Route path="refunds" element={<RefundManage />} />
+          <Route path="statistics" element={<Statistics />} />
+        </Route>
+      </Routes>
+    </ModalProvider>
   )
 }

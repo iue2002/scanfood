@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import request from '@/api/request'
 import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen } from 'lucide-react'
+import { useModal } from '@/components/ModalProvider'
 
 interface Category {
   id: number
@@ -26,6 +27,7 @@ export default function DishManage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Dish | null>(null)
   const [form, setForm] = useState({ name: '', price: '', category_id: 0, image_url: '' })
+  const { showToast, showConfirm } = useModal()
 
   const [showCatModal, setShowCatModal] = useState(false)
   const [catForm, setCatForm] = useState({ name: '' })
@@ -65,9 +67,11 @@ export default function DishManage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定删除该菜品吗？')) return
-    await request.delete(`/dishes/${id}`)
-    fetchData()
+    showConfirm('确认删除', '确定删除该菜品吗？', async () => {
+      await request.delete(`/dishes/${id}`)
+      fetchData()
+      showToast('菜品删除成功', 'success')
+    })
   }
 
   const handleCreateCategory = async (e: React.FormEvent) => {
@@ -77,6 +81,7 @@ export default function DishManage() {
     setCatForm({ name: '' })
     setShowCatModal(false)
     fetchData()
+    showToast('分类创建成功', 'success')
   }
 
   const handleDeleteCategory = async (id: number, name: string) => {
@@ -84,10 +89,12 @@ export default function DishManage() {
     const msg = count > 0
       ? `分类「${name}」下还有 ${count} 个菜品，删除后这些菜品将无法正常显示，确定删除吗？`
       : `确定删除分类「${name}」吗？`
-    if (!confirm(msg)) return
-    await request.delete(`/dishes/categories/${id}`)
-    if (activeCategory === id) setActiveCategory(null)
-    fetchData()
+    showConfirm('确认删除', msg, async () => {
+      await request.delete(`/dishes/categories/${id}`)
+      if (activeCategory === id) setActiveCategory(null)
+      fetchData()
+      showToast('分类删除成功', 'success')
+    })
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,8 +110,9 @@ export default function DishManage() {
       const url = res?.url ? `${API_BASE}${res.url}` : ''
       setForm(prev => ({ ...prev, image_url: url }))
       setPreviewUrl(url)
+      showToast('图片上传成功', 'success')
     } catch (err: any) {
-      alert('图片上传失败：' + (err?.message || '未知错误'))
+      showToast('图片上传失败：' + (err?.message || '未知错误'), 'error')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''

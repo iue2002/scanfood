@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import request from '@/api/request'
 import { Users, CheckCircle, X, Minus, Plus, PlusCircle } from 'lucide-react'
+import { useModal } from '@/components/ModalProvider'
 
 interface OrderItem {
   id: number
@@ -59,6 +60,7 @@ export default function TableBoard() {
   const [tables, setTables] = useState<Table[]>([])
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [loading, setLoading] = useState(false)
+  const { showToast, showConfirm } = useModal()
 
   const fetchBoard = () => {
     request.get('/tables/board').then((res: any) => setTables(res || []))
@@ -71,29 +73,33 @@ export default function TableBoard() {
   }, [])
 
   const handleSettle = async (orderId: number) => {
-    if (!confirm('确定该桌已结账吗？结账后桌台将变为空闲状态。')) return
-    setLoading(true)
-    try {
-      await request.post(`/orders/${orderId}/status`, { status: 'settled' })
-      setSelectedTable(null)
-      fetchBoard()
-    } finally {
-      setLoading(false)
-    }
+    showConfirm('确认结账', '确定该桌已结账吗？结账后桌台将变为空闲状态。', async () => {
+      setLoading(true)
+      try {
+        await request.post(`/orders/${orderId}/status`, { status: 'settled' })
+        setSelectedTable(null)
+        fetchBoard()
+        showToast('结账成功', 'success')
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   const handleUpdateItemQty = async (orderId: number, itemId: number, newQty: number) => {
     if (newQty <= 0) {
-      if (!confirm('数量设为0将删除该菜品，确定吗？')) return
-      await request.delete(`/orders/${orderId}/items/${itemId}`)
+      showConfirm('确认删除', '数量设为0将删除该菜品，确定吗？', async () => {
+        await request.delete(`/orders/${orderId}/items/${itemId}`)
+        fetchBoard()
+        if (selectedTable) {
+          const updated = tables.find(t => t.id === selectedTable.id)
+          if (updated) setSelectedTable(updated)
+        }
+        showToast('菜品已删除', 'success')
+      })
     } else {
-      alert('请通过「订单管理」页面修改菜品数量')
+      showToast('请通过「订单管理」页面修改菜品数量', 'info')
       return
-    }
-    fetchBoard()
-    if (selectedTable) {
-      const updated = tables.find(t => t.id === selectedTable.id)
-      if (updated) setSelectedTable(updated)
     }
   }
 

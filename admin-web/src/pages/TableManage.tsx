@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import request from '@/api/request'
 import { Plus, QrCode, Trash2, Edit2 } from 'lucide-react'
+import { useModal } from '@/components/ModalProvider'
 
 // 获取服务器基础地址
 const getServerBaseURL = () => {
@@ -26,6 +27,7 @@ export default function TableManage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Table | null>(null)
   const [form, setForm] = useState({ table_number: '', capacity: 4 })
+  const { showToast, showConfirm } = useModal()
 
   const fetchTables = () => {
     request.get('/tables').then((res: any) => setTables(res || []))
@@ -38,46 +40,44 @@ export default function TableManage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.table_number.trim() || !form.capacity) {
-      alert('请填写完整信息');
-      return;
+      showToast('请填写完整信息', 'warning')
+      return
     }
 
     try {
       if (editing) {
         await request.put(`/tables/${editing.id}`, form)
-        alert('桌台更新成功！');
+        showToast('桌台更新成功！', 'success')
       } else {
         await request.post('/tables', form)
-        alert('桌台创建成功！');
+        showToast('桌台创建成功！', 'success')
       }
       setShowModal(false)
       setEditing(null)
       setForm({ table_number: '', capacity: 4 })
       fetchTables()
     } catch (error: any) {
-      console.error('保存桌台失败:', error);
+      console.error('保存桌台失败:', error)
       if (error.response?.data?.message) {
-        alert(error.response.data.message);
+        showToast(error.response.data.message, 'error')
       } else {
-        alert('保存失败，请重试');
+        showToast('保存失败，请重试', 'error')
       }
     }
   }
 
   const handleDelete = async (id: number) => {
-    const table = tables.find(t => t.id === id);
-    const confirmed = window.confirm(table ? `确定要删除桌台「${table.table_number}」吗？` : '确定删除该桌台吗？');
-    if (!confirmed) {
-      return; // 用户点击取消，直接返回
-    }
-    try {
-      await request.delete(`/tables/${id}`);
-      await fetchTables();
-      alert('删除成功！');
-    } catch (error) {
-      console.error('删除桌台失败:', error);
-      alert('删除失败，请重试');
-    }
+    const table = tables.find(t => t.id === id)
+    showConfirm('确认删除', table ? `确定要删除桌台「${table.table_number}」吗？` : '确定删除该桌台吗？', async () => {
+      try {
+        await request.delete(`/tables/${id}`)
+        await fetchTables()
+        showToast('删除成功！', 'success')
+      } catch (error) {
+        console.error('删除桌台失败:', error)
+        showToast('删除失败，请重试', 'error')
+      }
+    })
   }
 
   const handleGenerateQr = async (id: number) => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import request from '@/api/request'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Printer } from 'lucide-react'
+import { useModal } from '@/components/ModalProvider'
 
 export default function Statistics() {
   const [startDate, setStartDate] = useState('')
@@ -10,6 +11,7 @@ export default function Statistics() {
   const [categoryData, setCategoryData] = useState<any[]>([])
   const [ranking, setRanking] = useState<any[]>([])
   const [monthData, setMonthData] = useState<any[]>([])
+  const { showToast } = useModal()
 
   const today = new Date().toISOString().slice(0, 10)
   const monthStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -38,7 +40,7 @@ export default function Statistics() {
     const content = `${title}统计\n营业额: ¥${totalAmount.toFixed(2)}\n订单数: ${totalCount}\n统计区间: ${startDate || monthStart} 至 ${endDate || today}`
 
     request.post('/print/report', { title, content }).then(() => {
-      alert('打印任务已提交')
+      showToast('打印任务已提交', 'success')
     })
   }
 

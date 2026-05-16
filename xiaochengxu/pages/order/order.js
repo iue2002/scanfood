@@ -203,10 +203,42 @@ Page({
         url: `/pages/order/detail?id=${order.id}`,
       });
     } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
-      this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
-      wx.removeStorageSync('savedTableId');
-      getApp().globalData.tableId = null;
+      // 订单已结账或取消，立即释放所有桌号资源
+      this.releaseTableResources();
     }
+  },
+
+  // 释放桌号资源 - 结账/取消后必须清理，避免缓存导致下次进入混乱
+  releaseTableResources() {
+    console.log('释放桌号资源，清理所有缓存');
+
+    // 重置页面数据
+    this.setData({
+      cartCount: {},
+      currentOrderId: null,
+      orderStatus: null,
+      totalCount: 0,
+      totalPrice: '0.00',
+      tableId: '',
+      tableNumber: '',
+      hasScannedTable: false
+    });
+
+    // 清除本地存储
+    wx.removeStorageSync('savedTableId');
+    wx.removeStorageSync('tableNumber');
+
+    // 清除全局数据
+    const app = getApp();
+    if (app) {
+      app.globalData.tableId = null;
+      app.globalData.carts = {};
+      app.globalData.addMoreCarts = {};
+      app.globalData.addMore = false;
+    }
+
+    // 断开 WebSocket
+    this.closeWebSocket();
   },
 
   async fetchTableInfo(id) {
@@ -559,6 +591,7 @@ Page({
     const { cartCount, allDishes, tableId, currentOrderId, isAddMore } = this.data;
     if (!tableId) return;
     const items = [];
+    const userInfo = getApp().globalData.userInfo;
     
     for (const id in cartCount) {
       const count = cartCount[id];
@@ -569,7 +602,9 @@ Page({
             dish_id: dish.id,
             dish_name: dish.name,
             price: parseFloat(dish.price),
-            quantity: count
+            quantity: count,
+            added_by_user_id: userInfo?.id,
+            added_by_nickname: userInfo?.nickname || '未知用户'
           });
         }
       }
@@ -676,6 +711,7 @@ Page({
     try {
       const { cartCount, allDishes, tableId } = this.data;
       const items = [];
+      const userInfo = getApp().globalData.userInfo;
       for (const id in cartCount) {
         const count = cartCount[id];
         if (count > 0) {
@@ -685,7 +721,9 @@ Page({
               dish_id: dish.id,
               dish_name: dish.name,
               price: parseFloat(dish.price),
-              quantity: count
+              quantity: count,
+              added_by_user_id: userInfo?.id,
+              added_by_nickname: userInfo?.nickname || '未知用户'
             });
           }
         }
@@ -697,7 +735,7 @@ Page({
         data: {
           table_id: parseInt(tableId),
           items: items,
-          user_id: getApp().globalData.userInfo?.id
+          user_id: userInfo?.id
         }
       });
 

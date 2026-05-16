@@ -12,6 +12,8 @@ export class CreateOrderDto {
     spec_name?: string;
     quantity: number;
     price: number;
+    added_by_user_id?: number;
+    added_by_nickname?: string;
   }>;
 
   @IsNumber()

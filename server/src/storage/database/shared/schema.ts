@@ -136,11 +136,14 @@ export const order_items = mysqlTable(
     quantity: int("quantity").notNull().default(1),
     price: decimal("price", { precision: 10, scale: 2 }).notNull(), // 单价
     subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(), // 小计 = price * quantity
+    added_by_user_id: int("added_by_user_id").references(() => users.id), // 添加菜品的用户ID
+    added_by_nickname: varchar("added_by_nickname", { length: 100 }), // 添加菜品的用户昵称
     created_at: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("order_items_order_id_idx").on(table.order_id),
     index("order_items_dish_id_idx").on(table.dish_id),
+    index("order_items_added_by_user_id_idx").on(table.added_by_user_id),
   ]
 );
 

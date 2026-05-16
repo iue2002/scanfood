@@ -62,9 +62,35 @@ Page({
       }
 
       this.setData({ order });
+
+      // 如果订单已结账，立即释放桌号资源
+      if (order.status === 'settled' || order.status === 'cancelled') {
+        this.releaseTableResources();
+      }
     } catch (err) {
       console.error('获取订单详情失败', err);
     }
+  },
+
+  // 释放桌号资源 - 结账后必须清理，避免缓存导致下次进入混乱
+  releaseTableResources() {
+    console.log('订单已结账/取消，释放桌号资源');
+
+    // 清除本地存储的桌号
+    wx.removeStorageSync('savedTableId');
+    wx.removeStorageSync('tableNumber');
+
+    // 清除全局数据中的桌号
+    const app = getApp();
+    if (app) {
+      app.globalData.tableId = null;
+      app.globalData.carts = {};
+      app.globalData.addMoreCarts = {};
+      app.globalData.addMore = false;
+    }
+
+    // 断开 WebSocket 连接
+    this.closeWebSocket();
   },
 
   initWebSocket(orderId) {
@@ -197,6 +223,7 @@ Page({
   async submitAddMore() {
     const { addMoreCartCount, allDishes, order } = this.data;
     const items = [];
+    const userInfo = getApp().globalData.userInfo;
     for (const id in addMoreCartCount) {
       const count = addMoreCartCount[id];
       if (count > 0) {
@@ -206,7 +233,9 @@ Page({
             dish_id: dish.id,
             dish_name: dish.name,
             price: parseFloat(dish.price),
-            quantity: count
+            quantity: count,
+            added_by_user_id: userInfo?.id,
+            added_by_nickname: userInfo?.nickname || '未知用户'
           });
         }
       }

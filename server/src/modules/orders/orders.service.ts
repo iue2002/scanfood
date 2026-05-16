@@ -90,6 +90,8 @@ export class OrdersService {
         quantity: item.quantity,
         price: item.price.toFixed(2),
         subtotal: subtotal.toFixed(2),
+        added_by_user_id: item.added_by_user_id || dto.user_id,
+        added_by_nickname: item.added_by_nickname || '未知用户',
       };
     });
 
@@ -129,7 +131,7 @@ export class OrdersService {
     return order;
   }
 
-  async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number }> }) {
+  async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> }) {
     const order = await this.getOrderById(orderId);
     if (!['submitted', 'printed'].includes(order.status)) {
       throw new BadRequestException('订单状态不允许加餐');
@@ -152,34 +154,26 @@ export class OrdersService {
         quantity: item.quantity,
         price: item.price,
         subtotal: item.subtotal,
+        added_by_user_id: item.added_by_user_id,
+        added_by_nickname: item.added_by_nickname,
       });
     }
 
-    // 合并新加餐项（如果菜品相同则累加数量）
+    // 新加餐项直接追加，不合并（确保能区分不同人添加的菜品）
     for (const newItem of dto.items) {
-      const existingIndex = itemsToInsert.findIndex(
-        (ei: any) => ei.dish_id === newItem.dish_id && ei.spec_id === newItem.spec_id
-      );
       const subtotal = newItem.price * newItem.quantity;
-      if (existingIndex >= 0) {
-        // 合并到已有项
-        const existing = itemsToInsert[existingIndex];
-        existing.quantity += newItem.quantity;
-        const newSubtotal = parseFloat(existing.price) * existing.quantity;
-        existing.subtotal = newSubtotal.toFixed(2);
-        totalAmount += subtotal;
-      } else {
-        totalAmount += subtotal;
-        itemsToInsert.push({
-          dish_id: newItem.dish_id,
-          spec_id: newItem.spec_id,
-          dish_name: newItem.dish_name,
-          spec_name: newItem.spec_name,
-          quantity: newItem.quantity,
-          price: newItem.price.toFixed(2),
-          subtotal: subtotal.toFixed(2),
-        });
-      }
+      totalAmount += subtotal;
+      itemsToInsert.push({
+        dish_id: newItem.dish_id,
+        spec_id: newItem.spec_id,
+        dish_name: newItem.dish_name,
+        spec_name: newItem.spec_name,
+        quantity: newItem.quantity,
+        price: newItem.price.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        added_by_user_id: newItem.added_by_user_id,
+        added_by_nickname: newItem.added_by_nickname,
+      });
     }
 
     await db.delete(order_items).where(eq(order_items.order_id, orderId));
@@ -273,6 +267,8 @@ export class OrdersService {
       quantity: item.quantity,
       price: item.price.toFixed(2),
       subtotal: item.subtotal.toFixed(2),
+      added_by_user_id: item.added_by_user_id || dto.user_id,
+      added_by_nickname: item.added_by_nickname || '未知用户',
     }));
 
     await db.insert(order_items).values(itemsToInsert);

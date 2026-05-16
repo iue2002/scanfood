@@ -118,6 +118,19 @@
   margin-top: 4rpx;
 }
 
+.dish-adder {
+  margin-top: 4rpx;
+}
+
+.adder-tag {
+  font-size: 20rpx;
+  color: #ff6b35;
+  background: #fff5f0;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  display: inline-block;
+}
+
 .dish-bottom {
   display: flex;
   justify-content: space-between;

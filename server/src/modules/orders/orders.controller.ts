@@ -32,7 +32,7 @@ export class OrdersController {
   @Post(':id/sync-add-more')
   async syncAddMore(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number }> },
+    @Body() dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> },
   ) {
     console.log('[POST /api/orders/:id/sync-add-more]', { id, dto });
     return await this.ordersService.syncAddMore(id, dto);

@@ -32,6 +32,9 @@
       <view class="dish-info">
         <view class="dish-name">{{item.dish_name}}</view>
         <view class="dish-spec" wx:if="{{item.spec_name}}">{{item.spec_name}}</view>
+        <view class="dish-adder" wx:if="{{item.added_by_nickname}}">
+          <text class="adder-tag">{{item.added_by_nickname}} 添加</text>
+        </view>
         <view class="dish-bottom">
           <view class="dish-qty">x{{item.quantity}}</view>
           <view class="dish-price">¥{{item.subtotal}}</view>

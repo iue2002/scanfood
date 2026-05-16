@@ -86,19 +86,26 @@ Page({
     try {
       const app = getApp();
       
+      console.log('=== 开始微信登录流程 ===');
       const loginRes = await wx.login();
+      console.log('wx.login 结果:', loginRes);
+      
       if (!loginRes.code) {
-        throw new Error('获取登录code失败');
+        throw new Error('获取登录code失败: ' + loginRes.errMsg);
       }
+
+      console.log('准备发送请求到服务端, code:', loginRes.code.substring(0, 10) + '...');
+      const requestData = { 
+        code: loginRes.code,
+        nickname: nickname,
+        avatar_url: avatarUrl
+      };
+      console.log('请求数据:', requestData);
 
       const loginData = await request({
         url: '/auth/wechat-login',
         method: 'POST',
-        data: { 
-          code: loginRes.code,
-          nickname: nickname,
-          avatar_url: avatarUrl
-        },
+        data: requestData,
         noLoading: true
       });
 
@@ -125,6 +132,7 @@ Page({
       this.setData({ isLoading: false });
     } catch (err) {
       console.error('微信登录失败', err);
+      console.error('错误详情:', JSON.stringify(err, null, 2));
       this.setData({ isLoading: false });
       wx.showToast({
         title: '登录失败，请重试',

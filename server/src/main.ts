@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
+import { AllExceptionsFilter } from '@/filters/all-exceptions.filter';
 import { OrdersGateway } from '@/modules/orders/orders.gateway';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
@@ -40,6 +41,8 @@ async function bootstrap() {
 
   // 全局拦截器：统一将 POST 请求的 201 状态码改为 200
   app.useGlobalInterceptors(new HttpStatusInterceptor());
+  // 全局异常过滤器
+  app.useGlobalFilters(new AllExceptionsFilter());
   // 1. 开启优雅关闭 Hooks (关键!)
   app.enableShutdownHooks();
 

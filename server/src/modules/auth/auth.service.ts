@@ -80,6 +80,7 @@ export class AuthService {
     const openid = await this.getOpenIdFromCode(code);
     console.log('获取到openid:', openid);
     
+    // 根据openid查找用户，如果找不到则自动注册
     const existing = await db.select().from(users).where(eq(users.openid, openid));
     if (existing.length > 0) {
       const user = existing[0];
@@ -91,6 +92,8 @@ export class AuthService {
       };
     }
 
+    // 新用户自动注册
+    console.log('新用户，开始自动注册');
     const hashedPassword = await bcrypt.hash(Math.random().toString(36), 10);
     const insertResult = await db.insert(users).values({
       username: `wx_${openid.substring(0, 10)}`,
@@ -105,6 +108,7 @@ export class AuthService {
     const newUserResult = await db.select().from(users).where(eq(users.id, newId));
     const newUser = newUserResult[0];
     const { password, ...userInfo } = newUser;
+    console.log('新用户注册成功:', newUser.id);
     return {
       user: userInfo,
       token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),

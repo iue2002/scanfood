@@ -7,8 +7,10 @@ import * as http from 'http';
 export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OrdersGateway.name);
   private wss: Server;
-  private tableClients: Map<string, WebSocket> = new Map();
-  private orderClients: Map<string, WebSocket> = new Map();
+  // 支持多客户端订阅同一桌台：Map<tableId, Set<WebSocket>>
+  private tableClients: Map<string, Set<WebSocket>> = new Map();
+  // 支持多客户端订阅同一订单：Map<orderId, Set<WebSocket>>
+  private orderClients: Map<string, Set<WebSocket>> = new Map();
   private adminClients: Set<WebSocket> = new Set();
 
   onModuleInit() {
@@ -36,18 +38,28 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
         }
       });
 
+      ws.on('error', (err) => {
+        this.logger.error('WebSocket client error', err.message);
+      });
+
       ws.on('close', () => {
         this.logger.log('Client disconnected');
-        for (const [key, socket] of this.tableClients.entries()) {
-          if (socket === ws) {
-            this.tableClients.delete(key);
-            break;
+        // 从所有桌台订阅中移除
+        for (const [key, clients] of this.tableClients.entries()) {
+          if (clients.has(ws)) {
+            clients.delete(ws);
+            if (clients.size === 0) {
+              this.tableClients.delete(key);
+            }
           }
         }
-        for (const [key, socket] of this.orderClients.entries()) {
-          if (socket === ws) {
-            this.orderClients.delete(key);
-            break;
+        // 从所有订单订阅中移除
+        for (const [key, clients] of this.orderClients.entries()) {
+          if (clients.has(ws)) {
+            clients.delete(ws);
+            if (clients.size === 0) {
+              this.orderClients.delete(key);
+            }
           }
         }
         this.adminClients.delete(ws);
@@ -83,8 +95,14 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
 
   private handleSubscribeTable(client: WebSocket, data: { tableId: string }) {
     const { tableId } = data;
-    this.tableClients.set(String(tableId), client);
-    this.logger.log(`Client subscribed to table: ${tableId}`);
+    const key = String(tableId);
+    let clients = this.tableClients.get(key);
+    if (!clients) {
+      clients = new Set();
+      this.tableClients.set(key, clients);
+    }
+    clients.add(client);
+    this.logger.log(`Client subscribed to table: ${tableId}, total clients: ${clients.size}`);
 
     client.send(JSON.stringify({
       event: 'subscribed',
@@ -94,7 +112,14 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
 
   private handleUnsubscribeTable(client: WebSocket, data: { tableId: string }) {
     const { tableId } = data;
-    this.tableClients.delete(String(tableId));
+    const key = String(tableId);
+    const clients = this.tableClients.get(key);
+    if (clients) {
+      clients.delete(client);
+      if (clients.size === 0) {
+        this.tableClients.delete(key);
+      }
+    }
     this.logger.log(`Client unsubscribed from table: ${tableId}`);
 
     client.send(JSON.stringify({
@@ -105,8 +130,14 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
 
   private handleSubscribeOrder(client: WebSocket, data: { orderId: string }) {
     const { orderId } = data;
-    this.orderClients.set(String(orderId), client);
-    this.logger.log(`Client subscribed to order: ${orderId}`);
+    const key = String(orderId);
+    let clients = this.orderClients.get(key);
+    if (!clients) {
+      clients = new Set();
+      this.orderClients.set(key, clients);
+    }
+    clients.add(client);
+    this.logger.log(`Client subscribed to order: ${orderId}, total clients: ${clients.size}`);
 
     client.send(JSON.stringify({
       event: 'subscribed',
@@ -116,7 +147,14 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
 
   private handleUnsubscribeOrder(client: WebSocket, data: { orderId: string }) {
     const { orderId } = data;
-    this.orderClients.delete(String(orderId));
+    const key = String(orderId);
+    const clients = this.orderClients.get(key);
+    if (clients) {
+      clients.delete(client);
+      if (clients.size === 0) {
+        this.orderClients.delete(key);
+      }
+    }
     this.logger.log(`Client unsubscribed from order: ${orderId}`);
 
     client.send(JSON.stringify({
@@ -139,40 +177,75 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
     const message = JSON.stringify({ event, data });
     this.adminClients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        try {
+          client.send(message);
+        } catch (err) {
+          this.logger.error('Failed to send message to admin client', err.message);
+          this.adminClients.delete(client);
+        }
       }
     });
   }
 
   notifyTableUpdate(tableId: string | number, data: any) {
-    const client = this.tableClients.get(String(tableId));
-    if (client && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
+    const clients = this.tableClients.get(String(tableId));
+    if (clients && clients.size > 0) {
+      const message = JSON.stringify({
         event: 'orderUpdated',
         data,
-      }));
-      this.logger.log(`Notified table ${tableId} of order update`);
+      });
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify table ${tableId}`, err.message);
+            clients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified table ${tableId} of order update, ${clients.size} clients`);
     }
   }
 
   notifyOrderStatusChange(tableId: string | number, order: any) {
-    const client = this.tableClients.get(String(tableId));
-    if (client && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
+    const clients = this.tableClients.get(String(tableId));
+    if (clients && clients.size > 0) {
+      const message = JSON.stringify({
         event: 'orderStatusChanged',
         data: order,
-      }));
-      this.logger.log(`Notified table ${tableId} of order status change`);
+      });
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify table ${tableId}`, err.message);
+            clients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified table ${tableId} of order status change, ${clients.size} clients`);
     }
 
     // 也通知订阅了该订单的客户端
-    const orderClient = this.orderClients.get(String(order.id));
-    if (orderClient && orderClient.readyState === WebSocket.OPEN) {
-      orderClient.send(JSON.stringify({
+    const orderClients = this.orderClients.get(String(order.id));
+    if (orderClients && orderClients.size > 0) {
+      const message = JSON.stringify({
         event: 'orderStatusChanged',
         data: order,
-      }));
-      this.logger.log(`Notified order ${order.id} of status change`);
+      });
+      orderClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify order ${order.id}`, err.message);
+            orderClients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified order ${order.id} of status change, ${orderClients.size} clients`);
     }
   }
 }

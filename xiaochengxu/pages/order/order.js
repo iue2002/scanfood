@@ -15,26 +15,17 @@ Page({
     totalPrice: 0,
     currentOrderId: null,
     orderStatus: null,
-    hasScannedTable: false
+    hasScannedTable: false,
+    isAddMore: false
   },
 
   isFetchingOrder: false,
   ws: null,
 
-  onLoad(options) {
+  async onLoad(options) {
     let tableNumber = null;
     let rawTableId = options.tableId || getApp().globalData.tableId;
-    
-    if (options.addMore || getApp().globalData.addMore) {
-      this.isAddMore = true;
-      getApp().globalData.addMore = false;
-    }
-    
-    const userInfo = wx.getStorageSync('userInfo');
-    if (!rawTableId && !tableNumber && userInfo && userInfo.table_number) {
-      tableNumber = userInfo.table_number;
-    }
-    
+
     if (options.scene) {
       // scene参数是URL编码的，需要解码
       // 微信扫码进入时，scene就是桌台编号（如 "01"）
@@ -49,6 +40,13 @@ Page({
       }
     }
 
+    // 优先检查是否存在未付款订单，无论是否有桌号
+    const hasActiveOrder = await this.checkActiveOrder();
+    if (hasActiveOrder) {
+      // 有未付款订单，已经跳转，不需要继续加载
+      return;
+    }
+
     if (tableNumber) {
       this.setData({ tableNumber, hasScannedTable: true });
       this.fetchTableInfoByNumber(tableNumber);
@@ -56,17 +54,68 @@ Page({
       const tableId = String(rawTableId).replace(/[^\d]/g, '');
       if (tableId) {
         this.setData({ tableId, hasScannedTable: true });
+        getApp().globalData.tableId = tableId;
         this.fetchTableInfo(tableId);
-        getApp().globalData.tableId = tableId; 
       }
     }
     this.fetchData();
   },
 
-  onShow() {
-    if (this.data.tableId && !this.isAddMore) {
-      this.setData({ cartCount: {}, currentOrderId: null, totalCount: 0, totalPrice: '0.00' });
+  async checkActiveOrder() {
+    try {
+      const token = wx.getStorageSync('token');
+      if (!token) {
+        console.log('未登录，跳过检查未完成订单');
+        return false;
+      }
+      const order = await request({ url: '/orders/my-active', noLoading: true });
+      console.log('checkActiveOrder 结果:', order);
+      if (order && order.id) {
+        // 直接跳转到订单详情页，不需要再加载点餐页面
+        // 使用 navigateTo 避免 tabBar 页面 redirectTo 异常
+        wx.navigateTo({
+          url: `/pages/order/detail?id=${order.id}`,
+          fail: (err) => {
+            console.error('跳转订单详情失败:', err);
+            wx.showToast({ title: '跳转失败', icon: 'none' });
+          }
+        });
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.log('没有未完成的订单', err);
+      return false;
+    }
+  },
+
+  async onShow() {
+    // 每次显示页面时检查是否存在未付款订单（热启动场景）
+    const hasActiveOrder = await this.checkActiveOrder();
+    if (hasActiveOrder) {
+      return;
+    }
+
+    if (getApp().globalData.addMore) {
+      getApp().globalData.addMore = false;
+      this.setData({ isAddMore: true });
+    }
+
+    if (this.data.tableId && !this.data.isAddMore) {
+      this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
       this.fetchCurrentOrder();
+    } else if (this.data.tableId && this.data.isAddMore) {
+      const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
+      if (!addMoreCart.currentOrderId) {
+        this.fetchCurrentOrderForAddMore();
+      } else {
+        this.setData({
+          cartCount: { ...addMoreCart.cartCount },
+          currentOrderId: addMoreCart.currentOrderId,
+          orderStatus: addMoreCart.orderStatus
+        });
+        this.calculateTotal();
+      }
     }
     this.updateTabBar();
   },
@@ -147,20 +196,16 @@ Page({
       this.setData({ cartCount, currentOrderId: order.id });
       this.calculateTotal();
     } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
-      if (this.isAddMore) {
-        const cartCount = {};
-        order.order_items.forEach(item => {
-          cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
-        });
-        this.setData({ cartCount, currentOrderId: order.id });
-        this.calculateTotal();
+      if (this.data.isAddMore) {
         return;
       }
       wx.redirectTo({
         url: `/pages/order/detail?id=${order.id}`,
       });
     } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
-      this.setData({ cartCount: {}, currentOrderId: null, totalCount: 0, totalPrice: '0.00' });
+      this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+      wx.removeStorageSync('savedTableId');
+      getApp().globalData.tableId = null;
     }
   },
 
@@ -184,7 +229,24 @@ Page({
       const table = await request({ url: `/tables/number/${tableNumber}`, noLoading: true });
       this.setData({ tableId: table.id, tableNumber: table.table_number });
       getApp().globalData.tableId = table.id;
+      wx.setStorageSync('savedTableId', table.id);
       this.bindTable(tableNumber);
+      this.initWebSocket();
+    } catch (err) {
+      console.error('获取桌台信息失败', err);
+      wx.showToast({
+        title: '获取桌台信息失败',
+        icon: 'none'
+      });
+    }
+  },
+
+  async fetchTableInfo(id) {
+    try {
+      const table = await request({ url: `/tables/${id}`, noLoading: true });
+      this.setData({ tableId: table.id, tableNumber: table.table_number });
+      getApp().globalData.tableId = table.id;
+      wx.setStorageSync('savedTableId', table.id);
       this.initWebSocket();
     } catch (err) {
       console.error('获取桌台信息失败', err);
@@ -288,17 +350,11 @@ Page({
         cart.orderStatus = 'draft';
         this.calculateTotal();
       } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
-        if (this.isAddMore) {
-          this.isAddMore = false;
-          const cartCount = {};
-          order.order_items.forEach(item => {
-            cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
-          });
-          this.setData({ cartCount, currentOrderId: order.id, orderStatus: order.status });
-          const cart = getApp().getCart(this.data.tableId);
-          cart.cartCount = { ...cartCount };
-          cart.currentOrderId = order.id;
-          cart.orderStatus = order.status;
+        if (this.data.isAddMore) {
+          const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
+          this.setData({ cartCount: { ...addMoreCart.cartCount }, currentOrderId: order.id, orderStatus: order.status });
+          addMoreCart.currentOrderId = order.id;
+          addMoreCart.orderStatus = order.status;
           this.calculateTotal();
           return;
         }
@@ -314,6 +370,28 @@ Page({
       }
     } catch (err) {
       console.error('获取当前订单失败', err);
+    } finally {
+      this.isFetchingOrder = false;
+    }
+  },
+
+  async fetchCurrentOrderForAddMore() {
+    if (!this.data.tableId || this.isFetchingOrder) return;
+    this.isFetchingOrder = true;
+    try {
+      const order = await request({ 
+        url: `/orders/current/${this.data.tableId}`,
+        noLoading: true 
+      });
+      if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
+        const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
+        addMoreCart.currentOrderId = order.id;
+        addMoreCart.orderStatus = order.status;
+        addMoreCart.cartCount = {};
+        this.setData({ currentOrderId: order.id, orderStatus: order.status, cartCount: {} });
+      }
+    } catch (err) {
+      console.error('获取加餐订单失败', err);
     } finally {
       this.isFetchingOrder = false;
     }
@@ -449,7 +527,7 @@ Page({
     }
 
     this.setData({ cartCount });
-    const cart = getApp().getCart(this.data.tableId);
+    const cart = this.data.isAddMore ? getApp().getAddMoreCart(this.data.tableId) : getApp().getCart(this.data.tableId);
     cart.cartCount = { ...cartCount };
     this.calculateTotal();
     this.syncCartToBackend();
@@ -478,7 +556,7 @@ Page({
   },
 
   async syncCartToBackend() {
-    const { cartCount, allDishes, tableId, currentOrderId } = this.data;
+    const { cartCount, allDishes, tableId, currentOrderId, isAddMore } = this.data;
     if (!tableId) return;
     const items = [];
     
@@ -508,34 +586,61 @@ Page({
           });
         }
         this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
-        const cart = getApp().getCart(this.data.tableId);
-        cart.cartCount = {};
-        cart.currentOrderId = null;
-        cart.orderStatus = null;
+        if (isAddMore) {
+          getApp().clearAddMoreCart(this.data.tableId);
+        } else {
+          getApp().clearCart(this.data.tableId);
+        }
       }
       return;
     }
 
     try {
       const { orderStatus } = this.data;
-      if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
-        await request({
-          url: `/orders/${currentOrderId}/sync-add-more`,
-          method: 'POST',
-          data: { items },
-          noLoading: true
-        });
+      if (isAddMore) {
+        if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
+          await request({
+            url: `/orders/${currentOrderId}/sync-add-more`,
+            method: 'POST',
+            data: { items },
+            noLoading: true
+          });
+        } else {
+          const result = await request({
+            url: '/orders',
+            method: 'POST',
+            data: {
+              table_id: parseInt(tableId),
+              items: items,
+              user_id: getApp().globalData.userInfo?.id
+            },
+            noLoading: true
+          });
+          const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
+          addMoreCart.currentOrderId = result.id;
+          addMoreCart.orderStatus = result.status;
+          this.setData({ currentOrderId: result.id, orderStatus: result.status });
+        }
       } else {
-        await request({
-          url: '/orders/sync-draft',
-          method: 'POST',
-          data: {
-            table_id: parseInt(tableId),
-            items: items,
-            user_id: getApp().globalData.userInfo?.id
-          },
-          noLoading: true
-        });
+        if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
+          await request({
+            url: `/orders/${currentOrderId}/sync-add-more`,
+            method: 'POST',
+            data: { items },
+            noLoading: true
+          });
+        } else {
+          await request({
+            url: '/orders/sync-draft',
+            method: 'POST',
+            data: {
+              table_id: parseInt(tableId),
+              items: items,
+              user_id: getApp().globalData.userInfo?.id
+            },
+            noLoading: true
+          });
+        }
       }
     } catch (err) {
       console.error('同步购物车失败', err);
@@ -544,13 +649,73 @@ Page({
 
   goToCart() {
     wx.navigateTo({
-      url: `/pages/order/cart?tableId=${this.data.tableId}&tableNumber=${this.data.tableNumber}`,
+      url: `/pages/order/cart?tableId=${this.data.tableId}&tableNumber=${this.data.tableNumber}&isAddMore=${this.data.isAddMore}`,
     });
   },
 
   goToConfirm() {
-    wx.navigateTo({
-      url: `/pages/order/confirm?tableId=${this.data.tableId}`,
-    });
+    if (this.data.isAddMore) {
+      wx.showModal({
+        title: '确认提交加餐',
+        content: `共${this.data.totalCount}件菜品，合计¥${this.data.totalPrice}，确认提交？`,
+        success: (res) => {
+          if (res.confirm) {
+            this.submitAddMore();
+          }
+        }
+      });
+    } else {
+      wx.navigateTo({
+        url: `/pages/order/confirm?tableId=${this.data.tableId}`,
+      });
+    }
+  },
+
+  async submitAddMore() {
+    wx.showLoading({ title: '提交中...' });
+    try {
+      const { cartCount, allDishes, tableId } = this.data;
+      const items = [];
+      for (const id in cartCount) {
+        const count = cartCount[id];
+        if (count > 0) {
+          const dish = allDishes.find(d => d.id == id);
+          if (dish) {
+            items.push({
+              dish_id: dish.id,
+              dish_name: dish.name,
+              price: parseFloat(dish.price),
+              quantity: count
+            });
+          }
+        }
+      }
+
+      const result = await request({
+        url: '/orders',
+        method: 'POST',
+        data: {
+          table_id: parseInt(tableId),
+          items: items,
+          user_id: getApp().globalData.userInfo?.id
+        }
+      });
+
+      getApp().clearAddMoreCart(this.data.tableId);
+      this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00', isAddMore: false });
+
+      wx.hideLoading();
+      wx.showToast({ title: '加餐已提交', icon: 'success' });
+
+      setTimeout(() => {
+        wx.redirectTo({
+          url: `/pages/order/detail?id=${result.id}`,
+        });
+      }, 1500);
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '提交失败', icon: 'none' });
+      console.error('提交加餐失败', err);
+    }
   }
 })

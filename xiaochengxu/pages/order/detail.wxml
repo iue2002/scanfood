@@ -59,8 +59,60 @@
     </view>
   </view>
 
-  <!-- 操作按钮 -->
-  <view class="action-bar" wx:if="{{order.status === 'submitted' || order.status === 'printed'}}">
+  <!-- 操作按钮：已提交、已出单、未付款状态都可以加餐 -->
+  <view class="action-bar" wx:if="{{order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid'}}">
     <button class="add-dish-btn" bindtap="goToOrder">继续加菜</button>
+  </view>
+</view>
+
+<!-- 加餐弹窗 -->
+<view class="add-more-modal" wx:if="{{showAddMoreModal}}" bindtap="closeAddMoreModal">
+  <view class="modal-content" catchtap="preventClose">
+    <view class="modal-header">
+      <text class="title">添加菜品</text>
+      <text class="close" bindtap="closeAddMoreModal">×</text>
+    </view>
+
+    <view class="modal-body">
+      <!-- 左侧分类 -->
+      <scroll-view class="category-list" scroll-y>
+        <view
+          wx:for="{{categories}}"
+          wx:key="id"
+          class="category-item {{currentCategory === item.id ? 'active' : ''}}"
+          bindtap="switchCategory"
+          data-id="{{item.id}}"
+        >
+          {{item.name}}
+        </view>
+      </scroll-view>
+
+      <!-- 右侧菜品 -->
+      <scroll-view class="dish-list" scroll-y>
+        <view wx:for="{{dishes}}" wx:key="id" class="modal-dish-item">
+          <image class="modal-dish-image" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill"></image>
+          <view class="modal-dish-info">
+            <view class="modal-dish-name">{{item.name}}</view>
+            <view class="modal-dish-desc">{{item.description || '暂无简介'}}</view>
+            <view class="modal-dish-price-row">
+              <view class="modal-dish-price">¥{{item.price}}</view>
+              <view class="modal-dish-action">
+                <view class="minus" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="minus">-</view>
+                <view class="count" wx:if="{{addMoreCartCount[item.id] > 0}}">{{addMoreCartCount[item.id]}}</view>
+                <view class="plus" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="plus">+</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="modal-footer">
+      <view class="cart-info" wx:if="{{addMoreTotal > 0}}">
+        <text class="cart-count">已选 {{cartItemCount}} 种菜品</text>
+        <text class="cart-total">¥{{addMoreTotalStr}}</text>
+      </view>
+      <button class="submit-btn {{addMoreTotal > 0 ? 'active' : ''}}" bindtap="submitAddMore">{{addMoreTotal > 0 ? '提交加餐' : '请选择菜品'}}</button>
+    </view>
   </view>
 </view>

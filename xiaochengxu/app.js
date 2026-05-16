@@ -7,6 +7,11 @@ App({
     logs.unshift(Date.now())
     wx.setStorageSync('logs', logs)
 
+    this.globalData.tableId = null;
+    this.globalData.carts = {};
+    this.globalData.addMoreCarts = {};
+    this.globalData.addMore = false;
+
     this.checkLoginStatus();
   },
 
@@ -79,6 +84,7 @@ App({
     token: null,
     tableId: null,
     carts: {},
+    addMoreCarts: {},
     allDishes: [],
     addMore: false
   },
@@ -94,5 +100,18 @@ App({
   clearCart(tableId) {
     const key = String(tableId);
     this.globalData.carts[key] = { cartCount: {}, currentOrderId: null, orderStatus: null };
+  },
+
+  getAddMoreCart(tableId) {
+    const key = String(tableId);
+    if (!this.globalData.addMoreCarts[key]) {
+      this.globalData.addMoreCarts[key] = { cartCount: {}, currentOrderId: null, orderStatus: null };
+    }
+    return this.globalData.addMoreCarts[key];
+  },
+
+  clearAddMoreCart(tableId) {
+    const key = String(tableId);
+    this.globalData.addMoreCarts[key] = { cartCount: {}, currentOrderId: null, orderStatus: null };
   }
 })

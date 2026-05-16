@@ -15,11 +15,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://5ebe3051.r9.cpolar.cn',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:3000',
+        target: 'https://5ebe3051.r9.cpolar.cn',
         changeOrigin: true,
       },
     },

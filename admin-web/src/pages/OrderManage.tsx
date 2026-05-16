@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
 import { CheckCircle, XCircle, Eye } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
+import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface Order {
   id: number
@@ -35,15 +36,29 @@ export default function OrderManage() {
   const [detail, setDetail] = useState<Order | null>(null)
   const { showToast, showConfirm } = useModal()
 
-  const fetchOrders = () => {
+  const fetchOrders = useCallback(() => {
     const params: any = {}
     if (filterStatus) params.status = filterStatus
     request.get('/orders', { params }).then((res: any) => setOrders(res || []))
-  }
+  }, [filterStatus])
 
   useEffect(() => {
     fetchOrders()
-  }, [filterStatus])
+  }, [fetchOrders])
+
+  const handleWebSocketMessage = useCallback((event: string, data: any) => {
+    if (event === 'orderUpdated' || event === 'orderStatusChanged') {
+      fetchOrders()
+    } else if (event === 'orderDeleted') {
+      setOrders(prev => prev.filter(o => o.id !== data.id))
+    }
+  }, [fetchOrders])
+
+  useWebSocket({
+    onMessage: handleWebSocketMessage,
+    autoReconnect: true,
+    reconnectInterval: 5000
+  })
 
   const handleSettle = async (id: number) => {
     showConfirm('确认结账', '确认标记该订单为已结账？', async () => {

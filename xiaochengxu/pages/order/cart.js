@@ -10,6 +10,7 @@ Page({
     totalCount: 0,
     totalPrice: '0.00',
     orderStatus: null,
+    isAddMore: false,
     ws: null
   },
 
@@ -37,13 +38,17 @@ Page({
       });
       return;
     }
+    if (getApp().globalData.addMore) {
+      getApp().globalData.addMore = false;
+      this.setData({ isAddMore: true });
+    }
     this.loadCartFromGlobal();
   },
 
   onUnload() {
     this.closeWebSocket();
     const app = getApp();
-    const cart = app.getCart(this.data.tableId);
+    const cart = this.data.isAddMore ? app.getAddMoreCart(this.data.tableId) : app.getCart(this.data.tableId);
     const cartCount = cart.cartCount || {};
     const hasItems = Object.values(cartCount).some(count => count > 0);
 
@@ -56,13 +61,17 @@ Page({
         },
         timeout: 5000
       });
-      app.clearCart(this.data.tableId);
+      if (this.data.isAddMore) {
+        app.clearAddMoreCart(this.data.tableId);
+      } else {
+        app.clearCart(this.data.tableId);
+      }
     }
   },
 
   loadCartFromGlobal() {
     const app = getApp();
-    const cart = app.getCart(this.data.tableId);
+    const cart = this.data.isAddMore ? app.getAddMoreCart(this.data.tableId) : app.getCart(this.data.tableId);
     const cartCount = cart.cartCount || {};
     const allDishes = app.globalData.allDishes || [];
     const items = [];
@@ -135,7 +144,7 @@ Page({
   updateQuantity(e) {
     const { id, type } = e.currentTarget.dataset;
     const app = getApp();
-    const cart = app.getCart(this.data.tableId);
+    const cart = this.data.isAddMore ? app.getAddMoreCart(this.data.tableId) : app.getCart(this.data.tableId);
     const cartCount = cart.cartCount;
     const count = cartCount[id] || 0;
 
@@ -171,7 +180,11 @@ Page({
       content: '确定要清空购物车吗？',
       success: (res) => {
         if (res.confirm) {
-          getApp().clearCart(this.data.tableId);
+          if (this.data.isAddMore) {
+            getApp().clearAddMoreCart(this.data.tableId);
+          } else {
+            getApp().clearCart(this.data.tableId);
+          }
           this.setData({ cartItems: [], totalCount: 0, totalPrice: '0.00' });
           this.syncCartToBackend();
         }
@@ -180,11 +193,11 @@ Page({
   },
 
   async syncCartToBackend() {
-    const { tableId } = this.data;
+    const { tableId, isAddMore } = this.data;
     if (!tableId) return;
 
     const app = getApp();
-    const cart = app.getCart(tableId);
+    const cart = isAddMore ? app.getAddMoreCart(tableId) : app.getCart(tableId);
     const cartCount = cart.cartCount;
     const allDishes = app.globalData.allDishes || [];
     const items = [];
@@ -216,29 +229,58 @@ Page({
             noLoading: true
           });
         }
-        getApp().clearCart(this.data.tableId);
+        if (isAddMore) {
+          getApp().clearAddMoreCart(this.data.tableId);
+        } else {
+          getApp().clearCart(this.data.tableId);
+        }
         this.setData({ cartItems: [], totalCount: 0, totalPrice: '0.00', orderStatus: null });
         return;
       }
 
-      if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
-        await request({
-          url: `/orders/${currentOrderId}/sync-add-more`,
-          method: 'POST',
-          data: { items },
-          noLoading: true
-        });
+      if (isAddMore) {
+        if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
+          await request({
+            url: `/orders/${currentOrderId}/sync-add-more`,
+            method: 'POST',
+            data: { items },
+            noLoading: true
+          });
+        } else {
+          const result = await request({
+            url: '/orders',
+            method: 'POST',
+            data: {
+              table_id: parseInt(tableId),
+              items: items,
+              user_id: app.globalData.userInfo?.id
+            },
+            noLoading: true
+          });
+          cart.currentOrderId = result.id;
+          cart.orderStatus = result.status;
+          this.setData({ orderStatus: result.status });
+        }
       } else {
-        await request({
-          url: '/orders/sync-draft',
-          method: 'POST',
-          data: {
-            table_id: parseInt(tableId),
-            items: items,
-            user_id: app.globalData.userInfo?.id
-          },
-          noLoading: true
-        });
+        if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
+          await request({
+            url: `/orders/${currentOrderId}/sync-add-more`,
+            method: 'POST',
+            data: { items },
+            noLoading: true
+          });
+        } else {
+          await request({
+            url: '/orders/sync-draft',
+            method: 'POST',
+            data: {
+              table_id: parseInt(tableId),
+              items: items,
+              user_id: app.globalData.userInfo?.id
+            },
+            noLoading: true
+          });
+        }
       }
     } catch (err) {
       console.error('同步购物车失败', err);
@@ -246,9 +288,72 @@ Page({
   },
 
   goToConfirm() {
-    wx.navigateTo({
-      url: `/pages/order/confirm?tableId=${this.data.tableId}`,
-    });
+    if (this.data.isAddMore) {
+      wx.showModal({
+        title: '确认提交加餐',
+        content: `共${this.data.totalCount}件菜品，合计¥${this.data.totalPrice}，确认提交？`,
+        success: (res) => {
+          if (res.confirm) {
+            this.submitAddMore();
+          }
+        }
+      });
+    } else {
+      wx.navigateTo({
+        url: `/pages/order/confirm?tableId=${this.data.tableId}`,
+      });
+    }
+  },
+
+  async submitAddMore() {
+    wx.showLoading({ title: '提交中...' });
+    try {
+      const app = getApp();
+      const cart = app.getAddMoreCart(this.data.tableId);
+      const cartCount = cart.cartCount;
+      const allDishes = app.globalData.allDishes || [];
+      const items = [];
+      for (const id in cartCount) {
+        const count = cartCount[id];
+        if (count > 0) {
+          const dish = allDishes.find(d => d.id == id);
+          if (dish) {
+            items.push({
+              dish_id: dish.id,
+              dish_name: dish.name,
+              price: parseFloat(dish.price),
+              quantity: count
+            });
+          }
+        }
+      }
+
+      const result = await request({
+        url: '/orders',
+        method: 'POST',
+        data: {
+          table_id: parseInt(this.data.tableId),
+          items: items,
+          user_id: app.globalData.userInfo?.id
+        }
+      });
+
+      app.clearAddMoreCart(this.data.tableId);
+      this.setData({ cartItems: [], totalCount: 0, totalPrice: '0.00', orderStatus: null });
+
+      wx.hideLoading();
+      wx.showToast({ title: '加餐已提交', icon: 'success' });
+
+      setTimeout(() => {
+        wx.redirectTo({
+          url: `/pages/order/detail?id=${result.id}`,
+        });
+      }, 1500);
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '提交失败', icon: 'none' });
+      console.error('提交加餐失败', err);
+    }
   },
 
   async goBack() {

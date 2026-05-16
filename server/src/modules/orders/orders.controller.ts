@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -12,6 +12,13 @@ export class OrdersController {
   async getTableCurrentOrder(@Param('tableId', ParseIntPipe) tableId: number) {
     console.log('[GET /api/orders/current/:tableId]', { tableId });
     return await this.ordersService.getTableCurrentOrder(tableId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-active')
+  async getMyActiveOrder(@Req() req) {
+    console.log('[GET /api/orders/my-active]', { userId: req.user?.userId });
+    return await this.ordersService.getMyActiveOrder(req.user?.userId);
   }
 
   @UseGuards(JwtAuthGuard)

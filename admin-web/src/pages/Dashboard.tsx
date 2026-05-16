@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
 import { DollarSign, ShoppingCart, TrendingUp, Users } from 'lucide-react'
+import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface Overview {
   today_amount: string
@@ -13,12 +14,28 @@ export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchOverview = useCallback(() => {
     request.get('/statistics/overview').then((res: any) => {
       setOverview(res)
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    fetchOverview()
+  }, [fetchOverview])
+
+  const handleWebSocketMessage = useCallback((event: string) => {
+    if (event === 'orderUpdated' || event === 'orderStatusChanged' || event === 'orderDeleted') {
+      fetchOverview()
+    }
+  }, [fetchOverview])
+
+  useWebSocket({
+    onMessage: handleWebSocketMessage,
+    autoReconnect: true,
+    reconnectInterval: 5000
+  })
 
   const cards = [
     { label: '今日营业额', value: `¥${overview?.today_amount || '0.00'}`, icon: DollarSign, color: 'bg-[#2563EB]' },

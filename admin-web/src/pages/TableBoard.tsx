@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import request from '@/api/request'
 import { Users, CheckCircle, X, Minus, Plus, PlusCircle } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
+import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface OrderItem {
   id: number
@@ -62,15 +63,25 @@ export default function TableBoard() {
   const [loading, setLoading] = useState(false)
   const { showToast, showConfirm } = useModal()
 
-  const fetchBoard = () => {
+  const fetchBoard = useCallback(() => {
     request.get('/tables/board').then((res: any) => setTables(res || []))
-  }
+  }, [])
 
   useEffect(() => {
     fetchBoard()
-    const timer = setInterval(fetchBoard, 5000)
-    return () => clearInterval(timer)
-  }, [])
+  }, [fetchBoard])
+
+  const handleWebSocketMessage = useCallback((event: string, data: any) => {
+    if (event === 'orderUpdated' || event === 'orderStatusChanged' || event === 'orderDeleted') {
+      fetchBoard()
+    }
+  }, [fetchBoard])
+
+  useWebSocket({
+    onMessage: handleWebSocketMessage,
+    autoReconnect: true,
+    reconnectInterval: 5000
+  })
 
   const handleSettle = async (orderId: number) => {
     showConfirm('确认结账', '确定该桌已结账吗？结账后桌台将变为空闲状态。', async () => {

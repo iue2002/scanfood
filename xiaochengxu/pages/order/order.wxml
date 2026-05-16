@@ -66,6 +66,6 @@
       <view class="badge">{{totalCount}}</view>
       <view class="total-price">￥{{totalPrice}}</view>
     </view>
-    <view class="submit-btn" bindtap="goToConfirm">下单</view>
+    <view class="submit-btn" bindtap="goToConfirm">{{isAddMore ? '提交加餐' : '下单'}}</view>
   </view>
 </view>

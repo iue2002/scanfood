@@ -37,6 +37,28 @@ export class OrdersService {
     };
   }
 
+  async getMyActiveOrder(userId: number) {
+    const result = await db.select().from(orders)
+      .where(and(
+        eq(orders.user_id, userId),
+        inArray(orders.status, ['draft', 'submitted', 'printed', 'unpaid'])
+      ))
+      .orderBy(desc(orders.created_at))
+      .limit(1);
+
+    const order = result[0];
+    if (!order) return null;
+
+    const items = await db.select().from(order_items).where(eq(order_items.order_id, order.id));
+    const tableResult = await db.select().from(tables).where(eq(tables.id, order.table_id));
+
+    return {
+      ...order,
+      order_items: items,
+      tables: tableResult[0] || null,
+    };
+  }
+
   async syncDraft(dto: CreateOrderDto) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('购物车不能为空');
@@ -103,6 +125,7 @@ export class OrdersService {
 
     const order = await this.getOrderById(orderId as number);
     this.ordersGateway.notifyTableUpdate(tableId, order);
+    this.ordersGateway.notifyAllAdmins('orderUpdated', order);
     return order;
   }
 
@@ -112,20 +135,52 @@ export class OrdersService {
       throw new BadRequestException('订单状态不允许加餐');
     }
 
+    // 保留原有订单项
+    const existingItems = (order.order_items || []) as any[];
+
     let totalAmount = 0;
-    const itemsToInsert = dto.items.map(item => {
-      const subtotal = item.price * item.quantity;
-      totalAmount += subtotal;
-      return {
+    const itemsToInsert: any[] = [];
+
+    // 先计算原有订单项的金额
+    for (const item of existingItems) {
+      totalAmount += parseFloat(item.subtotal);
+      itemsToInsert.push({
         dish_id: item.dish_id,
         spec_id: item.spec_id,
         dish_name: item.dish_name,
         spec_name: item.spec_name,
         quantity: item.quantity,
-        price: item.price.toFixed(2),
-        subtotal: subtotal.toFixed(2),
-      };
-    });
+        price: item.price,
+        subtotal: item.subtotal,
+      });
+    }
+
+    // 合并新加餐项（如果菜品相同则累加数量）
+    for (const newItem of dto.items) {
+      const existingIndex = itemsToInsert.findIndex(
+        (ei: any) => ei.dish_id === newItem.dish_id && ei.spec_id === newItem.spec_id
+      );
+      const subtotal = newItem.price * newItem.quantity;
+      if (existingIndex >= 0) {
+        // 合并到已有项
+        const existing = itemsToInsert[existingIndex];
+        existing.quantity += newItem.quantity;
+        const newSubtotal = parseFloat(existing.price) * existing.quantity;
+        existing.subtotal = newSubtotal.toFixed(2);
+        totalAmount += subtotal;
+      } else {
+        totalAmount += subtotal;
+        itemsToInsert.push({
+          dish_id: newItem.dish_id,
+          spec_id: newItem.spec_id,
+          dish_name: newItem.dish_name,
+          spec_name: newItem.spec_name,
+          quantity: newItem.quantity,
+          price: newItem.price.toFixed(2),
+          subtotal: subtotal.toFixed(2),
+        });
+      }
+    }
 
     await db.delete(order_items).where(eq(order_items.order_id, orderId));
     await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: orderId as number })));
@@ -140,6 +195,7 @@ export class OrdersService {
 
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
     return updatedOrder;
   }
 
@@ -228,6 +284,7 @@ export class OrdersService {
 
     const order = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(dto.table_id, order);
+    this.ordersGateway.notifyAllAdmins('orderStatusChanged', order);
     return order;
   }
 
@@ -258,6 +315,7 @@ export class OrdersService {
 
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
     return updatedOrder;
   }
 
@@ -289,6 +347,7 @@ export class OrdersService {
 
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
     return updatedOrder;
   }
 
@@ -304,6 +363,7 @@ export class OrdersService {
     await db.update(orders).set(updateData).where(eq(orders.id, orderId));
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(order.table_id, updatedOrder);
+    this.ordersGateway.notifyAllAdmins('orderStatusChanged', updatedOrder);
     return updatedOrder;
   }
 
@@ -360,6 +420,7 @@ export class OrdersService {
     }
 
     this.ordersGateway.notifyTableUpdate(order.table_id, null);
+    this.ordersGateway.notifyAllAdmins('orderDeleted', { id: orderId, table_id: order.table_id });
     return { success: true };
   }
 }

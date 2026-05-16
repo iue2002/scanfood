@@ -9,6 +9,7 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
   private wss: Server;
   private tableClients: Map<string, WebSocket> = new Map();
   private orderClients: Map<string, WebSocket> = new Map();
+  private adminClients: Set<WebSocket> = new Set();
 
   onModuleInit() {
     // WebSocket 服务器会在 app.listen 后通过 HTTP server 升级
@@ -49,6 +50,7 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
             break;
           }
         }
+        this.adminClients.delete(ws);
       });
     });
 
@@ -70,6 +72,9 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
         break;
       case 'unsubscribeOrder':
         this.handleUnsubscribeOrder(client, data);
+        break;
+      case 'subscribeAdmin':
+        this.handleSubscribeAdmin(client);
         break;
       default:
         this.logger.warn(`Unknown event: ${event}`);
@@ -118,6 +123,25 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
       event: 'unsubscribed',
       data: { orderId }
     }));
+  }
+
+  private handleSubscribeAdmin(client: WebSocket) {
+    this.adminClients.add(client);
+    this.logger.log(`Admin client subscribed. Total admin clients: ${this.adminClients.size}`);
+
+    client.send(JSON.stringify({
+      event: 'subscribed',
+      data: { type: 'admin' }
+    }));
+  }
+
+  notifyAllAdmins(event: string, data: any) {
+    const message = JSON.stringify({ event, data });
+    this.adminClients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
   }
 
   notifyTableUpdate(tableId: string | number, data: any) {

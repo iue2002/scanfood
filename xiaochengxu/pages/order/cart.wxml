@@ -51,6 +51,6 @@
       <view class="total-count">共 {{totalCount}} 件</view>
       <view class="total-amount">¥{{totalPrice}}</view>
     </view>
-    <view class="submit-btn" catchtap="goToConfirm">去下单</view>
+    <view class="submit-btn" catchtap="goToConfirm">{{isAddMore ? '提交加餐' : '去下单'}}</view>
   </view>
 </view>

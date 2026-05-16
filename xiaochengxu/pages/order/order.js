@@ -264,6 +264,19 @@ Page({
         noLoading: true 
       });
       if (order && order.status === 'draft') {
+        if (!order.order_items || order.order_items.length === 0) {
+          await request({
+            url: `/orders/${order.id}`,
+            method: 'DELETE',
+            noLoading: true
+          });
+          this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+          const cart = getApp().getCart(this.data.tableId);
+          cart.cartCount = {};
+          cart.currentOrderId = null;
+          cart.orderStatus = null;
+          return;
+        }
         const cartCount = {};
         order.order_items.forEach(item => {
           cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;

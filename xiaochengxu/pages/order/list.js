@@ -51,7 +51,7 @@ Page({
       const orders = await request({ url: '/orders' });
       
       const myOrders = orders
-        .filter(o => o.user_id === userInfo.id)
+        .filter(o => o.user_id === userInfo.id && o.status !== 'draft')
         .map(order => {
           if (order.created_at) {
             order.created_at = this.formatDate(order.created_at);

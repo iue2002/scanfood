@@ -1,5 +1,6 @@
 // pages/order/cart.js
 const { request, serverURL } = require('../../utils/request');
+const config = require('../../config');
 
 Page({
   data: {
@@ -47,11 +48,14 @@ Page({
     const hasItems = Object.values(cartCount).some(count => count > 0);
 
     if (!hasItems && cart.currentOrderId && cart.orderStatus === 'draft') {
-      request({
-        url: `/orders/${cart.currentOrderId}`,
+      wx.request({
+        url: `${config.baseURL}/orders/${cart.currentOrderId}`,
         method: 'DELETE',
-        noLoading: true
-      }).catch(() => {});
+        header: {
+          'Authorization': `Bearer ${wx.getStorageSync('token')}`
+        },
+        timeout: 5000
+      });
       app.clearCart(this.data.tableId);
     }
   },
@@ -247,7 +251,8 @@ Page({
     });
   },
 
-  goBack() {
+  async goBack() {
+    await this.syncCartToBackend();
     wx.navigateBack();
   }
 });

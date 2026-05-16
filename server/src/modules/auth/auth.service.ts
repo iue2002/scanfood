@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { db } from '@/storage/database/mysql-client';
-import { users } from '@/storage/database/shared/schema';
-import { LoginDto, RegisterDto, UpdateProfileDto } from './dto/auth.dto';
+import { users, tables } from '@/storage/database/shared/schema';
+import { LoginDto, RegisterDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import * as https from 'https';
@@ -146,11 +146,22 @@ export class AuthService {
       openid: users.openid,
       nickname: users.nickname,
       avatar_url: users.avatar_url,
+      table_number: users.table_number,
       created_at: users.created_at,
     }).from(users).where(eq(users.id, userId));
 
     const user = result[0];
     if (!user) throw new UnauthorizedException('用户不存在');
     return user;
+  }
+
+  async bindTable(userId: number, dto: BindTableDto) {
+    const tableResult = await db.select().from(tables).where(eq(tables.table_number, dto.tableNumber));
+    const table = tableResult[0];
+    if (!table) throw new BadRequestException('桌台不存在');
+
+    await db.update(users).set({ table_number: table.table_number }).where(eq(users.id, userId));
+
+    return { tableNumber: table.table_number };
   }
 }

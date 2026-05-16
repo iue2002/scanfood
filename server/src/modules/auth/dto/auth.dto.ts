@@ -51,3 +51,8 @@ export class UpdateProfileDto {
   @IsString()
   avatar_url?: string;
 }
+
+export class BindTableDto {
+  @IsString()
+  tableNumber: string;
+}

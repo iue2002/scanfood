@@ -1,31 +1,33 @@
 /* pages/order/confirm.wxss */
 .confirm-container {
-  padding: 20rpx;
-  background: #f8f8f8;
+  padding: 24rpx;
+  background: #f7f7f7;
   min-height: 100vh;
-  padding-bottom: 100rpx;
+  padding-bottom: 120rpx;
 }
 
 .section {
   background: #fff;
-  border-radius: 10rpx;
-  padding: 20rpx;
-  margin-bottom: 16rpx;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
 }
 
 .section-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  margin-bottom: 16rpx;
-  color: #333;
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 20rpx;
+  color: #1a1a1a;
+  letter-spacing: 0.5rpx;
 }
 
 .item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 12rpx;
-  font-size: 26rpx;
+  margin-bottom: 14rpx;
+  font-size: 28rpx;
   color: #666;
+  letter-spacing: 0.3rpx;
 }
 
 .name {
@@ -40,29 +42,32 @@
 .price {
   width: 120rpx;
   text-align: right;
-  color: #333;
+  color: #1a1a1a;
+  font-weight: 500;
 }
 
 .total-row {
-  border-top: 1rpx solid #eee;
-  padding-top: 12rpx;
-  margin-top: 12rpx;
+  border-top: 1rpx solid #f0f0f0;
+  padding-top: 16rpx;
+  margin-top: 16rpx;
   display: flex;
   justify-content: space-between;
-  font-size: 28rpx;
-  font-weight: bold;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  letter-spacing: 0.5rpx;
 }
 
 .total-price {
-  color: #ff4d4f;
+  color: #1a1a1a;
 }
 
 .form-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14rpx 0;
-  border-bottom: 1rpx solid #eee;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
 }
 
 .form-item:last-child {
@@ -70,18 +75,20 @@
 }
 
 .label {
-  font-size: 26rpx;
-  color: #333;
+  font-size: 28rpx;
+  color: #1a1a1a;
+  font-weight: 500;
+  letter-spacing: 0.3rpx;
 }
 
 .picker {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #666;
 }
 
 .input {
   text-align: right;
-  font-size: 26rpx;
+  font-size: 28rpx;
   flex: 1;
   margin-left: 20rpx;
 }
@@ -91,24 +98,32 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 90rpx;
+  height: 100rpx;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
   background: #fff;
   display: flex;
   align-items: center;
-  padding: 0 20rpx;
-  box-shadow: 0 -2rpx 8rpx rgba(0,0,0,0.05);
+  padding-left: 28rpx;
+  padding-right: 28rpx;
+  border-top: 1rpx solid #f0f0f0;
+  box-sizing: border-box;
 }
 
 .total {
   flex: 1;
-  font-size: 26rpx;
-  color: #333;
+  font-size: 28rpx;
+  color: #1a1a1a;
+  font-weight: 600;
+  letter-spacing: 0.5rpx;
 }
 
 .submit-btn {
-  width: 200rpx !important;
+  width: 220rpx !important;
   margin: 0 !important;
-  border-radius: 40rpx !important;
-  font-size: 28rpx !important;
-  background: #ff9d00 !important;
+  border-radius: 50rpx !important;
+  font-size: 30rpx !important;
+  font-weight: 600 !important;
+  background: #1a1a1a !important;
+  letter-spacing: 1rpx !important;
 }

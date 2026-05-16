@@ -17,10 +17,23 @@ App({
     if (token && userInfo && userInfo.id) {
       this.globalData.userInfo = userInfo;
       this.globalData.token = token;
+      this.refreshUserInfo();
     } else {
       wx.removeStorageSync('token');
       wx.removeStorageSync('userInfo');
     }
+  },
+
+  refreshUserInfo() {
+    request({
+      url: '/auth/me',
+      noLoading: true
+    }).then(user => {
+      wx.setStorageSync('userInfo', user);
+      this.globalData.userInfo = user;
+    }).catch(err => {
+      console.error('刷新用户信息失败', err);
+    });
   },
 
   login() {

@@ -106,6 +106,8 @@ Page({
   },
 
   goToOrder() {
-    wx.navigateBack();
+    wx.redirectTo({
+      url: '/pages/order/order?addMore=true'
+    });
   }
 })

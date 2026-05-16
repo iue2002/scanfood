@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -42,5 +42,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getCurrentUser(@Request() req: any) {
     return await this.authService.getUserInfo(req.user.userId);
+  }
+
+  @Post('bind-table')
+  @UseGuards(JwtAuthGuard)
+  async bindTable(@Request() req: any, @Body() dto: BindTableDto) {
+    console.log('[POST /api/auth/bind-table]', dto);
+    const result = await this.authService.bindTable(req.user.userId, dto);
+    console.log('[Response]', result);
+    return result;
   }
 }

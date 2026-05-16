@@ -24,6 +24,15 @@ Page({
     let tableNumber = null;
     let rawTableId = options.tableId || getApp().globalData.tableId;
     
+    if (options.addMore) {
+      this.isAddMore = true;
+    }
+    
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!rawTableId && !tableNumber && userInfo && userInfo.table_number) {
+      tableNumber = userInfo.table_number;
+    }
+    
     if (options.scene) {
       // scene参数是URL编码的，需要解码
       // 微信扫码进入时，scene就是桌台编号（如 "01"）
@@ -53,7 +62,7 @@ Page({
   },
 
   onShow() {
-    if (this.data.tableId) {
+    if (this.data.tableId && !this.isAddMore) {
       this.fetchCurrentOrder();
     }
     this.updateTabBar();
@@ -134,7 +143,11 @@ Page({
       });
       this.setData({ cartCount, currentOrderId: order.id });
       this.calculateTotal();
-    } else if (order && (order.status === 'submitted' || order.status === 'printed')) {
+    } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
+      if (this.isAddMore) {
+        this.isAddMore = false;
+        return;
+      }
       wx.redirectTo({
         url: `/pages/order/detail?id=${order.id}`,
       });
@@ -161,6 +174,7 @@ Page({
       const table = await request({ url: `/tables/number/${tableNumber}`, noLoading: true });
       this.setData({ tableId: table.id, tableNumber: table.table_number });
       getApp().globalData.tableId = table.id;
+      this.bindTable(tableNumber);
       this.initWebSocket();
     } catch (err) {
       console.error('获取桌台信息失败', err);
@@ -168,6 +182,27 @@ Page({
         title: '获取桌台信息失败',
         icon: 'none'
       });
+    }
+  },
+
+  async bindTable(tableNumber) {
+    const token = wx.getStorageSync('token');
+    if (!token) return;
+    try {
+      const result = await request({
+        url: '/auth/bind-table',
+        method: 'POST',
+        data: { tableNumber },
+        noLoading: true
+      });
+      const userInfo = wx.getStorageSync('userInfo');
+      if (userInfo) {
+        userInfo.table_number = result.tableNumber;
+        wx.setStorageSync('userInfo', userInfo);
+        getApp().globalData.userInfo = userInfo;
+      }
+    } catch (err) {
+      console.error('绑定桌台失败', err);
     }
   },
 
@@ -183,7 +218,9 @@ Page({
       const { serverURL } = require('../../utils/request');
       allDishes = allDishes.map(dish => {
         if (dish.image_url) {
-          if (!dish.image_url.startsWith('http')) {
+          if (dish.image_url.startsWith('http://')) {
+            dish.image_url = dish.image_url.replace('http://', 'https://');
+          } else if (!dish.image_url.startsWith('http')) {
             dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
           }
         }
@@ -222,7 +259,11 @@ Page({
         });
         this.setData({ cartCount, currentOrderId: order.id });
         this.calculateTotal();
-      } else if (order && (order.status === 'submitted' || order.status === 'printed')) {
+      } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
+        if (this.isAddMore) {
+          this.isAddMore = false;
+          return;
+        }
         wx.redirectTo({
           url: `/pages/order/detail?id=${order.id}`,
         });
@@ -285,7 +326,7 @@ Page({
         }
         
         if (tableNumber) {
-          this.setData({ tableNumber });
+          this.setData({ tableNumber, hasScannedTable: true });
           this.fetchTableInfoByNumber(tableNumber);
           this.fetchCurrentOrder();
         } else {

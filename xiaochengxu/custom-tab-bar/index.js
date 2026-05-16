@@ -2,7 +2,7 @@ Component({
   data: {
     selected: 0,
     color: '#999999',
-    selectedColor: '#ff9d00',
+    selectedColor: '#333333',
     borderStyle: 'white',
     backgroundColor: '#ffffff',
     list: [

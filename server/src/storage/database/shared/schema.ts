@@ -13,10 +13,11 @@ export const users = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     username: varchar("username", { length: 50 }).notNull().unique(),
     password: varchar("password", { length: 255 }).notNull(),
-    role: varchar("role", { length: 20 }).notNull().default('customer'), // customer/admin/staff
-    openid: varchar("openid", { length: 100 }), // 微信openid
+    role: varchar("role", { length: 20 }).notNull().default('customer'),
+    openid: varchar("openid", { length: 100 }),
     nickname: varchar("nickname", { length: 100 }),
     avatar_url: varchar("avatar_url", { length: 500 }),
+    table_number: varchar("table_number", { length: 20 }),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   },

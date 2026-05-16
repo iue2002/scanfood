@@ -40,7 +40,6 @@
 
     <!-- 右侧菜品 -->
     <scroll-view class="dish-list" scroll-y>
-      <view class="category-title">{{currentCategoryName}}</view>
       <view wx:for="{{dishes}}" wx:key="id" class="dish-item">
         <image class="dish-image" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill"></image>
         <view class="dish-info">

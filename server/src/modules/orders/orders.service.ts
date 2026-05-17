@@ -92,6 +92,8 @@ export class OrdersService {
         subtotal: subtotal.toFixed(2),
         added_by_user_id: item.added_by_user_id || dto.user_id,
         added_by_nickname: item.added_by_nickname || '未知用户',
+        phase: 'order' as const,
+        add_more_round: 0,
       };
     });
 
@@ -137,6 +139,13 @@ export class OrdersService {
       throw new BadRequestException('订单状态不允许加餐');
     }
 
+    // 获取当前最大的加餐轮次
+    const maxRoundResult = await db.select({ maxRound: sql`MAX(${order_items.add_more_round})` })
+      .from(order_items)
+      .where(eq(order_items.order_id, orderId));
+    const currentMaxRound = (maxRoundResult[0]?.maxRound as number) || 0;
+    const nextRound = currentMaxRound + 1;
+
     // 计算现有订单金额
     let totalAmount = parseFloat(order.total_amount || '0');
 
@@ -156,6 +165,8 @@ export class OrdersService {
         subtotal: subtotal.toFixed(2),
         added_by_user_id: newItem.added_by_user_id,
         added_by_nickname: newItem.added_by_nickname,
+        phase: 'add_more', // 标记为加餐
+        add_more_round: nextRound,
       });
     }
 
@@ -220,12 +231,6 @@ export class OrdersService {
     let itemsList: any[] = [];
     if (orderIds.length > 0) {
       itemsList = await db.select().from(order_items).where(inArray(order_items.order_id, orderIds as any));
-    }
-
-    // 调试：打印前3个订单的items的created_at
-    if (itemsList.length > 0) {
-      const order1Items = itemsList.filter(i => i.order_id === orderIds[0]).slice(0, 3);
-      console.log(`[DEBUG] Order ${orderIds[0]} items created_at:`, order1Items.map(i => i.created_at));
     }
 
     const data = orderList.map(o => ({
@@ -321,6 +326,7 @@ export class OrdersService {
       quantity: dto.quantity,
       price: dto.price.toFixed(2),
       subtotal: subtotal.toFixed(2),
+      phase: 'add_more',
     });
 
     const newTotal = parseFloat(order.total_amount as any) + subtotal;

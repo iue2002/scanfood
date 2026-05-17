@@ -13,7 +13,6 @@ Page({
       'cancelled': '已取消',
       'refunded': '已退款'
     },
-    ws: null,
     showAddMoreModal: false,
     categories: [],
     currentCategory: '',
@@ -25,13 +24,140 @@ Page({
     addMoreTotalStr: '0.00'
   },
 
+  // WebSocket 状态管理
+  ws: null,
+  wsStatus: 'closed', // closed, connecting, connected
+  reconnectDelay: 1000,
+  maxReconnectDelay: 30000,
+  reconnectTimer: null,
+  pollTimer: null,
+  orderId: null,
+
   onLoad(options) {
+    this.orderId = options.id;
     this.fetchOrderDetail(options.id);
     this.initWebSocket(options.id);
   },
 
   onUnload() {
-    this.closeWebSocket();
+    this.disconnect();
+  },
+
+  disconnect() {
+    this.wsStatus = 'closed';
+    
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.ws) {
+      try {
+        this.ws.close({ code: 1000, reason: 'page unload' });
+      } catch (e) {}
+      this.ws = null;
+    }
+  },
+
+  initWebSocket(orderId) {
+    if (!SERVER_URL || this.wsStatus === 'connecting') return;
+
+    this.wsStatus = 'connecting';
+    const wsUrl = SERVER_URL.replace('http', 'ws').replace('https', 'wss') + '/ws';
+    
+    console.log(`[WS] 正在连接: ${wsUrl}`);
+
+    this.ws = wx.connectSocket({ url: wsUrl });
+
+    this.ws.onOpen(() => {
+      console.log('[WS] 连接成功');
+      this.wsStatus = 'connected';
+      this.reconnectDelay = 1000;
+      this.stopPolling();
+      this.sendSubscribe(orderId);
+    });
+
+    this.ws.onMessage((res) => {
+      try {
+        const message = JSON.parse(res.data);
+        if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
+          this.fetchOrderDetail(orderId);
+        }
+      } catch (e) {
+        console.error('[WS] 消息解析失败', e);
+      }
+    });
+
+    this.ws.onError((err) => {
+      console.error('[WS] 连接错误:', err);
+      this.handleDisconnect(orderId);
+    });
+
+    this.ws.onClose((res) => {
+      console.log('[WS] 连接关闭, code:', res.code, ', reason:', res.reason);
+      if (res.code !== 1000) {
+        this.handleDisconnect(orderId);
+      }
+    });
+  },
+
+  sendSubscribe(orderId) {
+    if (!this.ws || this.wsStatus !== 'connected') return;
+    try {
+      this.ws.send({
+        data: JSON.stringify({ event: 'subscribeOrder', data: { orderId } })
+      });
+    } catch (e) {
+      console.error('[WS] 发送失败', e);
+    }
+  },
+
+  handleDisconnect(orderId) {
+    if (this.wsStatus === 'closed') return;
+    
+    const order = this.data.order;
+    if (order?.status === 'settled' || order?.status === 'cancelled') {
+      this.wsStatus = 'closed';
+      return;
+    }
+
+    this.wsStatus = 'closed';
+    this.ws = null;
+
+    // 启用轮询作为备用
+    this.startPolling(orderId);
+
+    // 指数退避重连
+    const delay = this.reconnectDelay;
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+    
+    console.log(`[WS] ${delay}ms 后尝试重连`);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.initWebSocket(orderId);
+    }, delay);
+  },
+
+  startPolling(orderId) {
+    if (this.pollTimer) return;
+    console.log('[Poll] 启动轮询');
+    this.pollTimer = setInterval(() => {
+      const order = this.data.order;
+      if (order?.status !== 'settled' && order?.status !== 'cancelled') {
+        this.fetchOrderDetail(orderId);
+      }
+    }, 10000);
+  },
+
+  stopPolling() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+      console.log('[Poll] 停止轮询');
+    }
   },
 
   async fetchOrderDetail(id) {
@@ -52,6 +178,8 @@ Page({
             dish_image: dishImage
           };
         });
+
+        order.groupedItems = this.groupItemsByRound(order.order_items);
       }
 
       if (order.created_at) {
@@ -72,9 +200,41 @@ Page({
     }
   },
 
+  groupItemsByRound(items) {
+    if (!items || items.length === 0) return [];
+    const sorted = [...items].sort((a, b) => (a.add_more_round || 0) - (b.add_more_round || 0));
+    const groups = [];
+    let currentGroup = [sorted[0]];
+    let currentRound = sorted[0].add_more_round || 0;
+
+    for (let i = 1; i < sorted.length; i++) {
+      const itemRound = sorted[i].add_more_round || 0;
+      if (itemRound === currentRound) {
+        currentGroup.push(sorted[i]);
+      } else {
+        groups.push({
+          round: currentRound,
+          label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
+          items: currentGroup
+        });
+        currentGroup = [sorted[i]];
+        currentRound = itemRound;
+      }
+    }
+    groups.push({
+      round: currentRound,
+      label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
+      items: currentGroup
+    });
+    return groups;
+  },
+
   // 释放桌号资源 - 结账后必须清理，避免缓存导致下次进入混乱
   releaseTableResources() {
     console.log('订单已结账/取消，释放桌号资源');
+
+    // 停止轮询
+    this.stopPolling();
 
     // 清除本地存储的桌号
     wx.removeStorageSync('savedTableId');
@@ -90,44 +250,7 @@ Page({
     }
 
     // 断开 WebSocket 连接
-    this.closeWebSocket();
-  },
-
-  initWebSocket(orderId) {
-    if (!SERVER_URL) return;
-
-    const wsUrl = SERVER_URL.replace('http', 'ws').replace('https', 'wss') + '/ws';
-    console.log('订单详情连接 WebSocket:', wsUrl);
-
-    this.ws = wx.connectSocket({
-      url: wsUrl,
-      success: () => { console.log('订单详情 WebSocket 连接成功'); },
-      fail: (err) => { console.error('订单详情 WebSocket 连接失败', err); }
-    });
-
-    this.ws.onOpen(() => {
-      this.ws.send({
-        data: JSON.stringify({ event: 'subscribeOrder', data: { orderId } })
-      });
-    });
-
-    this.ws.onMessage((res) => {
-      const message = JSON.parse(res.data);
-      if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
-        this.fetchOrderDetail(orderId);
-      }
-    });
-
-    this.ws.onError((err) => {
-      console.error('订单详情 WebSocket 错误', err);
-    });
-  },
-
-  closeWebSocket() {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    this.disconnect();
   },
 
   formatDate(dateStr) {

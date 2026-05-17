@@ -27,17 +27,38 @@
   <!-- 菜品明细 -->
   <view class="section">
     <view class="section-title">菜品明细</view>
-    <view wx:for="{{order.order_items}}" wx:key="id" class="dish-item">
-      <image class="dish-image" src="{{item.dish_image || '/images/default-dish.png'}}" mode="aspectFill"></image>
-      <view class="dish-info">
-        <view class="dish-name">{{item.dish_name}}</view>
-        <view class="dish-spec" wx:if="{{item.spec_name}}">{{item.spec_name}}</view>
-        <view class="dish-adder" wx:if="{{item.added_by_nickname}}">
-          <text class="adder-tag">{{item.added_by_nickname}} 添加</text>
+    <view wx:if="{{order.groupedItems}}">
+      <view wx:for="{{order.groupedItems}}" wx:key="round" class="item-group">
+        <view class="group-label">{{item.label}}</view>
+        <view wx:for="{{item.items}}" wx:key="id" wx:for-item="dish" class="dish-item">
+          <image class="dish-image" src="{{dish.dish_image || '/images/default-dish.png'}}" mode="aspectFill"></image>
+          <view class="dish-info">
+            <view class="dish-name">{{dish.dish_name}}</view>
+            <view class="dish-spec" wx:if="{{dish.spec_name}}">{{dish.spec_name}}</view>
+            <view class="dish-adder" wx:if="{{dish.added_by_nickname}}">
+              <text class="adder-tag">{{dish.added_by_nickname}} 添加</text>
+            </view>
+            <view class="dish-bottom">
+              <view class="dish-qty">x{{dish.quantity}}</view>
+              <view class="dish-price">¥{{dish.subtotal}}</view>
+            </view>
+          </view>
         </view>
-        <view class="dish-bottom">
-          <view class="dish-qty">x{{item.quantity}}</view>
-          <view class="dish-price">¥{{item.subtotal}}</view>
+      </view>
+    </view>
+    <view wx:else>
+      <view wx:for="{{order.order_items}}" wx:key="id" class="dish-item">
+        <image class="dish-image" src="{{item.dish_image || '/images/default-dish.png'}}" mode="aspectFill"></image>
+        <view class="dish-info">
+          <view class="dish-name">{{item.dish_name}}</view>
+          <view class="dish-spec" wx:if="{{item.spec_name}}">{{item.spec_name}}</view>
+          <view class="dish-adder" wx:if="{{item.added_by_nickname}}">
+            <text class="adder-tag">{{item.added_by_nickname}} 添加</text>
+          </view>
+          <view class="dish-bottom">
+            <view class="dish-qty">x{{item.quantity}}</view>
+            <view class="dish-price">¥{{item.subtotal}}</view>
+          </view>
         </view>
       </view>
     </view>

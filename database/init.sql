@@ -113,11 +113,16 @@ CREATE TABLE IF NOT EXISTS order_items (
   quantity INTEGER NOT NULL DEFAULT 1,
   price NUMERIC(10, 2) NOT NULL, -- 单价
   subtotal NUMERIC(10, 2) NOT NULL, -- 小计 = price * quantity
+  added_by_user_id INTEGER REFERENCES users(id), -- 添加菜品的用户ID
+  added_by_nickname VARCHAR(100), -- 添加菜品的用户昵称
+  phase VARCHAR(20) NOT NULL DEFAULT 'order', -- order=首次点餐, add_more=加餐
+  add_more_round INTEGER NOT NULL DEFAULT 0, -- 加餐轮次：0=首次点餐, 1=第1次加餐...
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS order_items_dish_id_idx ON order_items(dish_id);
+CREATE INDEX IF NOT EXISTS order_items_added_by_user_id_idx ON order_items(added_by_user_id);
 
 -- 2.8 小票打印记录表
 CREATE TABLE IF NOT EXISTS print_records (

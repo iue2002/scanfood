@@ -13,6 +13,8 @@ interface OrderItem {
   subtotal: string
   added_by_user_id: number | null
   added_by_nickname: string | null
+  phase: 'order' | 'add_more'
+  add_more_round: number
   created_at: string
 }
 
@@ -40,6 +42,7 @@ interface GroupedItems {
   time: string
   items: OrderItem[]
   label: string
+  phase: 'order' | 'add_more'
 }
 
 const statusMap: Record<string, { label: string; color: string }> = {
@@ -179,30 +182,32 @@ export default function OrderManage() {
     })
   }
 
-  const groupItemsByTime = (items: OrderItem[]): GroupedItems[] => {
+  const groupItemsByPhase = (items: OrderItem[]): GroupedItems[] => {
     if (!items || items.length === 0) return []
-    const sorted = [...items].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const sorted = [...items].sort((a, b) => a.add_more_round - b.add_more_round)
     const groups: GroupedItems[] = []
     let currentGroup: OrderItem[] = [sorted[0]]
+    let currentRound = sorted[0].add_more_round
 
     for (let i = 1; i < sorted.length; i++) {
-      const prevTime = new Date(sorted[i - 1].created_at).getTime()
-      const currTime = new Date(sorted[i].created_at).getTime()
-      if (currTime - prevTime < 10 * 1000) {
+      if (sorted[i].add_more_round === currentRound) {
         currentGroup.push(sorted[i])
       } else {
         groups.push({
-          time: sorted[i - 1].created_at,
+          time: currentGroup[0].created_at,
           items: currentGroup,
-          label: groups.length === 0 ? '首次点餐' : `第${groups.length + 1}次加餐`
+          label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
+          phase: currentRound === 0 ? 'order' : 'add_more'
         })
         currentGroup = [sorted[i]]
+        currentRound = sorted[i].add_more_round
       }
     }
     groups.push({
-      time: sorted[sorted.length - 1].created_at,
+      time: currentGroup[0].created_at,
       items: currentGroup,
-      label: groups.length === 0 ? '首次点餐' : `第${groups.length + 1}次加餐`
+      label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
+      phase: currentRound === 0 ? 'order' : 'add_more'
     })
     return groups
   }
@@ -312,7 +317,7 @@ export default function OrderManage() {
               const s = statusMap[order.status] || statusMap.submitted
               const isExpanded = expandedOrders.has(order.id)
               const items = order.order_items || []
-              const groupedItems = isExpanded ? groupItemsByTime(items) : []
+              const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
               return (
                 <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
@@ -399,7 +404,7 @@ export default function OrderManage() {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
-          const groupedItems = isExpanded ? groupItemsByTime(items) : []
+          const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
           return (
             <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -524,7 +529,7 @@ export default function OrderManage() {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
-          const groupedItems = isExpanded ? groupItemsByTime(items) : []
+          const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
           return (
             <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -730,10 +735,10 @@ export default function OrderManage() {
 
             {/* 菜品明细 */}
             <div>
-              <p className="text-sm font-medium text-[#334155] mb-3">菜品明细（按点餐时间分组）</p>
+              <p className="text-sm font-medium text-[#334155] mb-3">菜品明细（按点餐类型分组）</p>
               {detail.order_items && detail.order_items.length > 0 ? (
                 <div className="space-y-4">
-                  {groupItemsByTime(detail.order_items).map((group, gi) => (
+                  {groupItemsByPhase(detail.order_items).map((group, gi) => (
                     <div key={gi}>
                       {/* 分组标题 */}
                       <div className="flex items-center gap-2 mb-2">

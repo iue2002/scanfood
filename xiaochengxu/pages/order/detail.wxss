@@ -74,6 +74,23 @@
   font-size: 24rpx;
 }
 
+/* 菜品分组 */
+.item-group {
+  margin-bottom: 16rpx;
+}
+
+.item-group:last-child {
+  margin-bottom: 0;
+}
+
+.group-label {
+  font-size: 22rpx;
+  color: #666;
+  padding: 8rpx 24rpx;
+  background: #fafafa;
+  border-left: 4rpx solid #2563eb;
+}
+
 /* 菜品列表 */
 .dish-item {
   display: flex;

@@ -138,6 +138,8 @@ export const order_items = mysqlTable(
     subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(), // 小计 = price * quantity
     added_by_user_id: int("added_by_user_id").references(() => users.id), // 添加菜品的用户ID
     added_by_nickname: varchar("added_by_nickname", { length: 100 }), // 添加菜品的用户昵称
+    phase: varchar("phase", { length: 20 }).notNull().default('order'), // order=首次点餐, add_more=加餐
+    add_more_round: int("add_more_round").notNull().default(0), // 加餐轮次：0=首次点餐, 1=第1次加餐, 2=第2次加餐...
     created_at: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

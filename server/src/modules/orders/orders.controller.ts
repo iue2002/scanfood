@@ -46,10 +46,14 @@ export class OrdersController {
     @Query('date_from') dateFrom?: string,
     @Query('date_to') dateTo?: string,
     @Query('tag') tag?: string,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
   ) {
-    console.log('[GET /api/orders]', { status, tableId, dateFrom, dateTo, tag });
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const size = pageSize ? parseInt(pageSize, 10) : 20;
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
-    return await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag);
+    console.log('[GET /api/orders]', { status, tableId: tableIdNum, dateFrom, dateTo, tag, page: pageNum, page_size: size });
+    return await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size);
   }
 
   @UseGuards(JwtAuthGuard)

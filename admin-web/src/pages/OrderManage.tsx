@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
-import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
@@ -66,18 +66,33 @@ export default function OrderManage() {
   const [detail, setDetail] = useState<Order | null>(null)
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
   const { showToast, showConfirm } = useModal()
+  
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [hasMore, setHasMore] = useState(true)
 
   const fetchOrders = useCallback(() => {
-    const params: any = {}
+    const params: any = {
+      page: currentPage,
+      page_size: pageSize
+    }
     if (filterStatus) params.status = filterStatus
     if (dateFrom) params.date_from = dateFrom
     if (dateTo) params.date_to = dateTo
+    if (activeTag) params.tag = activeTag
     request.get('/orders', { params }).then((res: any) => {
-      setOrders(res || [])
-      const orderIds = (res || []).map((o: Order) => o.id)
+      let data: Order[] = []
+      if (Array.isArray(res)) {
+        data = res
+      } else if (res && Array.isArray(res.data)) {
+        data = res.data
+      }
+      setOrders(data)
+      setHasMore(data.length === pageSize)
+      const orderIds = data.map((o: Order) => o.id)
       setExpandedOrders(new Set(orderIds))
     })
-  }, [filterStatus, dateFrom, dateTo])
+  }, [filterStatus, dateFrom, dateTo, currentPage, pageSize])
 
   useEffect(() => {
     fetchOrders()
@@ -173,7 +188,7 @@ export default function OrderManage() {
     for (let i = 1; i < sorted.length; i++) {
       const prevTime = new Date(sorted[i - 1].created_at).getTime()
       const currTime = new Date(sorted[i].created_at).getTime()
-      if (currTime - prevTime < 5 * 60 * 1000) {
+      if (currTime - prevTime < 10 * 1000) {
         currentGroup.push(sorted[i])
       } else {
         groups.push({
@@ -631,6 +646,43 @@ export default function OrderManage() {
           )
         })}
       </div>
+
+      {/* 分页组件 */}
+      {orders.length > 0 && (
+        <div className="flex items-center justify-center gap-2 mt-6 px-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            title="上一页"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="px-3 py-1 text-sm font-medium text-[#334155]">
+            第 {currentPage} 页
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => p + 1)}
+            disabled={!hasMore}
+            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            title="下一页"
+          >
+            <ChevronRight size={16} />
+          </button>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value))
+              setCurrentPage(1)
+            }}
+            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+          >
+            <option value={10}>10条/页</option>
+            <option value={20}>20条/页</option>
+            <option value={50}>50条/页</option>
+          </select>
+        </div>
+      )}
 
       {/* 订单详情弹窗 */}
       {detail && (

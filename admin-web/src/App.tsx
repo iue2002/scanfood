@@ -11,9 +11,10 @@ import DishManage from './pages/DishManage'
 import RefundManage from './pages/RefundManage'
 import Statistics from './pages/Statistics'
 import { ModalProvider } from './components/ModalProvider'
+import { useAuthStore } from './stores/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('admin_token')
+  const token = useAuthStore(state => state.token)
   return token ? <>{children}</> : <Navigate to="/login" replace />
 }
 

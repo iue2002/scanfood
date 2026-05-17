@@ -12,7 +12,7 @@ const ENV = {
   },
   // 内网穿透环境（开发版/体验版测试用，使用 cpolar/natapp 等工具）
   TUNNEL: {
-    SERVER_URL: 'https://5ebe3051.r9.cpolar.cn',
+    SERVER_URL: 'https://27c0f8e9.r9.cpolar.cn',
     desc: '内网穿透环境'
   },
   // 生产环境

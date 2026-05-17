@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/auth'
 import { User, LogOut, Menu } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -7,6 +8,12 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <header className="sticky top-0 h-16 bg-white border-b border-gray-200 z-30 shrink-0 flex items-center justify-between px-4 md:px-6">
@@ -27,7 +34,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <span className="hidden sm:inline">{user?.nickname || user?.username || '管理员'}</span>
         </div>
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="flex items-center gap-1 text-sm text-[#EF4444] hover:text-red-700 transition-colors cursor-pointer"
         >
           <LogOut size={16} />

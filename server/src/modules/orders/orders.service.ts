@@ -137,33 +137,16 @@ export class OrdersService {
       throw new BadRequestException('订单状态不允许加餐');
     }
 
-    // 保留原有订单项
-    const existingItems = (order.order_items || []) as any[];
+    // 计算现有订单金额
+    let totalAmount = parseFloat(order.total_amount || '0');
 
-    let totalAmount = 0;
+    // 新增菜品直接追加，不删除原有菜品（保留原有时间戳）
     const itemsToInsert: any[] = [];
-
-    // 先计算原有订单项的金额
-    for (const item of existingItems) {
-      totalAmount += parseFloat(item.subtotal);
-      itemsToInsert.push({
-        dish_id: item.dish_id,
-        spec_id: item.spec_id,
-        dish_name: item.dish_name,
-        spec_name: item.spec_name,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.subtotal,
-        added_by_user_id: item.added_by_user_id,
-        added_by_nickname: item.added_by_nickname,
-      });
-    }
-
-    // 新加餐项直接追加，不合并（确保能区分不同人添加的菜品）
     for (const newItem of dto.items) {
       const subtotal = newItem.price * newItem.quantity;
       totalAmount += subtotal;
       itemsToInsert.push({
+        order_id: orderId,
         dish_id: newItem.dish_id,
         spec_id: newItem.spec_id,
         dish_name: newItem.dish_name,
@@ -176,8 +159,8 @@ export class OrdersService {
       });
     }
 
-    await db.delete(order_items).where(eq(order_items.order_id, orderId));
-    await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: orderId as number })));
+    // 直接插入新菜品，不删除原有菜品
+    await db.insert(order_items).values(itemsToInsert);
     await db.update(orders).set({
       total_amount: totalAmount.toFixed(2),
       updated_at: new Date(),
@@ -193,7 +176,7 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string) {
+  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string, page: number = 1, pageSize: number = 20) {
     const conditions: any[] = [];
     if (status) conditions.push(eq(orders.status, status));
     if (tableId) conditions.push(eq(orders.table_id, tableId));
@@ -208,29 +191,51 @@ export class OrdersService {
       conditions.push(sql`${orders.created_at} <= ${toDate}`);
     }
 
+    const offset = (page - 1) * pageSize;
+
     let orderList;
+
     if (conditions.length > 0) {
-      orderList = await db.select().from(orders).where(and(...conditions)).orderBy(desc(orders.created_at));
+      orderList = await db.select().from(orders).where(and(...conditions)).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize);
     } else {
-      orderList = await db.select().from(orders).orderBy(desc(orders.created_at));
+      orderList = await db.select().from(orders).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize);
     }
 
-    const tableList = await db.select().from(tables);
-    const userList = await db.select().from(users);
+    // 获取当前页订单关联的table_id和user_id
+    const tableIds = [...new Set(orderList.map(o => o.table_id).filter(Boolean))] as number[];
+    const userIds = [...new Set(orderList.map(o => o.user_id).filter(Boolean))] as number[];
 
-    // 获取所有订单的items
+    // 只查询当前页订单需要的表和用户
+    let tableList: any[] = [];
+    let userList: any[] = [];
+    if (tableIds.length > 0) {
+      tableList = await db.select().from(tables).where(inArray(tables.id, tableIds as any));
+    }
+    if (userIds.length > 0) {
+      userList = await db.select().from(users).where(inArray(users.id, userIds as any));
+    }
+
+    // 获取当前页订单的items
     const orderIds = orderList.map(o => o.id);
     let itemsList: any[] = [];
     if (orderIds.length > 0) {
-      itemsList = await db.select().from(order_items).where(inArray(order_items.order_id, orderIds));
+      itemsList = await db.select().from(order_items).where(inArray(order_items.order_id, orderIds as any));
     }
 
-    return orderList.map(o => ({
+    // 调试：打印前3个订单的items的created_at
+    if (itemsList.length > 0) {
+      const order1Items = itemsList.filter(i => i.order_id === orderIds[0]).slice(0, 3);
+      console.log(`[DEBUG] Order ${orderIds[0]} items created_at:`, order1Items.map(i => i.created_at));
+    }
+
+    const data = orderList.map(o => ({
       ...o,
       tables: tableList.find(t => t.id === o.table_id) || null,
       users: userList.find(u => u.id === o.user_id) || null,
       order_items: itemsList.filter(item => item.order_id === o.id),
     }));
+
+    return data;
   }
 
   async getOrderById(id: number) {

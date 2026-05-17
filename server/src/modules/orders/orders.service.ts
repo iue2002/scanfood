@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { db } from '@/storage/database/mysql-client';
 import { orders, order_items, tables, users, print_records } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
-import { eq, and, inArray, desc } from 'drizzle-orm';
+import { eq, and, inArray, desc, sql } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
 
 @Injectable()
@@ -193,12 +193,20 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async getOrders(status?: string, tableId?: number) {
-    let query = db.select().from(orders).orderBy(desc(orders.created_at)) as any;
-
+  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string) {
     const conditions: any[] = [];
     if (status) conditions.push(eq(orders.status, status));
     if (tableId) conditions.push(eq(orders.table_id, tableId));
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      conditions.push(sql`${orders.created_at} >= ${fromDate}`);
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      conditions.push(sql`${orders.created_at} <= ${toDate}`);
+    }
 
     let orderList;
     if (conditions.length > 0) {
@@ -210,10 +218,18 @@ export class OrdersService {
     const tableList = await db.select().from(tables);
     const userList = await db.select().from(users);
 
+    // 获取所有订单的items
+    const orderIds = orderList.map(o => o.id);
+    let itemsList: any[] = [];
+    if (orderIds.length > 0) {
+      itemsList = await db.select().from(order_items).where(inArray(order_items.order_id, orderIds));
+    }
+
     return orderList.map(o => ({
       ...o,
       tables: tableList.find(t => t.id === o.table_id) || null,
       users: userList.find(u => u.id === o.user_id) || null,
+      order_items: itemsList.filter(item => item.order_id === o.id),
     }));
   }
 

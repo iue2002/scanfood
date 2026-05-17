@@ -44,6 +44,13 @@ export class AuthController {
     return await this.authService.getUserInfo(req.user.userId);
   }
 
+  @Get('verify')
+  @UseGuards(JwtAuthGuard)
+  async verifyToken(@Request() req: any) {
+    const user = await this.authService.getUserInfo(req.user.userId);
+    return { user };
+  }
+
   @Post('bind-table')
   @UseGuards(JwtAuthGuard)
   async bindTable(@Request() req: any, @Body() dto: BindTableDto) {

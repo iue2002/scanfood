@@ -200,45 +200,86 @@ export default function TableBoard() {
               </button>
             </div>
 
-            {/* 菜品列表 */}
+            {/* 菜品列表 - 按点餐时间分组 */}
             <div className="flex-1 overflow-y-auto px-5 py-3">
               {selectedTable.current_order.order_items.length === 0 ? (
                 <div className="text-center text-sm text-[#94A3B8] py-8">暂无菜品</div>
               ) : (
                 <div className="space-y-3">
-                  {selectedTable.current_order.order_items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-[#0F172A] truncate">
-                          {item.dish_name}
-                          {item.spec_name && (
-                            <span className="text-xs text-[#94A3B8] ml-1">({item.spec_name})</span>
+                  {(() => {
+                    const items = selectedTable.current_order.order_items
+                    const sorted = [...items].sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+                    const groups: { label: string; time: string; items: typeof sorted }[] = []
+                    let currentGroup = [sorted[0]]
+
+                    for (let i = 1; i < sorted.length; i++) {
+                      const prevTime = new Date(sorted[i - 1].created_at || 0).getTime()
+                      const currTime = new Date(sorted[i].created_at || 0).getTime()
+                      if (currTime - prevTime < 5 * 60 * 1000) {
+                        currentGroup.push(sorted[i])
+                      } else {
+                        groups.push({
+                          time: sorted[i - 1].created_at,
+                          items: currentGroup,
+                          label: groups.length === 0 ? '首次点餐' : `第${groups.length + 1}次加餐`
+                        })
+                        currentGroup = [sorted[i]]
+                      }
+                    }
+                    groups.push({
+                      time: sorted[sorted.length - 1].created_at,
+                      items: currentGroup,
+                      label: groups.length === 0 ? '首次点餐' : `第${groups.length + 1}次加餐`
+                    })
+
+                    return groups.map((group, gi) => (
+                      <div key={gi} className="bg-[#F8FAFC] rounded-lg p-3">
+                        <div className="text-xs font-medium text-[#2563EB] mb-2">
+                          {group.label}
+                          {group.time && (
+                            <span className="text-[#94A3B8] ml-1">
+                              · {new Date(group.time).toLocaleString()}
+                            </span>
                           )}
                         </div>
-                        <div className="text-xs text-[#94A3B8] mt-0.5">
-                          ¥{item.price} × {item.quantity}
+                        <div className="space-y-2">
+                          {group.items.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm text-[#0F172A] truncate">
+                                  {item.dish_name}
+                                  {item.spec_name && (
+                                    <span className="text-xs text-[#94A3B8] ml-1">({item.spec_name})</span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-[#94A3B8] mt-0.5">
+                                  ¥{item.price} × {item.quantity}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-3 shrink-0">
+                                <div className="text-sm font-semibold text-[#0F172A]">¥{item.subtotal}</div>
+                                <button
+                                  onClick={() => handleUpdateItemQty(selectedTable.current_order!.id, item.id, item.quantity - 1)}
+                                  className="p-1.5 text-[#EF4444] hover:bg-red-50 rounded-md cursor-pointer"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateItemQty(selectedTable.current_order!.id, item.id, item.quantity + 1)}
+                                  className="p-1.5 text-[#2563EB] hover:bg-[#EFF6FF] rounded-md cursor-pointer"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-3 shrink-0">
-                        <div className="text-sm font-semibold text-[#0F172A]">¥{item.subtotal}</div>
-                        <button
-                          onClick={() => handleUpdateItemQty(selectedTable.current_order!.id, item.id, item.quantity - 1)}
-                          className="p-1.5 text-[#EF4444] hover:bg-red-50 rounded-md cursor-pointer"
-                        >
-                          <Minus size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleUpdateItemQty(selectedTable.current_order!.id, item.id, item.quantity + 1)}
-                          className="p-1.5 text-[#2563EB] hover:bg-[#EFF6FF] rounded-md cursor-pointer"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  })()}
                 </div>
               )}
 

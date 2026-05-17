@@ -43,10 +43,13 @@ export class OrdersController {
   async getOrders(
     @Query('status') status?: string,
     @Query('table_id') tableId?: string,
+    @Query('date_from') dateFrom?: string,
+    @Query('date_to') dateTo?: string,
+    @Query('tag') tag?: string,
   ) {
-    console.log('[GET /api/orders]', { status, tableId });
+    console.log('[GET /api/orders]', { status, tableId, dateFrom, dateTo, tag });
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
-    return await this.ordersService.getOrders(status, tableIdNum);
+    return await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag);
   }
 
   @UseGuards(JwtAuthGuard)

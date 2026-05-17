@@ -208,6 +208,27 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  notifyOrderUpdate(orderId: string | number, data: any) {
+    const clients = this.orderClients.get(String(orderId));
+    if (clients && clients.size > 0) {
+      const message = JSON.stringify({
+        event: 'orderUpdated',
+        data,
+      });
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify order ${orderId}`, err.message);
+            clients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified order ${orderId} of update, ${clients.size} clients`);
+    }
+  }
+
   notifyOrderStatusChange(tableId: string | number, order: any) {
     const clients = this.tableClients.get(String(tableId));
     if (clients && clients.size > 0) {

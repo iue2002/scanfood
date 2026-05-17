@@ -164,7 +164,7 @@ export class OrdersService {
         price: newItem.price.toFixed(2),
         subtotal: subtotal.toFixed(2),
         added_by_user_id: newItem.added_by_user_id,
-        added_by_nickname: newItem.added_by_nickname,
+        added_by_nickname: newItem.added_by_nickname || '商家', // 默认商家
         phase: 'add_more', // 标记为加餐
         add_more_round: nextRound,
       });
@@ -182,7 +182,11 @@ export class OrdersService {
     });
 
     const updatedOrder = await this.getOrderById(orderId);
+    // 通知桌台订阅者
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    // 通知订单订阅者（小程序端）
+    this.ordersGateway.notifyOrderUpdate(orderId, updatedOrder);
+    // 通知所有管理员
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
     return updatedOrder;
   }

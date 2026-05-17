@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import request from '@/api/request'
-import { Users, CheckCircle, X, Minus, Plus, PlusCircle } from 'lucide-react'
+import { Users, CheckCircle, X, Minus, Plus, PlusCircle, Search, ShoppingCart } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface OrderItem {
   id: number
+  dish_id: number
   dish_name: string
   spec_name: string | null
   quantity: number
   price: string
   subtotal: string
+  created_at?: string
 }
 
 interface CurrentOrder {
@@ -30,6 +32,14 @@ interface Table {
   capacity: number
   status: 'idle' | 'occupied' | 'settled'
   current_order: CurrentOrder | null
+}
+
+interface Dish {
+  id: number
+  name: string
+  price: string
+  category_id: number
+  category_name?: string
 }
 
 const statusMap: Record<string, { label: string; bg: string; border: string; text: string; badge: string }> = {
@@ -61,10 +71,15 @@ export default function TableBoard() {
   const [tables, setTables] = useState<Table[]>([])
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showAddDish, setShowAddDish] = useState(false)
+  const [dishes, setDishes] = useState<Dish[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [addDishCart, setAddDishCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
   const { showToast, showConfirm } = useModal()
 
-  const fetchBoard = useCallback(() => {
-    request.get('/tables/board').then((res: any) => setTables(res || []))
+  const fetchBoard = useCallback(async () => {
+    const res = await request.get('/tables/board')
+    setTables(res.data || [])
   }, [])
 
   useEffect(() => {
@@ -99,20 +114,118 @@ export default function TableBoard() {
 
   const handleUpdateItemQty = async (orderId: number, itemId: number, newQty: number) => {
     if (newQty <= 0) {
-      showConfirm('确认删除', '数量设为0将删除该菜品，确定吗？', async () => {
-        await request.delete(`/orders/${orderId}/items/${itemId}`)
+      showConfirm('确认删除', '确定删除该菜品吗？', async () => {
+        setLoading(true)
+        try {
+          await request.delete(`/orders/${orderId}/items/${itemId}`)
+          fetchBoard()
+          if (selectedTable) {
+            const updated = tables.find(t => t.id === selectedTable.id)
+            if (updated) setSelectedTable(updated)
+          }
+          showToast('菜品已删除', 'success')
+        } finally {
+          setLoading(false)
+        }
+      })
+    } else {
+      setLoading(true)
+      try {
+        await request.put(`/orders/${orderId}/items/${itemId}`, { quantity: newQty })
         fetchBoard()
         if (selectedTable) {
           const updated = tables.find(t => t.id === selectedTable.id)
           if (updated) setSelectedTable(updated)
         }
-        showToast('菜品已删除', 'success')
-      })
-    } else {
-      showToast('请通过「订单管理」页面修改菜品数量', 'info')
-      return
+        showToast('数量已更新', 'success')
+      } finally {
+        setLoading(false)
+      }
     }
   }
+
+  const handleAddDish = async (orderId: number, dishId: number, dishName: string, price: string) => {
+    setLoading(true)
+    try {
+      // 批量提交购物车中的所有菜品
+      const cartItems = Object.values(addDishCart)
+      if (cartItems.length === 0) {
+        showToast('请先选择菜品', 'info')
+        return
+      }
+      
+      await request.post(`/orders/${orderId}/sync-add-more`, {
+        items: cartItems.map(item => ({
+          dish_id: item.dish.id,
+          dish_name: item.dish.name,
+          price: parseFloat(item.dish.price),
+          quantity: item.quantity,
+          added_by_nickname: '商家' // 标记商家加餐
+        }))
+      })
+      
+      // 直接获取更新后的订单信息
+      const updatedOrder = await (request.get(`/orders/${orderId}`) as any) as CurrentOrder
+      // 更新选中的桌台数据
+      if (selectedTable) {
+        setSelectedTable({
+          ...selectedTable,
+          current_order: updatedOrder
+        })
+      }
+      // 清空购物车并关闭弹窗
+      setAddDishCart({})
+      setShowAddDish(false)
+      setSearchQuery('')
+      // 同时刷新桌台看板数据
+      fetchBoard()
+      showToast(`加餐成功（${cartItems.length}个菜品）`, 'success')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 购物车操作
+  const updateCartItem = (dish: Dish, delta: number) => {
+    setAddDishCart(prev => {
+      const current = prev[dish.id]
+      if (current) {
+        const newQty = current.quantity + delta
+        if (newQty <= 0) {
+          const newCart = { ...prev }
+          delete newCart[dish.id]
+          return newCart
+        }
+        return { ...prev, [dish.id]: { ...current, quantity: newQty } }
+      } else if (delta > 0) {
+        return { ...prev, [dish.id]: { dish, quantity: 1 } }
+      }
+      return prev
+    })
+  }
+
+  const getCartTotal = () => {
+    return Object.values(addDishCart).reduce((sum, item) => sum + parseFloat(item.dish.price) * item.quantity, 0)
+  }
+
+  const getCartCount = () => {
+    return Object.values(addDishCart).reduce((sum, item) => sum + item.quantity, 0)
+  }
+
+  const loadDishes = useCallback(async () => {
+    const res = await request.get('/dishes')
+    setDishes(res.data || [])
+  }, [])
+
+  useEffect(() => {
+    if (showAddDish) {
+      loadDishes()
+    }
+  }, [showAddDish, loadDishes])
+
+  const filteredDishes = dishes.filter(d => 
+    d.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const totalIdle = tables.filter(t => t.status === 'idle').length
   const totalOccupied = tables.filter(t => t.status === 'occupied').length
@@ -219,7 +332,7 @@ export default function TableBoard() {
                         currentGroup.push(sorted[i])
                       } else {
                         groups.push({
-                          time: sorted[i - 1].created_at,
+                          time: sorted[i - 1].created_at!,
                           items: currentGroup,
                           label: groups.length === 0 ? '首次点餐' : `第${groups.length + 1}次加餐`
                         })
@@ -227,7 +340,7 @@ export default function TableBoard() {
                       }
                     }
                     groups.push({
-                      time: sorted[sorted.length - 1].created_at,
+                      time: sorted[sorted.length - 1].created_at!,
                       items: currentGroup,
                       label: groups.length === 0 ? '首次点餐' : `第${groups.length + 1}次加餐`
                     })
@@ -298,14 +411,141 @@ export default function TableBoard() {
                   ¥{selectedTable.current_order.total_amount}
                 </span>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddDish(true)}
+                  disabled={loading || selectedTable.current_order.status === 'settled'}
+                  className="flex-1 py-3 bg-[#F8FAFC] text-[#334155] rounded-xl text-sm font-medium hover:bg-[#F1F5F9] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <PlusCircle size={18} />
+                  加餐
+                </button>
+                <button
+                  onClick={() => handleSettle(selectedTable.current_order!.id)}
+                  disabled={loading}
+                  className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl text-sm font-medium hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle size={18} />
+                  {loading ? '处理中...' : '确认结账'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 加餐弹窗 */}
+      {showAddDish && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
               <button
-                onClick={() => handleSettle(selectedTable.current_order!.id)}
-                disabled={loading}
-                className="w-full py-3 bg-[#2563EB] text-white rounded-xl text-sm font-medium hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-colors cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               >
-                <CheckCircle size={18} />
-                {loading ? '处理中...' : '确认结账'}
+                <X size={20} />
               </button>
+            </div>
+            
+            {/* 搜索框 */}
+            <div className="px-5 py-3 border-b border-gray-100 shrink-0">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="搜索菜品..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-[#F8FAFC] border-0 rounded-lg text-sm placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                />
+              </div>
+            </div>
+
+            {/* 菜品列表 */}
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {filteredDishes.length === 0 ? (
+                <div className="text-center text-sm text-[#94A3B8] py-8">
+                  {searchQuery ? '未找到匹配的菜品' : '暂无菜品'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredDishes.map((dish) => {
+                    const cartItem = addDishCart[dish.id]
+                    const qty = cartItem?.quantity || 0
+                    return (
+                      <div
+                        key={dish.id}
+                        className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-[#0F172A] truncate">{dish.name}</div>
+                          <div className="text-xs text-[#94A3B8]">¥{dish.price}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {qty > 0 ? (
+                            <>
+                              <button
+                                onClick={() => updateCartItem(dish, -1)}
+                                className="w-7 h-7 flex items-center justify-center bg-gray-200 text-[#334155] rounded-md hover:bg-gray-300 cursor-pointer"
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-6 text-center font-semibold text-sm">{qty}</span>
+                              <button
+                                onClick={() => updateCartItem(dish, 1)}
+                                className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => updateCartItem(dish, 1)}
+                              className="px-3 py-1.5 bg-[#2563EB] text-white text-xs rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                            >
+                              添加
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 底部购物车和提交 */}
+            <div className="px-5 py-4 border-t border-gray-100 shrink-0 bg-white">
+              {Object.keys(addDishCart).length > 0 && (
+                <div className="mb-3 p-3 bg-[#FEF3C7] rounded-lg">
+                  <div className="text-xs text-[#92400E] mb-1">已选菜品</div>
+                  <div className="space-y-1">
+                    {Object.values(addDishCart).map(item => (
+                      <div key={item.dish.id} className="flex justify-between text-xs text-[#92400E]">
+                        <span>{item.dish.name} x{item.quantity}</span>
+                        <span>¥{(parseFloat(item.dish.price) * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
+                  className="flex-1 py-3 bg-gray-100 text-[#334155] rounded-xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
+                >
+                  关闭
+                </button>
+                <button
+                  onClick={() => handleAddDish(selectedTable!.current_order!.id, 0, '', '')}
+                  disabled={loading || Object.keys(addDishCart).length === 0}
+                  className="flex-1 py-3 bg-[#10B981] text-white rounded-xl text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart size={16} />
+                  {loading ? '提交中...' : `提交加餐（${getCartCount()}件）`}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -691,115 +691,121 @@ export default function OrderManage() {
 
       {/* 订单详情弹窗 */}
       {detail && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl max-h-[85vh] overflow-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">订单详情</h3>
-              <button onClick={() => setDetail(null)} className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer">✕</button>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between mb-3 p-4 pb-0">
+              <h3 className="text-base font-semibold text-[#0F172A]">订单详情</h3>
+              <button onClick={() => setDetail(null)} className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer text-lg leading-none">×</button>
             </div>
             
-            {/* 基本信息 */}
-            <div className="bg-[#F8FAFC] rounded-xl p-4 mb-4">
-              <div className="text-center mb-4">
-                <div className="text-3xl font-bold text-[#0F172A] mb-1">{detail.tables?.table_number || '-'}桌</div>
-                <span className={`text-xs font-medium px-3 py-1 rounded-full ${statusMap[detail.status]?.color}`}>{statusMap[detail.status]?.label}</span>
+            <div className="flex-1 overflow-auto p-4 pb-0">
+              {/* 桌号和状态 */}
+              <div className="bg-[#F8FAFC] rounded-lg p-3 mb-3 text-center">
+                <div className="text-2xl font-bold text-[#0F172A]">{detail.tables?.table_number || '-'}桌</div>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full mt-1 inline-block ${statusMap[detail.status]?.color}`}>{statusMap[detail.status]?.label}</span>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-[#94A3B8]">订单号</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono">{detail.order_number}</span>
-                    <button onClick={() => copyOrderNumber(detail.order_number)} className="text-[#2563EB] hover:text-[#1D4ED8] cursor-pointer">
-                      <Copy size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#94A3B8]">下单时间</span>
-                  <span>{new Date(detail.created_at).toLocaleString()}</span>
-                </div>
-                {(detail.user || detail.users) && (
-                  <div className="flex justify-between">
-                    <span className="text-[#94A3B8]">点餐用户</span>
-                    <span>{(detail.user || detail.users)?.nickname || (detail.user || detail.users)?.username || '未知用户'}</span>
-                  </div>
-                )}
-                {detail.remark && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <div className="text-[#94A3B8] mb-1">备注</div>
-                    <div className="text-[#92400E] bg-[#FEF3C7] p-2 rounded-lg">{detail.remark}</div>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            {/* 菜品明细 */}
-            <div>
-              <p className="text-sm font-medium text-[#334155] mb-3">菜品明细（按点餐类型分组）</p>
-              {detail.order_items && detail.order_items.length > 0 ? (
-                <div className="space-y-4">
-                  {groupItemsByPhase(detail.order_items).map((group, gi) => (
-                    <div key={gi}>
-                      {/* 分组标题 */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                          {group.label}
-                        </div>
-                        <div className="flex-1 h-px bg-gray-200"></div>
-                        <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
-                      </div>
-                      
-                      {/* 菜品列表 */}
-                      <div className="bg-[#F8FAFC] rounded-xl p-4 space-y-3">
-                        {group.items.map((item, ii) => (
-                          <div key={ii} className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-[#0F172A]">
-                                {item.dish_name}
-                                {item.spec_name && <span className="text-[#94A3B8] font-normal">({item.spec_name})</span>}
-                              </div>
-                              <div className="text-xs text-[#64748B] mt-0.5">¥{item.price} × {item.quantity}</div>
-                              {item.added_by_nickname && (
-                                <div className="text-xs text-[#94A3B8] flex items-center gap-1 mt-1">
-                                  <User size={10} /> {item.added_by_nickname}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right ml-3">
-                              <div className="text-sm font-semibold text-[#0F172A]">¥{item.subtotal}</div>
-                            </div>
+              {/* 菜品明细 */}
+              <div>
+                <p className="text-xs font-medium text-[#334155] mb-2">菜品明细（按点餐类型分组）</p>
+                {detail.order_items && detail.order_items.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {groupItemsByPhase(detail.order_items).map((group, gi) => (
+                      <div key={gi}>
+                        {/* 分组标题 */}
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <div className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                            {group.label}
                           </div>
-                        ))}
+                          <div className="flex-1 h-px bg-gray-200"></div>
+                          <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
+                        </div>
+                        
+                        {/* 菜品列表 */}
+                        <div className="bg-[#F8FAFC] rounded-lg p-2.5 space-y-2">
+                          {group.items.map((item, ii) => (
+                            <div key={ii} className="flex justify-between items-start">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium text-[#0F172A] truncate">
+                                  {item.dish_name}
+                                  {item.spec_name && <span className="text-[#94A3B8] font-normal">({item.spec_name})</span>}
+                                </div>
+                                <div className="text-xs text-[#64748B] mt-0.5">¥{item.price} × {item.quantity}</div>
+                                {item.added_by_nickname && (
+                                  <div className="text-xs text-[#94A3B8] flex items-center gap-1 mt-0.5">
+                                    <User size={9} /> {item.added_by_nickname}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right ml-2">
+                                <div className="text-xs font-semibold text-[#0F172A]">¥{item.subtotal}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#94A3B8] text-center py-3">暂无菜品</p>
+                )}
+              </div>
+
+              {/* 其他信息（订单号、时间、用户、备注） */}
+              <div className="bg-[#F8FAFC] rounded-lg p-3 mt-3">
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[#94A3B8]">订单号</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs">{detail.order_number}</span>
+                      <button onClick={() => copyOrderNumber(detail.order_number)} className="text-[#2563EB] hover:text-[#1D4ED8] cursor-pointer">
+                        <Copy size={12} />
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#94A3B8]">下单时间</span>
+                    <span className="text-xs">{new Date(detail.created_at).toLocaleString()}</span>
+                  </div>
+                  {(detail.user || detail.users) && (
+                    <div className="flex justify-between">
+                      <span className="text-[#94A3B8]">点餐用户</span>
+                      <span className="text-xs">{(detail.user || detail.users)?.nickname || (detail.user || detail.users)?.username || '未知用户'}</span>
+                    </div>
+                  )}
+                  {detail.remark && (
+                    <div className="pt-1.5 border-t border-gray-200">
+                      <div className="text-[#94A3B8] text-xs mb-1">备注</div>
+                      <div className="text-[#92400E] bg-[#FEF3C7] p-1.5 rounded text-xs">{detail.remark}</div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm text-[#94A3B8] text-center py-4">暂无菜品</p>
-              )}
+              </div>
+
+              {/* 合计金额 */}
+              <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-[#2563EB]/30">
+                <span className="text-sm font-medium text-[#334155]">合计</span>
+                <span className="text-xl font-bold text-[#2563EB]">¥{detail.total_amount}</span>
+              </div>
             </div>
 
-            {/* 合计金额 */}
-            <div className="flex justify-between items-center mt-6 pt-4 border-t-2 border-[#2563EB]">
-              <span className="text-lg font-medium text-[#334155]">合计</span>
-              <span className="text-2xl font-bold text-[#2563EB]">¥{detail.total_amount}</span>
-            </div>
-
-            {/* 操作按钮 */}
-            <div className="mt-6 flex items-center gap-3">
-              <button onClick={() => setDetail(null)} className="flex-1 py-3 bg-[#F1F5F9] text-[#64748B] rounded-xl text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer">
-                关闭
-              </button>
-              {detail.status === 'submitted' || detail.status === 'printed' ? (
-                <>
-                  <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="flex-1 py-3 bg-[#EF4444] text-white rounded-xl text-sm font-medium hover:bg-[#DC2626] transition-colors cursor-pointer">
-                    取消订单
-                  </button>
-                  <button onClick={() => { handleSettle(detail.id); setDetail(null) }} className="flex-1 py-3 bg-[#10B981] text-white rounded-xl text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer">
-                    确认结账
-                  </button>
-                </>
-              ) : null}
+            {/* 操作按钮（固定在底部） */}
+            <div className="p-4 border-t border-gray-100 bg-white">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setDetail(null)} className="flex-1 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer">
+                  关闭
+                </button>
+                {detail.status === 'submitted' || detail.status === 'printed' ? (
+                  <>
+                    <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="flex-1 py-2 bg-[#EF4444] text-white rounded-lg text-xs font-medium hover:bg-[#DC2626] transition-colors cursor-pointer">
+                      取消订单
+                    </button>
+                    <button onClick={() => { handleSettle(detail.id); setDetail(null) }} className="flex-1 py-2 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer">
+                      确认结账
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>

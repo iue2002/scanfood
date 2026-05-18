@@ -437,7 +437,7 @@ Page({
 
   startScan() {
     wx.scanCode({
-      onlyFromCamera: true,
+      onlyFromCamera: false,
       scanType: ['qrCode', 'barCode', 'wxCode'],
       success: (res) => {
         console.log('扫码结果:', res);

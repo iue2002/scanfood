@@ -50,7 +50,9 @@ Page({
       }
       
       const result = await request({ url: '/orders' });
-      const { data: orders, store_name, store_avatar } = result;
+      const orders = result?.data || [];
+      const store_name = result?.store_name;
+      const store_avatar = result?.store_avatar;
       const dishes = await request({ url: '/dishes', noLoading: true });
       
       const myOrders = orders
@@ -73,10 +75,29 @@ Page({
               }
               return { ...item, dish_image: dishImage };
             });
-            
-            order.itemImages = order.order_items.slice(0, 2).map(item => item.dish_image);
-            order.itemNames = order.order_items.slice(0, 2).map(item => item.dish_name);
-            order.totalItems = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
+
+            // 按菜品名称聚合数量，用于列表卡片展示
+            const dishMap = new Map();
+            for (const item of order.order_items) {
+              const key = item.dish_name;
+              if (dishMap.has(key)) {
+                dishMap.get(key).quantity += Number(item.quantity) || 1;
+              } else {
+                dishMap.set(key, {
+                  dish_name: item.dish_name,
+                  dish_image: item.dish_image,
+                  quantity: Number(item.quantity) || 1
+                });
+              }
+            }
+            const aggregatedItems = Array.from(dishMap.values());
+
+            order.itemImages = aggregatedItems.slice(0, 2).map(item => item.dish_image);
+            order.itemNames = aggregatedItems.slice(0, 2).map(item => item.dish_name);
+            order.itemQtys = aggregatedItems.slice(0, 2).map(item => item.quantity);
+            order.totalItems = aggregatedItems.reduce((sum, item) => sum + item.quantity, 0);
+
+            console.log('Order itemQtys:', order.itemQtys, 'totalItems:', order.totalItems);
           }
           
           return order;

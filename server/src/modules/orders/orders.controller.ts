@@ -68,12 +68,12 @@ export class OrdersController {
     const size = pageSize ? parseInt(pageSize, 10) : 20;
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
     console.log('[GET /api/orders]', { status, tableId: tableIdNum, dateFrom, dateTo, tag, page: pageNum, page_size: size });
-    const result = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size);
+    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size);
     const settings = await this.storeSettingsService.getStoreSettings();
-    return { 
-      ...result, 
-      store_name: settings.store_name, 
-      store_avatar: settings.store_avatar 
+    return {
+      data,
+      store_name: settings?.store_name || '伊美轩',
+      store_avatar: settings?.store_avatar || '',
     };
   }
 

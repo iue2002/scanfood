@@ -41,30 +41,31 @@
           <view class="order-status status-{{item.status}}">{{item.status === 'settled' ? '已完成' : statusMap[item.status]}}</view>
         </view>
 
-        <!-- 订单内容：图片 + 价格 -->
-        <view class="order-content">
-          <view class="item-images" bindtap="goToDetail" data-id="{{item.id}}">
-            <image wx:for="{{item.itemImages}}" wx:key="index" class="item-image" src="{{item || '/images/default-dish.png'}}" mode="aspectFill"></image>
+        <!-- 订单主体：菜品列表 + 价格 -->
+        <view class="order-body" bindtap="goToDetail" data-id="{{item.id}}">
+          <view class="items-row">
+            <view class="item-cell" wx:for="{{item.itemImages}}" wx:for-item="img" wx:for-index="idx" wx:key="idx">
+              <image class="item-image" src="{{img || '/images/default-dish.png'}}" mode="aspectFill"></image>
+              <view class="item-name">{{item.itemNames[idx]}}</view>
+              <view class="item-qty">×{{item.itemQtys[idx]}}</view>
+            </view>
           </view>
-          <view class="item-names" bindtap="goToDetail" data-id="{{item.id}}">
-            <text wx:for="{{item.itemNames}}" wx:key="index" class="item-name">{{item.length > 6 ? item.slice(0, 6) + '...' : item}}</text>
-          </view>
-          <view class="price-info">
+          <view class="price-column">
             <view class="total-price">¥{{item.total_amount}}</view>
             <view class="total-count">共{{item.totalItems}}件</view>
           </view>
         </view>
 
-        <!-- 下单时间 -->
-        <view class="order-time-row" bindtap="goToDetail" data-id="{{item.id}}">
-          <text class="time-label">下单:</text>
-          <text class="time-value">{{item.created_at}}</text>
-        </view>
-
-        <!-- 底部操作 -->
+        <!-- 底部：时间 + 操作 -->
         <view class="order-footer">
-          <view class="more-btn" bindtap="goToDetail" data-id="{{item.id}}">更多</view>
-          <view class="reorder-btn" bindtap="reorder" data-id="{{item.id}}" wx:if="{{item.status === 'settled'}}">再来一单</view>
+          <view class="order-time">
+            <text class="time-label">下单：</text>
+            <text class="time-value">{{item.created_at}}</text>
+          </view>
+          <view class="footer-actions">
+            <view class="more-btn" bindtap="goToDetail" data-id="{{item.id}}">更多</view>
+            <view class="reorder-btn" catchtap="reorder" data-id="{{item.id}}" wx:if="{{item.status === 'settled'}}">再来一单</view>
+          </view>
         </view>
       </view>
     </view>

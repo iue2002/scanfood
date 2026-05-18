@@ -8,7 +8,7 @@
 /* 标签栏 */
 .tabs {
   background: #fff;
-  margin: 0 0 16rpx;
+  margin: 0 0 12rpx;
   display: flex;
   padding: 0 20rpx;
 }
@@ -17,14 +17,13 @@
   position: relative;
   flex: 1;
   text-align: center;
-  padding: 28rpx 0;
+  padding: 20rpx 0;
 }
 
 .tab-text {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #999;
   transition: all 0.3s;
-  letter-spacing: 0.3rpx;
 }
 
 .tab-item.active .tab-text {
@@ -37,28 +36,27 @@
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 44rpx;
-  height: 5rpx;
+  width: 36rpx;
+  height: 4rpx;
   background: #1a1a1a;
-  border-radius: 3rpx;
+  border-radius: 2rpx;
 }
 
 /* 订单列表 */
 .order-section {
-  padding: 0 24rpx;
+  padding: 0 16rpx;
 }
 
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 
 .order-card {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: 14rpx;
   overflow: hidden;
-  margin-bottom: 16rpx;
 }
 
 /* 订单头部 */
@@ -66,46 +64,51 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24rpx;
+  padding: 16rpx 20rpx;
 }
 
 .shop-info {
   display: flex;
   align-items: center;
   flex: 1;
+  min-width: 0;
 }
 
 .shop-icon {
-  font-size: 40rpx;
-  margin-right: 12rpx;
+  font-size: 34rpx;
+  margin-right: 10rpx;
 }
 
 .shop-avatar {
-  width: 48rpx;
-  height: 48rpx;
+  width: 40rpx;
+  height: 40rpx;
   border-radius: 50%;
-  margin-right: 12rpx;
+  margin-right: 10rpx;
   background: #f5f5f5;
 }
 
 .shop-name {
-  font-size: 30rpx;
+  font-size: 26rpx;
   color: #1a1a1a;
   font-weight: 600;
-  flex: 1;
-  letter-spacing: 0.3rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .arrow-icon {
-  font-size: 32rpx;
+  font-size: 28rpx;
   color: #999;
-  margin-left: 8rpx;
+  margin-left: 6rpx;
+  flex-shrink: 0;
 }
 
 .order-status {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #10b981;
   font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 12rpx;
 }
 
 .status-submitted,
@@ -118,97 +121,111 @@
   color: #999;
 }
 
-/* 订单内容 */
-.order-content {
-  padding: 0 24rpx 20rpx;
+/* 订单主体：图片 + 价格 */
+.order-body {
+  display: flex;
+  align-items: flex-start;
+  padding: 16rpx 20rpx;
+  gap: 20rpx;
 }
 
-.item-images {
+.items-row {
   display: flex;
   gap: 12rpx;
-  margin-bottom: 12rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.item-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .item-image {
-  width: 160rpx;
-  height: 120rpx;
-  border-radius: 12rpx;
+  width: 130rpx;
+  height: 100rpx;
+  border-radius: 10rpx;
   background: #f5f5f5;
 }
 
-.item-names {
-  display: flex;
-  gap: 24rpx;
-  margin-bottom: 12rpx;
-}
-
 .item-name {
-  font-size: 26rpx;
+  font-size: 22rpx;
   color: #666;
-  max-width: 200rpx;
+  max-width: 130rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
+  margin-top: 6rpx;
 }
 
-.price-info {
+.item-qty {
+  font-size: 20rpx;
+  color: #ea580c;
+  font-weight: 600;
+  margin-top: 2rpx;
+}
+
+.price-column {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  flex-shrink: 0;
+  padding-top: 8rpx;
 }
 
 .total-price {
-  font-size: 36rpx;
+  font-size: 32rpx;
   color: #1a1a1a;
   font-weight: 700;
-  letter-spacing: 0.5rpx;
 }
 
 .total-count {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #999;
-  margin-top: 4rpx;
+  margin-top: 2rpx;
 }
 
-/* 下单时间 */
-.order-time-row {
-  display: flex;
-  align-items: center;
-  padding: 16rpx 24rpx;
-  border-top: 1rpx solid #f0f0f0;
-}
-
-.time-label {
-  font-size: 24rpx;
-  color: #999;
-  margin-right: 8rpx;
-}
-
-.time-value {
-  font-size: 24rpx;
-  color: #999;
-}
-
-/* 订单底部 */
+/* 底部：时间 + 操作 */
 .order-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20rpx 24rpx;
+  padding: 14rpx 20rpx;
   border-top: 1rpx solid #f0f0f0;
 }
 
+.order-time {
+  font-size: 22rpx;
+  color: #bbb;
+}
+
+.time-label {
+  color: #bbb;
+}
+
+.time-value {
+  color: #bbb;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
 .more-btn {
-  font-size: 24rpx;
-  color: #999;
+  font-size: 22rpx;
+  color: #bbb;
 }
 
 .reorder-btn {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: #ea580c;
-  border: 2rpx solid #ea580c;
-  border-radius: 36rpx;
-  padding: 12rpx 32rpx;
+  border: 1rpx solid #ea580c;
+  border-radius: 28rpx;
+  padding: 8rpx 24rpx;
   font-weight: 500;
 }
 
@@ -229,13 +246,11 @@
   color: #1a1a1a;
   font-weight: 600;
   margin-bottom: 12rpx;
-  letter-spacing: 0.5rpx;
 }
 
 .empty-desc {
   font-size: 26rpx;
   color: #999;
-  margin-bottom: 48rpx;
   line-height: 1.5;
 }
 

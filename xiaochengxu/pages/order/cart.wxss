@@ -1,4 +1,6 @@
-/* pages/order/cart.wxss */
+/* pages/order/cart.wxss - 购物车页面响应式适配 */
+
+/* ========== 容器布局 ========== */
 .cart-container {
   display: flex;
   flex-direction: column;
@@ -7,9 +9,11 @@
   background: #f7f7f7;
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: constant(safe-area-inset-bottom);
   box-sizing: border-box;
 }
 
+/* ========== 顶部导航栏 ========== */
 .header-bar {
   display: flex;
   justify-content: space-between;
@@ -18,11 +22,15 @@
   background: #fff;
   flex-shrink: 0;
   border-bottom: 1rpx solid #f0f0f0;
+  min-height: 88rpx;
+  box-sizing: border-box;
 }
 
 .table-info {
   display: flex;
   align-items: baseline;
+  flex: 1;
+  min-width: 0;
 }
 
 .table-num {
@@ -31,34 +39,47 @@
   color: #1a1a1a;
   margin-right: 8rpx;
   letter-spacing: 1rpx;
+  flex-shrink: 0;
 }
 
 .table-label {
   font-size: 24rpx;
   color: #999;
   letter-spacing: 0.3rpx;
+  flex-shrink: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 16rpx;
+  flex-shrink: 0;
 }
 
 .action-btn {
   font-size: 26rpx;
   color: #ff4d4f;
-  padding: 8rpx 16rpx;
+  padding: 8rpx 20rpx;
   border: 1rpx solid #ff4d4f;
   border-radius: 24rpx;
+  min-height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn {
   font-size: 32rpx;
   color: #666;
   padding: 8rpx;
+  min-width: 48rpx;
+  min-height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* ========== 空状态 ========== */
 .empty {
   flex: 1;
   display: flex;
@@ -79,28 +100,38 @@
   color: #333;
   font-weight: 600;
   margin-bottom: 12rpx;
+  text-align: center;
 }
 
 .empty-desc {
   font-size: 26rpx;
   color: #999;
   margin-bottom: 60rpx;
+  text-align: center;
 }
 
 .go-back-btn {
-  background: #1a1a1a;
+  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
   padding: 24rpx 80rpx;
   border-radius: 48rpx;
   letter-spacing: 1rpx;
+  min-height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(26, 26, 26, 0.3);
 }
 
+/* ========== 购物车列表 ========== */
 .cart-list {
   flex: 1;
   padding: 20rpx 28rpx;
   background: #f7f7f7;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cart-item {
@@ -110,11 +141,14 @@
   background: #fff;
   border-radius: 16rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  /* 确保项目不会溢出 */
+  box-sizing: border-box;
+  align-items: center;
 }
 
 .item-image {
-  width: 140rpx;
-  height: 140rpx;
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 12rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
@@ -126,46 +160,60 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  min-width: 0;
+  height: 120rpx;
+  overflow: hidden;
 }
 
 .item-name {
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 600;
   color: #1a1a1a;
   letter-spacing: 0.3rpx;
   margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-price {
   font-size: 24rpx;
   color: #999;
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
+  flex-shrink: 0;
 }
 
 .item-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .quantity-control {
   display: flex;
   align-items: center;
+  gap: 12rpx;
 }
 
 .minus, .plus {
-  width: 48rpx;
-  height: 48rpx;
+  width: 52rpx;
+  height: 52rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36rpx;
+  font-size: 32rpx;
   border-radius: 50%;
+  flex-shrink: 0;
+  /* 确保触控区域足够大 */
+  min-width: 52rpx;
+  min-height: 52rpx;
 }
 
 .minus {
   border: 2rpx solid #e0e0e0;
   color: #999;
+  background: #fff;
 }
 
 .delete-icon {
@@ -178,25 +226,32 @@
 }
 
 .quantity {
-  margin: 0 20rpx;
+  margin: 0 12rpx;
   font-size: 30rpx;
   font-weight: 500;
   color: #1a1a1a;
-  min-width: 40rpx;
+  min-width: 48rpx;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .item-subtotal {
-  font-size: 32rpx;
-  color: #1a1a1a;
+  font-size: 30rpx;
+  color: #ea580c;
   font-weight: 700;
   letter-spacing: 0.5rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
 }
 
+/* ========== 底部占位 ========== */
 .bottom-placeholder {
   height: 200rpx;
+  height: calc(180rpx + env(safe-area-inset-bottom));
+  height: calc(180rpx + constant(safe-area-inset-bottom));
 }
 
+/* ========== 底部结算栏 ========== */
 .footer-bar {
   position: fixed;
   bottom: 0;
@@ -205,37 +260,118 @@
   background: #fff;
   padding: 20rpx 28rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
   border-top: 1rpx solid #f0f0f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  min-height: 120rpx;
 }
 
 .footer-info {
   display: flex;
   align-items: baseline;
+  flex: 1;
+  min-width: 0;
 }
 
 .total-count {
   font-size: 26rpx;
   color: #666;
   margin-right: 16rpx;
+  flex-shrink: 0;
 }
 
 .total-amount {
   font-size: 40rpx;
-  color: #1a1a1a;
+  color: #ea580c;
   font-weight: 700;
   letter-spacing: 0.5rpx;
+  flex-shrink: 0;
 }
 
 .submit-btn {
-  background: #1a1a1a;
+  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
-  padding: 24rpx 60rpx;
+  padding: 24rpx 48rpx;
   border-radius: 48rpx;
   letter-spacing: 1rpx;
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(26, 26, 26, 0.3);
+  flex-shrink: 0;
+  margin-left: 20rpx;
+}
+
+.submit-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+/* ========== 响应式适配 - 小屏幕设备 ========== */
+@media screen and (max-width: 375px) {
+  .header-bar {
+    padding: 16rpx 20rpx;
+  }
+
+  .table-num {
+    font-size: 38rpx;
+  }
+
+  .cart-list {
+    padding: 16rpx 20rpx;
+  }
+
+  .cart-item {
+    padding: 20rpx;
+  }
+
+  .item-image {
+    width: 100rpx;
+    height: 100rpx;
+    margin-right: 16rpx;
+  }
+
+  .item-info {
+    height: 100rpx;
+  }
+
+  .item-name {
+    font-size: 26rpx;
+  }
+
+  .footer-bar {
+    padding: 16rpx 20rpx;
+  }
+
+  .total-amount {
+    font-size: 36rpx;
+  }
+
+  .submit-btn {
+    padding: 20rpx 36rpx;
+    font-size: 28rpx;
+  }
+}
+
+/* ========== 响应式适配 - 大屏幕设备 ========== */
+@media screen and (min-width: 414px) {
+  .item-image {
+    width: 140rpx;
+    height: 140rpx;
+  }
+
+  .item-info {
+    height: 140rpx;
+  }
+
+  .submit-btn {
+    padding: 24rpx 60rpx;
+  }
 }

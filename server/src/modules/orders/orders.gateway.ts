@@ -39,34 +39,49 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
       });
 
       ws.on('error', (err) => {
-        this.logger.error('WebSocket client error', err.message);
+        // 1006是异常关闭状态码，通常是客户端非正常断开（页面刷新、网络中断等）
+        // 这属于正常现象，不需要记录为错误
+        if (err.message && err.message.includes('1006')) {
+          this.logger.debug('WebSocket client disconnected abnormally (code 1006)');
+        } else {
+          this.logger.warn('WebSocket client error', err.message);
+        }
       });
 
-      ws.on('close', () => {
-        this.logger.log('Client disconnected');
+      ws.on('close', (code, reason) => {
+        if (code === 1006) {
+          this.logger.debug(`Client disconnected abnormally (code 1006)`);
+        } else {
+          this.logger.log(`Client disconnected (code ${code})`);
+        }
         // 从所有桌台订阅中移除
-        for (const [key, clients] of this.tableClients.entries()) {
-          if (clients.has(ws)) {
-            clients.delete(ws);
-            if (clients.size === 0) {
-              this.tableClients.delete(key);
-            }
-          }
-        }
-        // 从所有订单订阅中移除
-        for (const [key, clients] of this.orderClients.entries()) {
-          if (clients.has(ws)) {
-            clients.delete(ws);
-            if (clients.size === 0) {
-              this.orderClients.delete(key);
-            }
-          }
-        }
-        this.adminClients.delete(ws);
+        this.cleanupClient(ws);
       });
     });
 
     this.logger.log('WebSocket server initialized');
+  }
+
+  private cleanupClient(client: WebSocket) {
+    // 从所有桌台订阅中移除
+    for (const [key, clients] of this.tableClients.entries()) {
+      if (clients.has(client)) {
+        clients.delete(client);
+        if (clients.size === 0) {
+          this.tableClients.delete(key);
+        }
+      }
+    }
+    // 从所有订单订阅中移除
+    for (const [key, clients] of this.orderClients.entries()) {
+      if (clients.has(client)) {
+        clients.delete(client);
+        if (clients.size === 0) {
+          this.orderClients.delete(key);
+        }
+      }
+    }
+    this.adminClients.delete(client);
   }
 
   private handleMessage(client: WebSocket, message: any) {

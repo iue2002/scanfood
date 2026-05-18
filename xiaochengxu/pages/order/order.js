@@ -139,6 +139,20 @@ Page({
     this.checkActiveOrderAsync();
   },
 
+  async onPullDownRefresh() {
+    console.log('下拉刷新 - 重新加载菜品和订单');
+    try {
+      await this.fetchData();
+      if (this.data.tableId) {
+        await this.fetchCurrentOrder();
+      }
+      wx.stopPullDownRefresh();
+    } catch (err) {
+      console.error('下拉刷新失败', err);
+      wx.stopPullDownRefresh();
+    }
+  },
+
   updateTabBar() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });

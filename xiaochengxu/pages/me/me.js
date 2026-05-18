@@ -17,6 +17,17 @@ Page({
     this.updateTabBar();
   },
 
+  async onPullDownRefresh() {
+    console.log('下拉刷新 - 重新加载用户信息');
+    try {
+      this.loadUserInfo();
+      wx.stopPullDownRefresh();
+    } catch (err) {
+      console.error('下拉刷新失败', err);
+      wx.stopPullDownRefresh();
+    }
+  },
+
   updateTabBar() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 1 });

@@ -23,6 +23,17 @@ Page({
     this.fetchOrders();
   },
 
+  async onPullDownRefresh() {
+    console.log('下拉刷新 - 重新加载订单列表');
+    try {
+      await this.fetchOrders();
+      wx.stopPullDownRefresh();
+    } catch (err) {
+      console.error('下拉刷新失败', err);
+      wx.stopPullDownRefresh();
+    }
+  },
+
   loadUserInfo() {
     const app = getApp();
     const token = wx.getStorageSync('token');

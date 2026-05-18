@@ -19,7 +19,11 @@
       </block>
     </view>
     <view class="scan-entry" bindtap="startScan">
-      <text class="icon">🔍</text>
+      <view class="scan-icon">
+        <view class="scan-line scan-line-1"></view>
+        <view class="scan-line scan-line-2"></view>
+        <view class="scan-line scan-line-3"></view>
+      </view>
       <text>重扫</text>
     </view>
   </view>

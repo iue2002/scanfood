@@ -26,8 +26,14 @@
   <!-- 功能入口 -->
   <view class="menu-section" wx:if="{{userInfo}}">
     <view class="menu-item" bindtap="goToOrders">
-      <view class="menu-icon">📋</view>
-      <view class="menu-text">我的订单</view>
+      <view class="menu-left">
+        <view class="menu-icon">
+          <view class="menu-line"></view>
+          <view class="menu-line"></view>
+          <view class="menu-line"></view>
+        </view>
+        <view class="menu-text">我的订单</view>
+      </view>
       <view class="menu-arrow">›</view>
     </view>
   </view>

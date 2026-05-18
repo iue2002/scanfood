@@ -81,6 +81,31 @@
   letter-spacing: 0.3rpx;
 }
 
+.scan-icon {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4rpx;
+  margin-right: 8rpx;
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.scan-line {
+  width: 20rpx;
+  height: 3rpx;
+  background: #666;
+  border-radius: 2rpx;
+}
+
+.scan-line-1 {
+  width: 14rpx;
+}
+
+.scan-line-3 {
+  width: 10rpx;
+}
+
 /* 主体内容区 */
 .main-content {
   flex: 1;

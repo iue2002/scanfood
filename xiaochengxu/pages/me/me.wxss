@@ -1,43 +1,43 @@
 /* pages/me/me.wxss */
 .me-container {
   min-height: 100vh;
-  background: #f7f7f7;
+  background: #ededed;
   padding-bottom: 120rpx;
 }
 
-/* 用户信息头部 */
+/* ===== 用户信息头部 ===== */
 .user-header {
   background: #fff;
-  padding: 60rpx 32rpx 80rpx;
+  padding: 40rpx 32rpx;
+  margin-bottom: 20rpx;
 }
 
 .user-card {
-  background: #f7f7f7;
-  border-radius: 20rpx;
-  padding: 28rpx;
   display: flex;
   align-items: center;
 }
 
 .avatar {
-  width: 110rpx;
-  height: 110rpx;
-  border-radius: 55rpx;
-  margin-right: 28rpx;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  margin-right: 24rpx;
   flex-shrink: 0;
-  border: 2rpx solid #eee;
+  border: 2rpx solid #e5e5e5;
+  box-sizing: border-box;
 }
 
 .avatar-placeholder {
-  background: #eee;
+  background: #f5f5f5;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2rpx solid #e5e5e5;
 }
 
 .avatar-icon {
   font-size: 56rpx;
-  color: #ccc;
+  color: #c5c5c5;
 }
 
 .user-detail {
@@ -46,95 +46,105 @@
 }
 
 .user-name {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #000;
   margin-bottom: 8rpx;
-  letter-spacing: 0.5rpx;
 }
 
 .user-id {
-  font-size: 24rpx;
-  color: #999;
-  letter-spacing: 0.3rpx;
+  font-size: 26rpx;
+  color: #b0b0b0;
 }
 
-/* 功能菜单 */
+/* ===== 功能菜单区域 ===== */
 .menu-section {
-  margin: -50rpx 24rpx 20rpx;
   background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 32rpx 28rpx;
-  border-bottom: 1rpx solid #f5f5f5;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid #e5e5e5;
 }
 
 .menu-item:last-child {
   border-bottom: none;
 }
 
+.menu-item:active {
+  background: #f5f5f5;
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+}
+
 .menu-icon {
-  font-size: 44rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
   margin-right: 20rpx;
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.menu-line {
+  width: 32rpx;
+  height: 4rpx;
+  background: #1a1a1a;
+  border-radius: 2rpx;
 }
 
 .menu-text {
-  flex: 1;
-  font-size: 30rpx;
-  color: #1a1a1a;
-  font-weight: 500;
-  letter-spacing: 0.5rpx;
+  font-size: 32rpx;
+  color: #000;
 }
 
 .menu-arrow {
-  font-size: 40rpx;
-  color: #ccc;
+  font-size: 32rpx;
+  color: #c5c5c5;
 }
 
-/* 空状态 */
+/* ===== 未登录状态 ===== */
 .empty {
   text-align: center;
-  padding: 120rpx 40rpx;
+  padding: 160rpx 40rpx;
 }
 
 .empty-icon {
-  font-size: 120rpx;
+  font-size: 100rpx;
   margin-bottom: 32rpx;
-  opacity: 0.2;
+  opacity: 0.3;
 }
 
 .empty-text {
   font-size: 32rpx;
-  color: #1a1a1a;
+  color: #000;
   font-weight: 600;
   margin-bottom: 12rpx;
-  letter-spacing: 0.5rpx;
 }
 
 .empty-desc {
-  font-size: 26rpx;
-  color: #999;
+  font-size: 28rpx;
+  color: #b0b0b0;
   margin-bottom: 48rpx;
-  line-height: 1.5;
 }
 
 .login-btn {
   display: inline-block;
-  background: #1a1a1a;
+  background: #07c160;
   color: #fff;
-  padding: 20rpx 64rpx;
-  border-radius: 50rpx;
-  font-size: 30rpx;
-  font-weight: 600;
-  letter-spacing: 1rpx;
+  padding: 20rpx 80rpx;
+  border-radius: 8rpx;
+  font-size: 32rpx;
 }
 
-/* 授权弹窗 */
+/* ===== 弹窗样式 ===== */
 .auth-modal,
 .nickname-modal {
   position: fixed;
@@ -161,21 +171,19 @@
   transform: translate(-50%, -50%);
   width: 560rpx;
   background: #fff;
-  border-radius: 20rpx;
+  border-radius: 16rpx;
   overflow: hidden;
 }
 
 .modal-header {
   padding: 32rpx 28rpx 20rpx;
   text-align: center;
-  border-bottom: 1rpx solid #f0f0f0;
 }
 
 .modal-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1a1a1a;
-  letter-spacing: 0.5rpx;
+  color: #000;
 }
 
 .modal-body {
@@ -189,7 +197,7 @@
 .desc-title {
   display: block;
   font-size: 28rpx;
-  color: #1a1a1a;
+  color: #000;
   font-weight: 600;
   margin-bottom: 20rpx;
 }
@@ -213,9 +221,9 @@
 .auth-notice {
   display: flex;
   align-items: flex-start;
-  background: #f8f9fa;
+  background: #f7f7f7;
   padding: 18rpx;
-  border-radius: 12rpx;
+  border-radius: 8rpx;
 }
 
 .notice-icon {
@@ -232,31 +240,31 @@
 
 .modal-footer {
   display: flex;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 1rpx solid #e5e5e5;
 }
 
 .btn-cancel,
 .btn-confirm {
   flex: 1;
-  height: 88rpx;
-  line-height: 88rpx;
+  height: 96rpx;
+  line-height: 96rpx;
   text-align: center;
-  font-size: 30rpx;
+  font-size: 32rpx;
   border: none;
   border-radius: 0;
   padding: 0;
   margin: 0;
-  font-weight: 500;
 }
 
 .btn-cancel {
-  color: #999;
+  color: #000;
   background: #fff;
 }
 
 .btn-confirm {
-  color: #fff;
-  background: #1a1a1a;
+  color: #07c160;
+  background: #fff;
+  font-weight: 600;
 }
 
 .btn-cancel::after,
@@ -270,12 +278,12 @@
   height: 80rpx;
   line-height: 80rpx;
   padding: 0 20rpx;
-  border: 2rpx solid #eee;
-  border-radius: 12rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 8rpx;
   font-size: 28rpx;
   box-sizing: border-box;
 }
 
 .nickname-input-modal:focus {
-  border-color: #1a1a1a;
+  border-color: #07c160;
 }

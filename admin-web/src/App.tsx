@@ -10,6 +10,7 @@ import OrderManage from './pages/OrderManage'
 import DishManage from './pages/DishManage'
 import RefundManage from './pages/RefundManage'
 import Statistics from './pages/Statistics'
+import StoreSettings from './pages/StoreSettings'
 import { ModalProvider } from './components/ModalProvider'
 import { useAuthStore } from './stores/auth'
 
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="dishes" element={<DishManage />} />
           <Route path="refunds" element={<RefundManage />} />
           <Route path="statistics" element={<Statistics />} />
+          <Route path="store-settings" element={<StoreSettings />} />
         </Route>
       </Routes>
     </ModalProvider>

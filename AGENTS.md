@@ -2,13 +2,7 @@
 
 ## 包管理器
 
-**必须使用 pnpm**，禁止使用 npm 或 yarn：
-
-```bash
-pnpm add <package>           # 安装生产依赖
-pnpm add -D <package>        # 安装开发依赖
-pnpm install                 # 安装所有依赖
-pnpm remove <package>        # 移除依赖
+是启动命令npm run dev
 ```
 
 ## 图片与视频资源使用规范

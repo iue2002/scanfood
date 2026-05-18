@@ -155,6 +155,9 @@
   font-weight: 600;
   color: #1a1a1a;
   letter-spacing: 0.3rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dish-desc {
@@ -166,6 +169,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.4;
+  word-break: break-all;
 }
 
 .dish-price-row {

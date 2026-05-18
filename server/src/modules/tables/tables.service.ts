@@ -19,7 +19,6 @@ export class TablesService {
   async getTableBoard() {
     const tableList = await db.select().from(tables).orderBy(asc(tables.table_number));
 
-    // 获取所有进行中的订单
     const activeOrders = await db.select().from(orders)
       .where(inArray(orders.status, ['submitted', 'printed']))
       .orderBy(desc(orders.created_at));
@@ -30,7 +29,7 @@ export class TablesService {
       allItems = await db.select().from(order_items).where(inArray(order_items.order_id, orderIds));
     }
 
-    return tableList.map(t => {
+    const result = tableList.map(t => {
       const order = activeOrders.find(o => o.table_id === t.id) || null;
       const items = order ? allItems.filter(i => i.order_id === order.id) : [];
       return {
@@ -38,6 +37,8 @@ export class TablesService {
         current_order: order ? { ...order, order_items: items } : null,
       };
     });
+
+    return { data: result };
   }
 
   async getTableById(id: number) {

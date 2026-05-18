@@ -149,6 +149,7 @@ page {
   align-items: center;
   flex-wrap: wrap;
   gap: 8rpx;
+  width: 100%;
 }
 
 .dish-name {
@@ -159,13 +160,18 @@ page {
   text-overflow: ellipsis;
   white-space: nowrap;
   letter-spacing: 0.3rpx;
-  max-width: 100%;
+  max-width: calc(100% - 80rpx);
+  flex: 1;
 }
 
 .dish-spec {
   font-size: 20rpx;
   color: #999;
   flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dish-meta {
@@ -485,6 +491,7 @@ page {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .modal-dish-desc {
@@ -494,6 +501,7 @@ page {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .modal-dish-price-row {

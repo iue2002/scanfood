@@ -29,47 +29,42 @@
     </view>
 
     <view class="order-list" wx:if="{{filteredOrders.length > 0}}">
-      <view class="order-card" wx:for="{{filteredOrders}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
-        <!-- 订单头部 -->
+      <view class="order-card" wx:for="{{filteredOrders}}" wx:key="id">
+        <!-- 订单头部：店铺名 + 状态 -->
         <view class="order-header">
-          <view class="order-info-left">
-            <view class="order-time">{{item.created_at}}</view>
-            <view class="order-table" wx:if="{{item.tables}}">
-              <text class="table-icon">📍</text>
-              <text class="table-text">{{item.tables.table_number}}号桌</text>
-            </view>
+          <view class="shop-info" bindtap="goToDetail" data-id="{{item.id}}">
+            <image wx:if="{{storeAvatar}}" class="shop-avatar" src="{{storeAvatar}}" mode="aspectFill"></image>
+            <view wx:else class="shop-icon">🐰</view>
+            <view class="shop-name">{{storeName || '伊美轩'}}</view>
+            <view class="arrow-icon">›</view>
           </view>
-          <view class="order-status status-{{item.status}}">{{statusMap[item.status]}}</view>
+          <view class="order-status status-{{item.status}}">{{item.status === 'settled' ? '已完成' : statusMap[item.status]}}</view>
         </view>
 
-        <!-- 订单内容 -->
+        <!-- 订单内容：图片 + 价格 -->
         <view class="order-content">
-          <view class="order-items">
-            <view class="order-item-row" wx:for="{{item.order_items}}" wx:for-item="orderItem" wx:key="id" wx:if="{{index < 3}}">
-              <view class="item-name">{{orderItem.dish_name}}</view>
-              <view class="item-quantity">x{{orderItem.quantity}}</view>
-            </view>
-            <view class="more-items" wx:if="{{item.order_items.length > 3}}">
-              <text>...等{{item.order_items.length}}件商品</text>
-            </view>
+          <view class="item-images" bindtap="goToDetail" data-id="{{item.id}}">
+            <image wx:for="{{item.itemImages}}" wx:key="index" class="item-image" src="{{item || '/images/default-dish.png'}}" mode="aspectFill"></image>
           </view>
-          <view class="order-total">
-            <view class="total-label">合计</view>
-            <view class="total-amount">¥{{item.total_amount}}</view>
+          <view class="item-names" bindtap="goToDetail" data-id="{{item.id}}">
+            <text wx:for="{{item.itemNames}}" wx:key="index" class="item-name">{{item.length > 6 ? item.slice(0, 6) + '...' : item}}</text>
+          </view>
+          <view class="price-info">
+            <view class="total-price">¥{{item.total_amount}}</view>
+            <view class="total-count">共{{item.totalItems}}件</view>
           </view>
         </view>
 
-        <!-- 未付款提示 -->
-        <view class="payment-tip" wx:if="{{item.status === 'submitted' || item.status === 'printed'}}">
-          <text class="tip-icon">💰</text>
-          <text class="tip-text">未付款，请餐后到前台结账</text>
+        <!-- 下单时间 -->
+        <view class="order-time-row" bindtap="goToDetail" data-id="{{item.id}}">
+          <text class="time-label">下单:</text>
+          <text class="time-value">{{item.created_at}}</text>
         </view>
 
-        <!-- 订单底部操作 -->
+        <!-- 底部操作 -->
         <view class="order-footer">
-          <view class="order-actions">
-            <view class="action-btn primary" catchtap="goToDetail" data-id="{{item.id}}">查看详情</view>
-          </view>
+          <view class="more-btn" bindtap="goToDetail" data-id="{{item.id}}">更多</view>
+          <view class="reorder-btn" bindtap="reorder" data-id="{{item.id}}" wx:if="{{item.status === 'settled'}}">再来一单</view>
         </view>
       </view>
     </view>

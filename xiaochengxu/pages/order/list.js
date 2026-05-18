@@ -41,6 +41,7 @@ Page({
     
     try {
       const userInfo = this.data.userInfo;
+      const { SERVER_URL } = require('../../config');
       
       if (!userInfo || !userInfo.id) {
         console.warn('用户信息未加载，无法获取订单');
@@ -48,7 +49,9 @@ Page({
         return;
       }
       
-      const orders = await request({ url: '/orders' });
+      const result = await request({ url: '/orders' });
+      const { data: orders, store_name, store_avatar } = result;
+      const dishes = await request({ url: '/dishes', noLoading: true });
       
       const myOrders = orders
         .filter(o => o.user_id === userInfo.id && o.status !== 'draft')
@@ -56,12 +59,34 @@ Page({
           if (order.created_at) {
             order.created_at = this.formatDate(order.created_at);
           }
+          
+          if (order.order_items) {
+            order.order_items = order.order_items.map(item => {
+              const dish = dishes.find(d => d.id === item.dish_id);
+              let dishImage = '';
+              if (dish && dish.image_url) {
+                if (dish.image_url.startsWith('http')) {
+                  dishImage = dish.image_url;
+                } else {
+                  dishImage = SERVER_URL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
+                }
+              }
+              return { ...item, dish_image: dishImage };
+            });
+            
+            order.itemImages = order.order_items.slice(0, 2).map(item => item.dish_image);
+            order.itemNames = order.order_items.slice(0, 2).map(item => item.dish_name);
+            order.totalItems = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
+          }
+          
           return order;
         });
       
       this.setData({ 
         orders: myOrders, 
-        isLoading: false 
+        isLoading: false,
+        storeName: store_name || '伊美轩',
+        storeAvatar: store_avatar || '',
       });
       
       this.filterOrders();
@@ -142,6 +167,57 @@ Page({
               title: '提交失败，请重试',
               icon: 'none'
             });
+          }
+        }
+      }
+    });
+  },
+
+  async reorder(e) {
+    const orderId = e.currentTarget.dataset.id;
+    const order = this.data.orders.find(o => o.id === orderId);
+    
+    if (!order || !order.order_items) {
+      wx.showToast({ title: '无法获取订单信息', icon: 'none' });
+      return;
+    }
+    
+    wx.showModal({
+      title: '再来一单',
+      content: '确定要重新下单吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          wx.showLoading({ title: '下单中...' });
+          try {
+            const items = order.order_items.map(item => ({
+              dish_id: item.dish_id,
+              dish_name: item.dish_name,
+              price: parseFloat(item.price),
+              quantity: item.quantity,
+              added_by_user_id: this.data.userInfo?.id,
+              added_by_nickname: this.data.userInfo?.nickname || '未知用户'
+            }));
+            
+            const result = await request({
+              url: '/orders',
+              method: 'POST',
+              data: {
+                table_id: order.table_id,
+                items: items,
+                user_id: this.data.userInfo?.id
+              }
+            });
+            
+            wx.hideLoading();
+            wx.showToast({ title: '下单成功', icon: 'success' });
+            
+            setTimeout(() => {
+              wx.redirectTo({ url: `/pages/order/detail?id=${result.id}` });
+            }, 1500);
+          } catch (err) {
+            wx.hideLoading();
+            wx.showToast({ title: '下单失败', icon: 'none' });
+            console.error('再来一单失败', err);
           }
         }
       }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import request from '@/api/request'
-import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen } from 'lucide-react'
+import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 
 interface Category {
@@ -18,6 +18,18 @@ interface Dish {
   dish_specs?: Array<{ id: number; spec_name: string; price: string }>
 }
 
+interface CompressionResult {
+  success: boolean
+  data?: {
+    url: string
+    originalSize: number
+    compressedSize: number
+    compressionRatio: number
+  }
+  message?: string
+  allowOriginalUpload?: boolean
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000'
 
 export default function DishManage() {
@@ -33,6 +45,9 @@ export default function DishManage() {
   const [catForm, setCatForm] = useState({ name: '' })
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [compressing, setCompressing] = useState(false)
+  const [compressionProgress, setCompressionProgress] = useState(0)
+  const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchData = () => {
@@ -58,6 +73,7 @@ export default function DishManage() {
     setEditing(null)
     setForm({ name: '', price: '', category_id: categories[0]?.id || 0, image_url: '' })
     setPreviewUrl('')
+    setCompressionResult(null)
     fetchData()
   }
 
@@ -97,9 +113,13 @@ export default function DishManage() {
     })
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+  }
+
+  const uploadOriginalImage = async (file: File) => {
     setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
@@ -119,6 +139,75 @@ export default function DishManage() {
     }
   }
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setCompressing(true)
+    setCompressionProgress(0)
+    setCompressionResult(null)
+    setPreviewUrl('')
+
+    const progressInterval = setInterval(() => {
+      setCompressionProgress(prev => {
+        if (prev >= 90) return 90
+        return prev + Math.random() * 15
+      })
+    }, 300)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res: CompressionResult = await request.post('/upload/compress', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      clearInterval(progressInterval)
+      setCompressionProgress(100)
+
+      if (res.success && res.data) {
+        setCompressionResult(res)
+        const url = `${API_BASE}${res.data.url}`
+        setForm(prev => ({ ...prev, image_url: url }))
+        setPreviewUrl(url)
+        const savedSize = res.data.originalSize - res.data.compressedSize
+        showToast(`图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`, 'success')
+      } else {
+        setCompressionResult(res)
+        showConfirm(
+          '压缩失败',
+          `${res.message || '图片压缩失败'}\n\n图片大小：${formatFileSize(file.size)}\n\n是否继续上传原图？`,
+          () => {
+            uploadOriginalImage(file)
+          },
+          () => {
+            if (fileInputRef.current) fileInputRef.current.value = ''
+          }
+        )
+      }
+    } catch (err: any) {
+      clearInterval(progressInterval)
+      setCompressionResult({
+        success: false,
+        message: err?.message || '图片压缩请求失败',
+        allowOriginalUpload: true,
+      })
+      showConfirm(
+        '压缩失败',
+        `${err?.message || '图片压缩请求失败'}\n\n图片大小：${formatFileSize(file.size)}\n\n是否继续上传原图？`,
+        () => {
+          uploadOriginalImage(file)
+        },
+        () => {
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+      )
+    } finally {
+      setCompressing(false)
+    }
+  }
+
   const openFilePicker = (capture?: string) => {
     if (!fileInputRef.current) return
     if (capture) {
@@ -133,6 +222,7 @@ export default function DishManage() {
     setEditing(null)
     setForm({ name: '', price: '', category_id: categories[0]?.id || 0, image_url: '' })
     setPreviewUrl('')
+    setCompressionResult(null)
     setShowModal(true)
   }
 
@@ -141,7 +231,15 @@ export default function DishManage() {
     const img = dish.image_url || ''
     setForm({ name: dish.name, price: dish.price, category_id: dish.category_id, image_url: img })
     setPreviewUrl(img)
+    setCompressionResult(null)
     setShowModal(true)
+  }
+
+  const resetImage = () => {
+    setForm(prev => ({ ...prev, image_url: '' }))
+    setPreviewUrl('')
+    setCompressionResult(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   return (
@@ -234,7 +332,6 @@ export default function DishManage() {
         </table>
       </div>
 
-      {/* 菜品弹窗 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
@@ -268,19 +365,85 @@ export default function DishManage() {
                     拍照
                   </button>
                 </div>
-                {uploading && <div className="text-sm text-gray-500">上传中...</div>}
-                {previewUrl && !uploading && (
+
+                {(compressing || compressionResult) && (
+                  <div className="mb-2">
+                    {compressing && (
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Loader2 size={16} className="animate-spin text-[#2563EB]" />
+                          <span className="text-sm text-gray-600">图片压缩中...</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-[#2563EB] h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${compressionProgress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 mt-1">{Math.round(compressionProgress)}%</span>
+                      </div>
+                    )}
+                    
+                    {compressionResult && !compressing && (
+                      <div className={`flex items-center gap-2 p-2 rounded-lg ${compressionResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                        {compressionResult.success ? (
+                          <>
+                            <CheckCircle size={16} />
+                            <span className="text-sm">
+                              压缩成功！压缩率 {compressionResult.data?.compressionRatio}%
+                              {compressionResult.data && (
+                                <span className="ml-1">
+                                  ({formatFileSize(compressionResult.data.originalSize)} → {formatFileSize(compressionResult.data.compressedSize)})
+                                </span>
+                              )}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle size={16} />
+                            <span className="text-sm">{compressionResult.message}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {previewUrl && !compressing && (
                   <div className="relative w-24 h-24 rounded-lg overflow-hidden border">
                     <img src={previewUrl} className="w-full h-full object-cover" alt="preview" />
-                    <button type="button" onClick={() => { setForm(prev => ({ ...prev, image_url: '' })); setPreviewUrl('') }} className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white rounded-full cursor-pointer">
+                    <button type="button" onClick={resetImage} className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white rounded-full cursor-pointer">
                       <X size={12} />
                     </button>
                   </div>
                 )}
-                {!previewUrl && !uploading && <div className="text-xs text-gray-400">支持 JPG、PNG、GIF，最大 5MB</div>}
+
+                {!previewUrl && !compressing && !compressionResult && (
+                  <div className="text-xs text-gray-400">支持 JPG、PNG、GIF，最大 5MB</div>
+                )}
+
+                {!previewUrl && !compressing && compressionResult && !compressionResult.success && (
+                  <div className="flex gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const file = (fileInputRef.current?.files?.[0])
+                        if (file) {
+                          uploadOriginalImage(file)
+                        }
+                      }}
+                      className="px-3 py-1.5 border border-[#2563EB] text-[#2563EB] rounded-lg text-sm hover:bg-[#EFF6FF] cursor-pointer"
+                    >
+                      上传原图
+                    </button>
+                    <button type="button" onClick={resetImage} className="px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50 cursor-pointer">
+                      取消
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50 cursor-pointer">取消</button>
+                <button type="button" onClick={() => { setShowModal(false); resetImage(); }} className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50 cursor-pointer">取消</button>
                 <button type="submit" className="flex-1 py-2 bg-[#2563EB] text-white rounded-lg text-sm hover:bg-[#1D4ED8] cursor-pointer">保存</button>
               </div>
             </form>
@@ -288,7 +451,6 @@ export default function DishManage() {
         </div>
       )}
 
-      {/* 新建分类弹窗 */}
       {showCatModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">

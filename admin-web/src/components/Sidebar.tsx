@@ -7,6 +7,7 @@ import {
   UtensilsCrossed,
   RotateCcw,
   BarChart3,
+  Settings,
   X,
 } from 'lucide-react'
 
@@ -18,6 +19,7 @@ const menuItems = [
   { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed },
   { path: '/refunds', label: '退款售后', icon: RotateCcw },
   { path: '/statistics', label: '数据统计', icon: BarChart3 },
+  { path: '/store-settings', label: '店铺设置', icon: Settings },
 ]
 
 interface SidebarProps {

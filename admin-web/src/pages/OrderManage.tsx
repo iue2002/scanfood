@@ -213,8 +213,21 @@ export default function OrderManage() {
   }
 
   const formatDateTime = (dateStr: string) => {
-    const d = new Date(dateStr)
-    return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    if (!dateStr) return ''
+    const match = dateStr.match(/^\d{4}-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):\d{2}/)
+    if (match) {
+      return `${parseInt(match[1])}月${parseInt(match[2])}日 ${match[3]}:${match[4]}`
+    }
+    return dateStr
+  }
+
+  const formatFullDateTime = (dateStr: string) => {
+    if (!dateStr) return ''
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/)
+    if (match) {
+      return `${match[1]}/${parseInt(match[2])}/${parseInt(match[3])} ${match[4]}:${match[5]}:${match[6]}`
+    }
+    return dateStr
   }
 
   const copyOrderNumber = (orderNumber: string) => {
@@ -364,7 +377,7 @@ export default function OrderManage() {
                   </td>
                   <td className="px-4 py-3 font-semibold">¥{order.total_amount}</td>
                   <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-1 rounded-full ${s.color}`}>{s.label}</span></td>
-                  <td className="px-4 py-3 text-[#94A3B8]">{new Date(order.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-[#94A3B8]">{formatFullDateTime(order.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <button onClick={() => setDetail(order)} className="p-1.5 text-[#2563EB] hover:bg-[#EFF6FF] rounded transition-colors cursor-pointer" title="查看详情">
@@ -428,7 +441,7 @@ export default function OrderManage() {
                         <Copy size={14} />
                       </button>
                     </div>
-                    <div className="text-xs text-[#94A3B8]">{new Date(order.created_at).toLocaleString()}</div>
+                    <div className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</div>
                   </div>
                 </div>
 
@@ -555,7 +568,7 @@ export default function OrderManage() {
                       <Copy size={14} />
                     </button>
                   </div>
-                  <span className="text-xs text-[#94A3B8]">{new Date(order.created_at).toLocaleString()}</span>
+                  <span className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</span>
                 </div>
                 
                 {/* 第三行：金额 */}
@@ -765,7 +778,7 @@ export default function OrderManage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#94A3B8]">下单时间</span>
-                    <span className="text-xs">{new Date(detail.created_at).toLocaleString()}</span>
+                    <span className="text-xs">{formatFullDateTime(detail.created_at)}</span>
                   </div>
                   {(detail.user || detail.users) && (
                     <div className="flex justify-between">

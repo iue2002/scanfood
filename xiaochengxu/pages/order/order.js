@@ -334,11 +334,14 @@ Page({
         return dish;
       });
 
+      const allCategory = { id: 'all', name: '全部', dish_count: allDishes.length };
+      const categoriesWithAll = [allCategory, ...categories];
+
       this.setData({
-        categories,
+        categories: categoriesWithAll,
         allDishes,
-        currentCategory: categories.length > 0 ? categories[0].id : '',
-        currentCategoryName: categories.length > 0 ? categories[0].name : ''
+        currentCategory: 'all',
+        currentCategoryName: '全部'
       });
       getApp().globalData.allDishes = allDishes;
       this.filterDishes();
@@ -516,7 +519,7 @@ Page({
 
   filterDishes() {
     const { allDishes, currentCategory } = this.data;
-    const dishes = allDishes.filter(d => d.category_id == currentCategory);
+    const dishes = currentCategory === 'all' ? allDishes : allDishes.filter(d => d.category_id == currentCategory);
     this.setData({ dishes });
   },
 

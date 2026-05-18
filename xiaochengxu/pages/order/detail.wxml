@@ -126,7 +126,7 @@
           <image class="modal-dish-image" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill"></image>
           <view class="modal-dish-info">
             <view class="modal-dish-name">{{item.name}}</view>
-            <view class="modal-dish-desc">{{item.description || '暂无简介'}}</view>
+            <view class="modal-dish-desc" wx:if="{{item.description}}">{{item.description}}</view>
             <view class="modal-dish-price-row">
               <view class="modal-dish-price">¥{{item.price}}</view>
               <view class="modal-dish-action">

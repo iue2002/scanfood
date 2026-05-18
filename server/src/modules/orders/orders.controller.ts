@@ -2,23 +2,38 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, U
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { StoreSettingsService } from '../store-settings/store-settings.service';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly storeSettingsService: StoreSettingsService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('current/:tableId')
   async getTableCurrentOrder(@Param('tableId', ParseIntPipe) tableId: number) {
     console.log('[GET /api/orders/current/:tableId]', { tableId });
-    return await this.ordersService.getTableCurrentOrder(tableId);
+    const result = await this.ordersService.getTableCurrentOrder(tableId);
+    const settings = await this.storeSettingsService.getStoreSettings();
+    return { ...result, store_name: settings.store_name, store_avatar: settings.store_avatar };
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('my-active')
   async getMyActiveOrder(@Req() req) {
     console.log('[GET /api/orders/my-active]', { userId: req.user?.userId });
-    return await this.ordersService.getMyActiveOrder(req.user?.userId);
+    const result = await this.ordersService.getMyActiveOrder(req.user?.userId);
+    const settings = await this.storeSettingsService.getStoreSettings();
+    if (result) {
+      return {
+        ...result,
+        store_name: settings.store_name,
+        store_avatar: settings.store_avatar,
+      };
+    }
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -53,7 +68,13 @@ export class OrdersController {
     const size = pageSize ? parseInt(pageSize, 10) : 20;
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
     console.log('[GET /api/orders]', { status, tableId: tableIdNum, dateFrom, dateTo, tag, page: pageNum, page_size: size });
-    return await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size);
+    const result = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size);
+    const settings = await this.storeSettingsService.getStoreSettings();
+    return { 
+      ...result, 
+      store_name: settings.store_name, 
+      store_avatar: settings.store_avatar 
+    };
   }
 
   @UseGuards(JwtAuthGuard)

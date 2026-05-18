@@ -17,7 +17,7 @@ Page({
 
   async fetchCurrentOrder() {
     try {
-      const order = await request({ url: `/orders/current/${this.data.tableId}` });
+      const order = await request({ url: `/orders/current/${this.data.tableId}`, noLoading: true });
       if (order) {
         this.setData({ order });
       }

@@ -40,13 +40,7 @@ Page({
       }
     }
 
-    // 优先检查是否存在未付款订单，无论是否有桌号
-    const hasActiveOrder = await this.checkActiveOrder();
-    if (hasActiveOrder) {
-      // 有未付款订单，已经跳转，不需要继续加载
-      return;
-    }
-
+    // 先处理桌台信息并加载数据，让用户立即看到内容
     if (tableNumber) {
       this.setData({ tableNumber, hasScannedTable: true });
       this.fetchTableInfoByNumber(tableNumber);
@@ -59,6 +53,33 @@ Page({
       }
     }
     this.fetchData();
+
+    // 异步检查未付款订单，不阻塞页面渲染
+    this.checkActiveOrderAsync();
+  },
+
+  async checkActiveOrderAsync() {
+    try {
+      const token = wx.getStorageSync('token');
+      if (!token) {
+        console.log('未登录，跳过检查未完成订单');
+        return;
+      }
+      const order = await request({ url: '/orders/my-active', noLoading: true });
+      console.log('checkActiveOrder 结果:', order);
+      if (order && order.id) {
+        // 发现未付款订单后跳转
+        wx.navigateTo({
+          url: `/pages/order/detail?id=${order.id}`,
+          fail: (err) => {
+            console.error('跳转订单详情失败:', err);
+            wx.showToast({ title: '跳转失败', icon: 'none' });
+          }
+        });
+      }
+    } catch (err) {
+      console.log('没有未完成的订单', err);
+    }
   },
 
   async checkActiveOrder() {
@@ -90,12 +111,7 @@ Page({
   },
 
   async onShow() {
-    // 每次显示页面时检查是否存在未付款订单（热启动场景）
-    const hasActiveOrder = await this.checkActiveOrder();
-    if (hasActiveOrder) {
-      return;
-    }
-
+    // 先处理页面状态，让用户立即看到内容
     if (getApp().globalData.addMore) {
       getApp().globalData.addMore = false;
       this.setData({ isAddMore: true });
@@ -118,6 +134,9 @@ Page({
       }
     }
     this.updateTabBar();
+
+    // 异步检查未付款订单，不阻塞页面显示
+    this.checkActiveOrderAsync();
   },
 
   updateTabBar() {
@@ -263,22 +282,6 @@ Page({
       getApp().globalData.tableId = table.id;
       wx.setStorageSync('savedTableId', table.id);
       this.bindTable(tableNumber);
-      this.initWebSocket();
-    } catch (err) {
-      console.error('获取桌台信息失败', err);
-      wx.showToast({
-        title: '获取桌台信息失败',
-        icon: 'none'
-      });
-    }
-  },
-
-  async fetchTableInfo(id) {
-    try {
-      const table = await request({ url: `/tables/${id}`, noLoading: true });
-      this.setData({ tableId: table.id, tableNumber: table.table_number });
-      getApp().globalData.tableId = table.id;
-      wx.setStorageSync('savedTableId', table.id);
       this.initWebSocket();
     } catch (err) {
       console.error('获取桌台信息失败', err);

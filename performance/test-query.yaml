@@ -1,0 +1,30 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 20
+      name: "预热阶段"
+    - duration: 60
+      arrivalRate: 50
+      name: "持续负载"
+    - duration: 60
+      arrivalRate: 100
+      name: "高负载"
+  plugins:
+    metrics-by-endpoint: {}
+scenarios:
+  - name: "菜品查询"
+    weight: 4
+    flow:
+      - get:
+          url: "/api/dishes"
+  - name: "分类查询"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/dishes/categories"
+  - name: "桌台查询"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/tables/board"

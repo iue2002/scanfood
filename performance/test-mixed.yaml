@@ -1,0 +1,35 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 120
+      arrivalRate: 80
+      name: "混合负载"
+  plugins:
+    metrics-by-endpoint: {}
+scenarios:
+  - name: "下单流程"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/orders/sync-draft"
+          headers:
+            Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjM1LCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3NzkwOTE0NDYsImV4cCI6MTc3OTY5NjI0Nn0.KXHmGrmIGsCG6s__eHr6i4uNfH9HNI0hrqw3rLr4P88"
+          json:
+            table_id: 38
+            items:
+              - dish_id: 4
+                quantity: 1
+                price: 5.0
+                dish_name: "羊肉串"
+  - name: "查询流程"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/dishes/categories"
+      - get:
+          url: "/api/tables"
+  - name: "订单查询"
+    weight: 2
+    flow:
+      - get:
+          url: "/api/orders?page=1&page_size=20"

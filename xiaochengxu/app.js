@@ -12,20 +12,35 @@ App({
     this.globalData.addMoreCarts = {};
     this.globalData.addMore = false;
 
-    this.checkLoginStatus();
+    // 先同步检查登录状态，不阻塞启动
+    this.checkLoginStatusSync();
+    // 异步刷新用户信息，不阻塞页面渲染
+    setTimeout(() => this.refreshUserInfoAsync(), 100);
   },
 
-  checkLoginStatus() {
+  checkLoginStatusSync() {
     const token = wx.getStorageSync('token');
     const userInfo = wx.getStorageSync('userInfo');
     
     if (token && userInfo && userInfo.id) {
       this.globalData.userInfo = userInfo;
       this.globalData.token = token;
-      this.refreshUserInfo();
     } else {
       wx.removeStorageSync('token');
       wx.removeStorageSync('userInfo');
+    }
+  },
+
+  async refreshUserInfoAsync() {
+    const token = wx.getStorageSync('token');
+    if (!token) return;
+    
+    try {
+      const user = await request({ url: '/auth/me', noLoading: true });
+      wx.setStorageSync('userInfo', user);
+      this.globalData.userInfo = user;
+    } catch (err) {
+      console.error('刷新用户信息失败', err);
     }
   },
 

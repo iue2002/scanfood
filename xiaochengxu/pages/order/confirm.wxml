@@ -29,6 +29,8 @@
 
   <view class="footer">
     <view class="total">共 {{order.order_items.length}} 项，￥{{order.total_amount}}</view>
-    <button type="primary" class="submit-btn" bindtap="submitOrder">提交订单</button>
+    <button type="primary" class="submit-btn" bindtap="submitOrder" disabled="{{isSubmitting}}">
+      {{isSubmitting ? '提交中...' : '提交订单'}}
+    </button>
   </view>
 </view>

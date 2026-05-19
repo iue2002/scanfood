@@ -149,6 +149,48 @@ export const order_items = mysqlTable(
   ]
 );
 
+// 购物车表（点餐中，非正式订单）
+export const carts = mysqlTable(
+  "carts",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    table_id: int("table_id").notNull().references(() => tables.id),
+    user_id: int("user_id").references(() => users.id),
+    total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("carts_table_id_idx").on(table.table_id),
+    index("carts_user_id_idx").on(table.user_id),
+    index("carts_updated_at_idx").on(table.updated_at),
+  ]
+);
+
+// 购物车明细表
+export const cart_items = mysqlTable(
+  "cart_items",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    cart_id: int("cart_id").notNull().references(() => carts.id, { onDelete: "cascade" }),
+    dish_id: int("dish_id").notNull().references(() => dishes.id),
+    spec_id: int("spec_id").references(() => dish_specs.id),
+    dish_name: varchar("dish_name", { length: 100 }).notNull(),
+    spec_name: varchar("spec_name", { length: 20 }),
+    quantity: int("quantity").notNull().default(1),
+    price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+    subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+    added_by_user_id: int("added_by_user_id").references(() => users.id),
+    added_by_nickname: varchar("added_by_nickname", { length: 100 }),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("cart_items_cart_id_idx").on(table.cart_id),
+    index("cart_items_dish_id_idx").on(table.dish_id),
+    index("cart_items_added_by_user_id_idx").on(table.added_by_user_id),
+  ]
+);
+
 // 小票打印记录表
 export const print_records = mysqlTable(
   "print_records",

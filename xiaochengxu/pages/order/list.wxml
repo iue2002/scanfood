@@ -59,7 +59,7 @@
         <!-- 底部：时间 + 操作 -->
         <view class="order-footer">
           <view class="order-time">
-            <text class="time-label">下单：</text>
+            <text class="time-label">下单1：</text>
             <text class="time-value">{{item.created_at}}</text>
           </view>
           <view class="footer-actions">

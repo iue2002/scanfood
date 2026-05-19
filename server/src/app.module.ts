@@ -6,6 +6,7 @@ import { AuthModule } from '@/modules/auth/auth.module';
 import { DishesModule } from '@/modules/dishes/dishes.module';
 import { TablesModule } from '@/modules/tables/tables.module';
 import { OrdersModule } from '@/modules/orders/orders.module';
+import { CartsModule } from '@/modules/carts/carts.module';
 import { StatisticsModule } from '@/modules/statistics/statistics.module';
 import { RefundsModule } from '@/modules/refunds/refunds.module';
 import { PrintModule } from '@/modules/print/print.module';
@@ -21,6 +22,7 @@ import { UploadModule } from '@/modules/upload/upload.module';
     DishesModule,
     TablesModule,
     OrdersModule,
+    CartsModule,
     StatisticsModule,
     RefundsModule,
     PrintModule,

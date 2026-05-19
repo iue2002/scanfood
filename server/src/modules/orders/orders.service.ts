@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
-import { orders, order_items, tables, users, print_records } from '@/storage/database/shared/schema';
+import { orders, order_items, tables, users, print_records, carts, cart_items } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { eq, and, inArray, desc, sql } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
@@ -19,7 +19,7 @@ export class OrdersService {
     const result = await db.select().from(orders)
       .where(and(
         eq(orders.table_id, tableId),
-        inArray(orders.status, ['draft', 'submitted', 'printed'])
+        inArray(orders.status, ['submitted', 'printed', 'unpaid'])
       ))
       .orderBy(desc(orders.created_at))
       .limit(1);
@@ -41,7 +41,7 @@ export class OrdersService {
     const result = await db.select().from(orders)
       .where(and(
         eq(orders.user_id, userId),
-        inArray(orders.status, ['draft', 'submitted', 'printed', 'unpaid'])
+        inArray(orders.status, ['submitted', 'printed', 'unpaid'])
       ))
       .orderBy(desc(orders.created_at))
       .limit(1);
@@ -191,8 +191,11 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string, page: number = 1, pageSize: number = 20) {
+  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string, page: number = 1, pageSize: number = 20, skipDraft = false) {
     const conditions: any[] = [];
+    if (skipDraft) {
+      conditions.push(sql`${orders.status} != 'draft'`);
+    }
     if (status) conditions.push(eq(orders.status, status));
     if (tableId) conditions.push(eq(orders.table_id, tableId));
     if (dateFrom) {
@@ -311,6 +314,8 @@ export class OrdersService {
     const order = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(dto.table_id, order);
     this.ordersGateway.notifyAllAdmins('orderStatusChanged', order);
+    await this.clearTableCart(dto.table_id);
+    this.ordersGateway.notifyTableCartUpdate(dto.table_id, null);
     return order;
   }
 
@@ -449,5 +454,14 @@ export class OrdersService {
     this.ordersGateway.notifyTableUpdate(order.table_id, null);
     this.ordersGateway.notifyAllAdmins('orderDeleted', { id: orderId, table_id: order.table_id });
     return { success: true };
+  }
+
+  private async clearTableCart(tableId: number) {
+    const cartList = await db.select().from(carts).where(eq(carts.table_id, tableId));
+    if (cartList.length === 0) return;
+
+    const cartIds = cartList.map(cart => cart.id);
+    await db.delete(cart_items).where(inArray(cart_items.cart_id, cartIds as any));
+    await db.delete(carts).where(eq(carts.table_id, tableId));
   }
 }

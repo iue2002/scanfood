@@ -57,6 +57,7 @@ export class OrdersController {
   @Get()
   async getOrders(
     @Query('status') status?: string,
+    @Query('exclude_draft') excludeDraft?: string,
     @Query('table_id') tableId?: string,
     @Query('date_from') dateFrom?: string,
     @Query('date_to') dateTo?: string,
@@ -67,8 +68,9 @@ export class OrdersController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const size = pageSize ? parseInt(pageSize, 10) : 20;
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
-    console.log('[GET /api/orders]', { status, tableId: tableIdNum, dateFrom, dateTo, tag, page: pageNum, page_size: size });
-    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size);
+    const skipDraft = !status && excludeDraft === 'true';
+    console.log('[GET /api/orders]', { status, excludeDraft, tableId: tableIdNum, dateFrom, dateTo, tag, page: pageNum, page_size: size });
+    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft);
     const settings = await this.storeSettingsService.getStoreSettings();
     return {
       data,

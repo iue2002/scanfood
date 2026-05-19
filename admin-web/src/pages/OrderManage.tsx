@@ -46,6 +46,7 @@ interface GroupedItems {
 }
 
 const statusMap: Record<string, { label: string; color: string }> = {
+  draft: { label: '待提交', color: 'text-[#94A3B8] bg-[#F1F5F9]' },
   submitted: { label: '已提交', color: 'text-[#F59E0B] bg-[#FEF3C7]' },
   printed: { label: '已打印', color: 'text-[#2563EB] bg-[#EFF6FF]' },
   settled: { label: '已结账', color: 'text-[#10B981] bg-[#D1FAE5]' },
@@ -79,7 +80,11 @@ export default function OrderManage() {
       page: currentPage,
       page_size: pageSize
     }
-    if (filterStatus) params.status = filterStatus
+    if (!filterStatus) {
+      params.exclude_draft = 'true'
+    } else if (filterStatus) {
+      params.status = filterStatus
+    }
     if (dateFrom) params.date_from = dateFrom
     if (dateTo) params.date_to = dateTo
     if (activeTag) params.tag = activeTag
@@ -254,6 +259,7 @@ export default function OrderManage() {
               className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             >
               <option value="">全部状态</option>
+              <option value="draft">待提交</option>
               <option value="submitted">已提交</option>
               <option value="printed">已打印</option>
               <option value="settled">已结账</option>

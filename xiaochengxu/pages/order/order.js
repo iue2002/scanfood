@@ -13,6 +13,7 @@ Page({
     cartCount: {}, 
     totalCount: 0,
     totalPrice: 0,
+    currentCartId: null,
     currentOrderId: null,
     orderStatus: null,
     hasScannedTable: false,
@@ -118,8 +119,22 @@ Page({
     }
 
     if (this.data.tableId && !this.data.isAddMore) {
-      this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
-      this.fetchCurrentOrder();
+      const cart = getApp().getCart(this.data.tableId);
+      const cartCount = cart.cartCount || {};
+      const hasLocalData = Object.values(cartCount).some(count => count > 0);
+
+      if (hasLocalData) {
+        this.setData({
+          cartCount: { ...cartCount },
+          currentCartId: cart.currentCartId || null,
+          currentOrderId: null,
+          orderStatus: null
+        });
+        this.calculateTotal();
+      } else {
+        this.setData({ cartCount: {}, currentCartId: null, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+        this.fetchCurrentCart();
+      }
     } else if (this.data.tableId && this.data.isAddMore) {
       const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
       if (!addMoreCart.currentOrderId) {
@@ -144,7 +159,7 @@ Page({
     try {
       await this.fetchData();
       if (this.data.tableId) {
-        await this.fetchCurrentOrder();
+        await this.fetchCurrentCart();
       }
       wx.stopPullDownRefresh();
     } catch (err) {
@@ -194,7 +209,9 @@ Page({
         const message = JSON.parse(res.data);
         console.log('收到 WebSocket 消息:', message);
         
-        if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
+        if (message.event === 'cartUpdated') {
+          this.handleCartUpdate(message.data);
+        } else if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
           this.handleOrderUpdate(message.data);
         }
       } catch (err) {
@@ -221,14 +238,7 @@ Page({
   handleOrderUpdate(order) {
     console.log('处理订单更新:', order);
     
-    if (order && order.status === 'draft') {
-      const cartCount = {};
-      order.order_items.forEach(item => {
-        cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
-      });
-      this.setData({ cartCount, currentOrderId: order.id });
-      this.calculateTotal();
-    } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
+    if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
       if (this.data.isAddMore) {
         return;
       }
@@ -239,6 +249,30 @@ Page({
       // 订单已结账或取消，立即释放所有桌号资源
       this.releaseTableResources();
     }
+  },
+
+  handleCartUpdate(cart) {
+    console.log('处理购物车更新:', cart);
+
+    if (!cart || !cart.cart_items) {
+      const emptyCart = getApp().getCart(this.data.tableId);
+      emptyCart.cartCount = {};
+      emptyCart.currentCartId = null;
+      this.setData({ cartCount: {}, currentCartId: null, totalCount: 0, totalPrice: '0.00' });
+      return;
+    }
+
+    const cartCount = {};
+    cart.cart_items.forEach(item => {
+      cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
+    });
+
+    const localCart = getApp().getCart(this.data.tableId);
+    localCart.cartCount = { ...cartCount };
+    localCart.currentCartId = cart.id;
+
+    this.setData({ cartCount, currentCartId: cart.id });
+    this.calculateTotal();
   },
 
   // 释放桌号资源 - 结账/取消后必须清理，避免缓存导致下次进入混乱
@@ -363,7 +397,7 @@ Page({
       });
       getApp().globalData.allDishes = allDishes;
       this.filterDishes();
-      this.fetchCurrentOrder();
+      this.fetchCurrentCart();
     } catch (err) {
       console.error('加载数据失败', err);
       wx.showToast({
@@ -373,59 +407,33 @@ Page({
     }
   },
 
-  async fetchCurrentOrder() {
-    if (!this.data.tableId || this.isFetchingOrder) return;
+  async fetchCurrentCart() {
+    if (!this.data.tableId || this.isFetchingOrder || this.data.isAddMore) return;
     this.isFetchingOrder = true;
     try {
-      const order = await request({ 
-        url: `/orders/current/${this.data.tableId}`,
-        noLoading: true 
+      const cart = await request({
+        url: `/carts/current/${this.data.tableId}`,
+        noLoading: true
       });
-      if (order && order.status === 'draft') {
-        if (!order.order_items || order.order_items.length === 0) {
-          await request({
-            url: `/orders/${order.id}`,
-            method: 'DELETE',
-            noLoading: true
-          });
-          this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
-          const cart = getApp().getCart(this.data.tableId);
-          cart.cartCount = {};
-          cart.currentOrderId = null;
-          cart.orderStatus = null;
-          return;
-        }
+
+      if (cart && cart.cart_items && cart.cart_items.length > 0) {
         const cartCount = {};
-        order.order_items.forEach(item => {
+        cart.cart_items.forEach(item => {
           cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
         });
-        this.setData({ cartCount, currentOrderId: order.id, orderStatus: 'draft' });
-        const cart = getApp().getCart(this.data.tableId);
-        cart.cartCount = { ...cartCount };
-        cart.currentOrderId = order.id;
-        cart.orderStatus = 'draft';
+        this.setData({ cartCount, currentCartId: cart.id });
+        const localCart = getApp().getCart(this.data.tableId);
+        localCart.cartCount = { ...cartCount };
+        localCart.currentCartId = cart.id;
         this.calculateTotal();
-      } else if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
-        if (this.data.isAddMore) {
-          const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
-          this.setData({ cartCount: { ...addMoreCart.cartCount }, currentOrderId: order.id, orderStatus: order.status });
-          addMoreCart.currentOrderId = order.id;
-          addMoreCart.orderStatus = order.status;
-          this.calculateTotal();
-          return;
-        }
-        wx.redirectTo({
-          url: `/pages/order/detail?id=${order.id}`,
-        });
       } else {
-        this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
-        const cart = getApp().getCart(this.data.tableId);
-        cart.cartCount = {};
-        cart.currentOrderId = null;
-        cart.orderStatus = null;
+        this.setData({ cartCount: {}, currentCartId: null, totalCount: 0, totalPrice: '0.00' });
+        const localCart = getApp().getCart(this.data.tableId);
+        localCart.cartCount = {};
+        localCart.currentCartId = null;
       }
     } catch (err) {
-      console.error('获取当前订单失败', err);
+      console.error('获取当前购物车失败', err);
     } finally {
       this.isFetchingOrder = false;
     }
@@ -495,7 +503,7 @@ Page({
             getApp().globalData.tableId = tableId;
             this.setData({ tableId });
             this.fetchTableInfo(tableId);
-            this.fetchCurrentOrder();
+            this.fetchCurrentCart();
             return;
           } else {
             // 纯数字或桌台编号
@@ -506,7 +514,7 @@ Page({
         if (tableNumber) {
           this.setData({ tableNumber, hasScannedTable: true });
           this.fetchTableInfoByNumber(tableNumber);
-          this.fetchCurrentOrder();
+          this.fetchCurrentCart();
         } else {
           wx.showToast({
             title: '未能识别桌码',
@@ -612,7 +620,7 @@ Page({
   },
 
   async syncCartToBackend() {
-    const { cartCount, allDishes, tableId, currentOrderId, isAddMore } = this.data;
+    const { cartCount, allDishes, tableId, currentCartId, currentOrderId, isAddMore } = this.data;
     if (!tableId) return;
     const items = [];
     const userInfo = getApp().globalData.userInfo;
@@ -635,22 +643,17 @@ Page({
     }
 
     if (items.length === 0) {
-      if (currentOrderId) {
-        const { orderStatus } = this.data;
-        if (orderStatus === 'draft') {
-          await request({
-            url: `/orders/${currentOrderId}`,
-            method: 'DELETE',
-            noLoading: true
-          });
-        }
-        this.setData({ cartCount: {}, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
-        if (isAddMore) {
-          getApp().clearAddMoreCart(this.data.tableId);
-        } else {
-          getApp().clearCart(this.data.tableId);
-        }
+      if (isAddMore) {
+        getApp().clearAddMoreCart(this.data.tableId);
+      } else if (currentCartId) {
+        await request({
+          url: `/carts/${currentCartId}`,
+          method: 'DELETE',
+          noLoading: true
+        });
+        getApp().clearCart(this.data.tableId);
       }
+      this.setData({ cartCount: {}, currentCartId: null, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
       return;
     }
 
@@ -681,25 +684,19 @@ Page({
           this.setData({ currentOrderId: result.id, orderStatus: result.status });
         }
       } else {
-        if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
-          await request({
-            url: `/orders/${currentOrderId}/sync-add-more`,
-            method: 'POST',
-            data: { items },
-            noLoading: true
-          });
-        } else {
-          await request({
-            url: '/orders/sync-draft',
-            method: 'POST',
-            data: {
-              table_id: parseInt(tableId),
-              items: items,
-              user_id: getApp().globalData.userInfo?.id
-            },
-            noLoading: true
-          });
-        }
+        const result = await request({
+          url: '/carts/sync',
+          method: 'POST',
+          data: {
+            table_id: parseInt(tableId),
+            items: items,
+            user_id: getApp().globalData.userInfo?.id
+          },
+          noLoading: true
+        });
+        const cart = getApp().getCart(this.data.tableId);
+        cart.currentCartId = result?.id || null;
+        this.setData({ currentCartId: result?.id || null });
       }
     } catch (err) {
       console.error('同步购物车失败', err);

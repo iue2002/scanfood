@@ -223,6 +223,27 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  notifyTableCartUpdate(tableId: string | number, data: any) {
+    const clients = this.tableClients.get(String(tableId));
+    if (clients && clients.size > 0) {
+      const message = JSON.stringify({
+        event: 'cartUpdated',
+        data,
+      });
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify table ${tableId} cart update`, err.message);
+            clients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified table ${tableId} of cart update, ${clients.size} clients`);
+    }
+  }
+
   notifyOrderUpdate(orderId: string | number, data: any) {
     const clients = this.orderClients.get(String(orderId));
     if (clients && clients.size > 0) {

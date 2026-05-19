@@ -1,29 +1,119 @@
-// pages/order/confirm.js
 const { request } = require('../../utils/request');
 
 Page({
   data: {
     tableId: '',
+    cartId: null,
     order: null,
+    previewItems: [],
+    totalCount: 0,
+    totalPrice: '0.00',
     peopleRange: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     peopleIndex: 0,
-    remark: ''
+    remark: '',
+    isSubmitting: false
   },
 
   onLoad(options) {
     this.setData({ tableId: options.tableId });
-    this.fetchCurrentOrder();
+    this.fetchCurrentCartPreview();
   },
 
-  async fetchCurrentOrder() {
+  async fetchCurrentCartPreview() {
     try {
-      const order = await request({ url: `/orders/current/${this.data.tableId}`, noLoading: true });
-      if (order) {
-        this.setData({ order });
+      const cart = await request({
+        url: `/carts/current/${this.data.tableId}`,
+        noLoading: true
+      });
+
+      if (cart && cart.cart_items && cart.cart_items.length > 0) {
+        this.buildOrderFromCartItems(cart);
+        this.setData({ cartId: cart.id });
+        const localCart = getApp().getCart(this.data.tableId);
+        localCart.currentCartId = cart.id;
+        return;
       }
     } catch (err) {
-      console.error('获取订单失败', err);
+      console.error('获取购物车失败', err);
     }
+
+    this.buildOrderFromLocalCart();
+  },
+
+  buildOrderFromCartItems(cart) {
+    const allDishes = getApp().globalData.allDishes || [];
+    const items = [];
+    let totalCount = 0;
+    let totalPrice = 0;
+
+    cart.cart_items.forEach(item => {
+      const dish = allDishes.find(d => d.id == item.dish_id);
+      const subtotal = parseFloat(item.subtotal).toFixed(2);
+      items.push({
+        id: item.dish_id,
+        dish_name: item.dish_name,
+        price: parseFloat(item.price).toFixed(2),
+        quantity: item.quantity,
+        subtotal: subtotal,
+        image_url: dish?.image_url || ''
+      });
+      totalCount += item.quantity;
+      totalPrice += parseFloat(item.subtotal);
+    });
+
+    const order = {
+      order_items: items,
+      total_amount: totalPrice.toFixed(2)
+    };
+
+    this.setData({
+      previewItems: items,
+      totalCount,
+      totalPrice: totalPrice.toFixed(2),
+      order
+    });
+  },
+
+  buildOrderFromLocalCart() {
+    const app = getApp();
+    const cart = app.getCart(this.data.tableId);
+    const cartCount = cart.cartCount || {};
+    const allDishes = app.globalData.allDishes || [];
+    const items = [];
+    let totalCount = 0;
+    let totalPrice = 0;
+
+    for (const id in cartCount) {
+      const count = cartCount[id];
+      if (count > 0) {
+        const dish = allDishes.find(d => d.id == id);
+        if (dish) {
+          const subtotal = (count * parseFloat(dish.price)).toFixed(2);
+          items.push({
+            id: dish.id,
+            dish_name: dish.name,
+            price: parseFloat(dish.price).toFixed(2),
+            quantity: count,
+            subtotal: subtotal,
+            image_url: dish.image_url || ''
+          });
+          totalCount += count;
+          totalPrice += count * parseFloat(dish.price);
+        }
+      }
+    }
+
+    const order = {
+      order_items: items,
+      total_amount: totalPrice.toFixed(2)
+    };
+
+    this.setData({
+      previewItems: items,
+      totalCount,
+      totalPrice: totalPrice.toFixed(2),
+      order
+    });
   },
 
   onPeopleChange(e) {
@@ -35,25 +125,70 @@ Page({
   },
 
   async submitOrder() {
-    if (!this.data.order) return;
+    if (this.data.isSubmitting) return;
+    if (!this.data.previewItems || this.data.previewItems.length === 0) {
+      wx.showToast({ title: '请选择菜品', icon: 'none' });
+      return;
+    }
 
+    this.setData({ isSubmitting: true });
     try {
+      const app = getApp();
+      const cart = app.getCart(this.data.tableId);
+      const cartCount = cart.cartCount || {};
+      const allDishes = app.globalData.allDishes || [];
+      const items = [];
+      const userInfo = app.globalData.userInfo;
+      
+      for (const id in cartCount) {
+        const count = cartCount[id];
+        if (count > 0) {
+          const dish = allDishes.find(d => d.id == id);
+          if (dish) {
+            items.push({
+              dish_id: dish.id,
+              dish_name: dish.name,
+              price: parseFloat(dish.price),
+              quantity: count,
+              added_by_user_id: userInfo?.id,
+              added_by_nickname: userInfo?.nickname || '未知用户'
+            });
+          }
+        }
+      }
+
       const result = await request({
-        url: `/orders/${this.data.order.id}/status`,
+        url: '/orders',
         method: 'POST',
         data: {
-          status: 'submitted',
-          remark: this.data.remark, // 这里可以扩展后端接口支持在修改状态时同时修改备注
-          // 用餐人数可以作为备注的一部分，或者扩展后端字段
+          table_id: parseInt(this.data.tableId),
+          items: items,
+          user_id: userInfo?.id,
+          remark: this.data.remark,
         }
       });
+
+      const cartId = this.data.cartId || cart.currentCartId;
+      if (cartId) {
+        await request({
+          url: `/carts/${cartId}`,
+          method: 'DELETE',
+          noLoading: true
+        });
+      }
       
+      app.clearCart(this.data.tableId);
+      this.setData({ cartId: null });
+
       wx.showToast({ title: '下单成功' });
       wx.redirectTo({
-        url: `/pages/order/detail?id=${this.data.order.id}`,
+        url: `/pages/order/detail?id=${result.id}`,
       });
     } catch (err) {
       console.error('提交订单失败', err);
+      wx.showToast({ title: '提交失败', icon: 'none' });
+    } finally {
+      this.setData({ isSubmitting: false });
     }
   }
 })

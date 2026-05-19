@@ -1,6 +1,5 @@
 // pages/order/cart.js
 const { request, serverURL } = require('../../utils/request');
-const config = require('../../config');
 
 Page({
   data: {
@@ -47,26 +46,6 @@ Page({
 
   onUnload() {
     this.closeWebSocket();
-    const app = getApp();
-    const cart = this.data.isAddMore ? app.getAddMoreCart(this.data.tableId) : app.getCart(this.data.tableId);
-    const cartCount = cart.cartCount || {};
-    const hasItems = Object.values(cartCount).some(count => count > 0);
-
-    if (!hasItems && cart.currentOrderId && cart.orderStatus === 'draft') {
-      wx.request({
-        url: `${config.baseURL}/orders/${cart.currentOrderId}`,
-        method: 'DELETE',
-        header: {
-          'Authorization': `Bearer ${wx.getStorageSync('token')}`
-        },
-        timeout: 5000
-      });
-      if (this.data.isAddMore) {
-        app.clearAddMoreCart(this.data.tableId);
-      } else {
-        app.clearCart(this.data.tableId);
-      }
-    }
   },
 
   loadCartFromGlobal() {
@@ -124,7 +103,9 @@ Page({
 
     this.ws.onMessage((res) => {
       const message = JSON.parse(res.data);
-      if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
+      if (message.event === 'cartUpdated') {
+        this.loadCartFromGlobal();
+      } else if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
         this.loadCartFromGlobal();
       }
     });
@@ -220,18 +201,19 @@ Page({
     try {
       const currentOrderId = cart.currentOrderId;
       const orderStatus = cart.orderStatus;
+      const currentCartId = cart.currentCartId;
 
       if (items.length === 0) {
-        if (currentOrderId && orderStatus === 'draft') {
-          await request({
-            url: `/orders/${currentOrderId}`,
-            method: 'DELETE',
-            noLoading: true
-          });
-        }
         if (isAddMore) {
           getApp().clearAddMoreCart(this.data.tableId);
         } else {
+          if (currentCartId) {
+            await request({
+              url: `/carts/${currentCartId}`,
+              method: 'DELETE',
+              noLoading: true
+            });
+          }
           getApp().clearCart(this.data.tableId);
         }
         this.setData({ cartItems: [], totalCount: 0, totalPrice: '0.00', orderStatus: null });
@@ -262,32 +244,25 @@ Page({
           this.setData({ orderStatus: result.status });
         }
       } else {
-        if (currentOrderId && (orderStatus === 'submitted' || orderStatus === 'printed')) {
-          await request({
-            url: `/orders/${currentOrderId}/sync-add-more`,
-            method: 'POST',
-            data: { items },
-            noLoading: true
-          });
-        } else {
-          await request({
-            url: '/orders/sync-draft',
-            method: 'POST',
-            data: {
-              table_id: parseInt(tableId),
-              items: items,
-              user_id: app.globalData.userInfo?.id
-            },
-            noLoading: true
-          });
-        }
+        const result = await request({
+          url: '/carts/sync',
+          method: 'POST',
+          data: {
+            table_id: parseInt(tableId),
+            items: items,
+            user_id: app.globalData.userInfo?.id
+          },
+          noLoading: true
+        });
+        cart.currentCartId = result?.id || null;
+        this.setData({ orderStatus: null });
       }
     } catch (err) {
       console.error('同步购物车失败', err);
     }
   },
 
-  goToConfirm() {
+  async goToConfirm() {
     if (this.data.isAddMore) {
       wx.showModal({
         title: '确认提交加餐',
@@ -299,6 +274,7 @@ Page({
         }
       });
     } else {
+      await this.syncCartToBackend();
       wx.navigateTo({
         url: `/pages/order/confirm?tableId=${this.data.tableId}`,
       });

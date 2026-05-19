@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
-import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface OrderItem {
   id: number
+  dish_id?: number
+  spec_id?: number | null
   dish_name: string
   spec_name: string | null
   quantity: number
@@ -36,6 +38,14 @@ interface Order {
     nickname?: string
     username?: string
   }
+}
+
+interface Dish {
+  id: number
+  name: string
+  price: string
+  category_id: number
+  category_name?: string
 }
 
 interface GroupedItems {
@@ -70,6 +80,11 @@ export default function OrderManage() {
   const [detail, setDetail] = useState<Order | null>(null)
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
   const { showToast, showConfirm } = useModal()
+  const [loading, setLoading] = useState(false)
+  const [showAddDish, setShowAddDish] = useState(false)
+  const [dishes, setDishes] = useState<Dish[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [addDishCart, setAddDishCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
   
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -135,6 +150,96 @@ export default function OrderManage() {
       showToast('订单已取消', 'success')
     })
   }
+
+  const handleUpdateItemQty = async (orderId: number, itemId: number, newQty: number) => {
+    if (newQty < 0) return
+    setLoading(true)
+    try {
+      await request.put(`/orders/${orderId}/items/${itemId}`, { quantity: newQty })
+      const updated = await request.get(`/orders/${orderId}`)
+      if (detail && detail.id === orderId) {
+        setDetail(updated as Order)
+      }
+      fetchOrders()
+      showToast('已更新', 'success')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadDishes = useCallback(async () => {
+    const res = await request.get('/dishes')
+    if (Array.isArray(res)) {
+      setDishes(res)
+    } else {
+      setDishes(res?.data || [])
+    }
+  }, [])
+
+  useEffect(() => {
+    if (showAddDish) {
+      loadDishes()
+    }
+  }, [showAddDish, loadDishes])
+
+  const updateCartItem = (dish: Dish, delta: number) => {
+    setAddDishCart(prev => {
+      const current = prev[dish.id]
+      if (current) {
+        const nextQty = current.quantity + delta
+        if (nextQty <= 0) {
+          const next = { ...prev }
+          delete next[dish.id]
+          return next
+        }
+        return { ...prev, [dish.id]: { ...current, quantity: nextQty } }
+      } else if (delta > 0) {
+        return { ...prev, [dish.id]: { dish, quantity: 1 } }
+      }
+      return prev
+    })
+  }
+
+  const getCartCount = () => {
+    return Object.values(addDishCart).reduce((sum, item) => sum + item.quantity, 0)
+  }
+
+  const handleAddDish = async (orderId: number) => {
+    setLoading(true)
+    try {
+      const cartItems = Object.values(addDishCart)
+      if (cartItems.length === 0) {
+        showToast('请先选择菜品', 'info')
+        return
+      }
+
+      await request.post(`/orders/${orderId}/sync-add-more`, {
+        items: cartItems.map(item => ({
+          dish_id: item.dish.id,
+          dish_name: item.dish.name,
+          price: parseFloat(item.dish.price),
+          quantity: item.quantity,
+          added_by_nickname: '商家'
+        }))
+      })
+
+      const updated = await request.get(`/orders/${orderId}`)
+      if (detail && detail.id === orderId) {
+        setDetail(updated as Order)
+      }
+      fetchOrders()
+      setAddDishCart({})
+      setShowAddDish(false)
+      setSearchQuery('')
+      showToast('加餐成功', 'success')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredDishes = dishes.filter(d =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const applyTag = (tagKey: string) => {
     if (activeTag === tagKey) {
@@ -244,14 +349,13 @@ export default function OrderManage() {
     <div>
       {/* 标题栏 */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-[#0F172A]">订单管理</h2>
+        <h2 className="hidden lg:block text-xl font-semibold text-[#0F172A]">订单管理</h2>
       </div>
 
       {/* 筛选区域 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 space-y-4">
-        {/* 第一行：状态 + 日期 */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5">
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
             <Filter size={16} className="text-[#64748B]" />
             <select
               value={filterStatus}
@@ -268,7 +372,7 @@ export default function OrderManage() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
             <Calendar size={16} className="text-[#64748B]" />
             <input
               type="date"
@@ -286,12 +390,9 @@ export default function OrderManage() {
               placeholder="结束日期"
             />
           </div>
-        </div>
 
-        {/* 第二行：快捷标签 */}
-        <div className="flex items-center gap-2">
-          <Tag size={16} className="text-[#64748B]" />
-          <div className="flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+            <Tag size={16} className="text-[#64748B]" />
             {presetTags.map(tag => (
               <button
                 key={tag.key}
@@ -305,15 +406,39 @@ export default function OrderManage() {
                 {tag.label}
               </button>
             ))}
-            {(dateFrom || dateTo || filterStatus) && (
-              <button
-                onClick={() => { setDateFrom(''); setDateTo(''); setFilterStatus(''); setActiveTag('') }}
-                className="px-3 py-1.5 text-sm text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-              >
-                清除筛选
-              </button>
-            )}
           </div>
+
+          {(dateFrom || dateTo || filterStatus) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); setFilterStatus(''); setActiveTag('') }}
+              className="px-3 py-1.5 text-sm text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+            >
+              清除筛选
+            </button>
+          )}
+        </div>
+        <div className="mt-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+          {[
+            { value: '', label: '全部' },
+            { value: 'submitted', label: '已提交' },
+            { value: 'printed', label: '已打印' },
+            { value: 'unpaid', label: '待支付' },
+            { value: 'settled', label: '已结账' },
+            { value: 'cancelled', label: '已取消' },
+            { value: 'refunded', label: '已退款' },
+          ].map((item) => (
+            <button
+              key={item.value || 'all'}
+              onClick={() => setFilterStatus(item.value)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                filterStatus === item.value
+                  ? 'bg-[#2563EB] text-white'
+                  : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -563,33 +688,16 @@ export default function OrderManage() {
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${s.color}`}>{s.label}</span>
                 </div>
                 
-                {/* 第二行：订单号（带复制）+ 时间 */}
+                {/* 第二行：时间 + 点餐用户 */}
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono text-[#64748B]">{order.order_number}</span>
-                    <button
-                      onClick={() => copyOrderNumber(order.order_number)}
-                      className="p-1 text-[#94A3B8] hover:text-[#2563EB] cursor-pointer"
-                    >
-                      <Copy size={14} />
-                    </button>
-                  </div>
                   <span className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</span>
-                </div>
-                
-                {/* 第三行：金额 */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[#64748B]">金额</span>
-                  <span className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</span>
-                </div>
-
-                {/* 第四行：点餐用户 */}
-                {((order.user || order.users) && (
-                    <div className="flex items-center gap-2 mb-3 text-sm text-[#64748B]">
-                      <User size={14} />
+                  {(order.user || order.users) && (
+                    <div className="flex items-center gap-1 text-xs text-[#64748B]">
+                      <User size={12} />
                       <span>{(order.user || order.users)?.nickname || (order.user || order.users)?.username || '未知用户'}</span>
                     </div>
-                  ))}
+                  )}
+                </div>
 
                 {/* 收起/展开按钮 */}
                 <button
@@ -621,18 +729,13 @@ export default function OrderManage() {
                         {group.items.map((item, ii) => (
                           <div key={ii} className="flex justify-between items-start">
                             <div className="flex-1">
-                              <div className="text-sm text-[#0F172A]">
-                                {item.dish_name}
-                                {item.spec_name && <span className="text-[#94A3B8]">({item.spec_name})</span>}
+                              <div className="text-base font-medium text-[#0F172A] flex items-center gap-2">
+                                <span className="truncate">{item.dish_name}</span>
+                                {item.spec_name && <span className="text-[#94A3B8] text-sm">({item.spec_name})</span>}
+                                <span className="text-[#64748B] text-sm">×{item.quantity}</span>
                               </div>
-                              {item.added_by_nickname && (
-                                <div className="text-xs text-[#94A3B8] flex items-center gap-1 mt-0.5">
-                                  <User size={10} /> {item.added_by_nickname}
-                                </div>
-                              )}
                             </div>
                             <div className="text-right ml-3">
-                              <div className="text-sm text-[#64748B]">×{item.quantity}</div>
                               <div className="text-sm font-medium text-[#0F172A]">¥{item.subtotal}</div>
                             </div>
                           </div>
@@ -649,6 +752,13 @@ export default function OrderManage() {
                   )}
                 </div>
               )}
+
+              <div className="px-4 pb-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#64748B]">总金额</span>
+                  <span className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</span>
+                </div>
+              </div>
 
               {/* 操作按钮 */}
               <div className="px-4 pb-4 flex items-center gap-2">
@@ -758,6 +868,24 @@ export default function OrderManage() {
                               </div>
                               <div className="text-right ml-2">
                                 <div className="text-xs font-semibold text-[#0F172A]">¥{item.subtotal}</div>
+                                {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
+                                  <div className="flex items-center gap-1 mt-1 justify-end">
+                                    <button
+                                      onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity - 1)}
+                                      className="p-1 text-[#EF4444] hover:bg-red-50 rounded cursor-pointer"
+                                      disabled={loading}
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity + 1)}
+                                      className="p-1 text-[#2563EB] hover:bg-[#EFF6FF] rounded cursor-pointer"
+                                      disabled={loading}
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -814,6 +942,16 @@ export default function OrderManage() {
                 <button onClick={() => setDetail(null)} className="flex-1 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer">
                   关闭
                 </button>
+                {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
+                  <button
+                    onClick={() => setShowAddDish(true)}
+                    className="flex-1 py-2 bg-[#F8FAFC] text-[#334155] rounded-lg text-xs font-medium hover:bg-[#F1F5F9] transition-colors cursor-pointer flex items-center justify-center gap-1"
+                    disabled={loading}
+                  >
+                    <PlusCircle size={14} />
+                    加餐
+                  </button>
+                )}
                 {detail.status === 'submitted' || detail.status === 'printed' ? (
                   <>
                     <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="flex-1 py-2 bg-[#EF4444] text-white rounded-lg text-xs font-medium hover:bg-[#DC2626] transition-colors cursor-pointer">
@@ -824,6 +962,108 @@ export default function OrderManage() {
                     </button>
                   </>
                 ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 加餐弹窗 */}
+      {showAddDish && detail && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
+              <button
+                onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            <div className="px-5 py-3 border-b border-gray-100 shrink-0">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="搜索菜品..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-[#F8FAFC] border-0 rounded-lg text-sm placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {filteredDishes.length === 0 ? (
+                <div className="text-center text-sm text-[#94A3B8] py-8">
+                  {searchQuery ? '未找到匹配的菜品' : '暂无菜品'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredDishes.map((dish) => {
+                    const cartItem = addDishCart[dish.id]
+                    const qty = cartItem?.quantity || 0
+                    return (
+                      <div
+                        key={dish.id}
+                        className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-[#0F172A] truncate">{dish.name}</div>
+                          <div className="text-xs text-[#94A3B8]">¥{dish.price}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={qty === 0 ? '' : qty}
+                            placeholder="0"
+                            onChange={(e) => setCartItemQty(dish, Number(e.target.value))}
+                            onBlur={(e) => {
+                              if (e.target.value === '') {
+                                setCartItemQty(dish, 0)
+                              }
+                            }}
+                            className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-md text-center bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                          />
+                          <button
+                            onClick={() => updateCartItem(dish, 1)}
+                            className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => updateCartItem(dish, -1)}
+                            className="w-7 h-7 flex items-center justify-center bg-gray-200 text-[#334155] rounded-md hover:bg-gray-300 cursor-pointer"
+                          >
+                            <Minus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 shrink-0 bg-white">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
+                  className="flex-1 py-3 bg-gray-100 text-[#334155] rounded-xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
+                >
+                  关闭
+                </button>
+                <button
+                  onClick={() => handleAddDish(detail.id)}
+                  disabled={loading || Object.keys(addDishCart).length === 0}
+                  className="flex-1 py-3 bg-[#10B981] text-white rounded-xl text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart size={16} />
+                  {loading ? '提交中...' : `提交加餐（${getCartCount()}件）`}
+                </button>
               </div>
             </div>
           </div>

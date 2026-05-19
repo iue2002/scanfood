@@ -116,6 +116,17 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Put(':id/items/:itemId')
+  async updateOrderItemQuantity(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Body('quantity') quantity: number,
+  ) {
+    console.log('[PUT /api/orders/:id/items/:itemId]', { id, itemId, quantity });
+    return await this.ordersService.updateOrderItemQuantity(id, itemId, quantity);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':id/status')
   async updateOrderStatus(
     @Param('id', ParseIntPipe) id: number,

@@ -6,6 +6,40 @@ body {
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background-color: #F8FAFC;
   color: #0F172A;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  font-size: 15px;
+}
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table th,
+table td {
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  table th,
+  table td {
+    padding: 0.5rem 0.5rem;
+  }
 }
 
 /* 滚动条美化 */

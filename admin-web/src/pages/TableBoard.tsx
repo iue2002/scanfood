@@ -99,17 +99,15 @@ export default function TableBoard() {
   })
 
   const handleSettle = async (orderId: number) => {
-    showConfirm('确认结账', '确定该桌已结账吗？结账后桌台将变为空闲状态。', async () => {
-      setLoading(true)
-      try {
-        await request.post(`/orders/${orderId}/status`, { status: 'settled' })
-        setSelectedTable(null)
-        fetchBoard()
-        showToast('结账成功', 'success')
-      } finally {
-        setLoading(false)
-      }
-    })
+    setLoading(true)
+    try {
+      await request.post(`/orders/${orderId}/status`, { status: 'settled' })
+      setSelectedTable(null)
+      fetchBoard()
+      showToast('结账成功', 'success')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleUpdateItemQty = async (orderId: number, itemId: number, newQty: number) => {
@@ -204,6 +202,18 @@ export default function TableBoard() {
     })
   }
 
+  const setCartItemQty = (dish: Dish, quantity: number) => {
+    const safeQty = Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 0
+    setAddDishCart(prev => {
+      if (safeQty <= 0) {
+        const next = { ...prev }
+        delete next[dish.id]
+        return next
+      }
+      return { ...prev, [dish.id]: { dish, quantity: safeQty } }
+    })
+  }
+
   const getCartTotal = () => {
     return Object.values(addDishCart).reduce((sum, item) => sum + parseFloat(item.dish.price) * item.quantity, 0)
   }
@@ -214,7 +224,11 @@ export default function TableBoard() {
 
   const loadDishes = useCallback(async () => {
     const res = await request.get('/dishes')
-    setDishes(res.data || [])
+    if (Array.isArray(res)) {
+      setDishes(res)
+    } else {
+      setDishes(res?.data || [])
+    }
   }, [])
 
   useEffect(() => {
@@ -263,30 +277,51 @@ export default function TableBoard() {
       </div>
 
       {/* 桌台网格 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2.5">
         {tables.map((table) => {
           const s = statusMap[table.status]
           const order = table.current_order
           return (
-            <button
+            <div
               key={table.id}
               onClick={() => setSelectedTable(table)}
-              className={`relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all active:scale-95 cursor-pointer min-h-[120px] sm:min-h-[140px] ${s.bg} ${s.border} hover:shadow-md`}
+              className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all active:scale-[0.99] cursor-pointer min-h-[100px] sm:min-h-[120px] ${s.bg} ${s.border} hover:shadow-md`}
             >
-              <span className={`text-2xl sm:text-3xl font-bold ${s.text}`}>{table.table_number}</span>
-              <div className="flex items-center gap-1 mt-1.5 text-xs text-[#64748B]">
+              <span className={`text-xl sm:text-2xl font-bold ${s.text}`}>{table.table_number}</span>
+              <div className="flex items-center gap-1 mt-1 text-[11px] text-[#64748B]">
                 <Users size={12} />
                 <span>{table.capacity}人</span>
               </div>
-              <span className={`mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full ${s.badge}`}>
+              <span className={`mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${s.badge}`}>
                 {s.label}
               </span>
               {order && (
-                <div className="mt-1.5 text-sm font-semibold text-[#EA580C]">
+                <div className="mt-1 text-xs font-semibold text-[#EA580C]">
                   ¥{order.total_amount}
                 </div>
               )}
-            </button>
+              {order && (
+                <div className="mt-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      setSelectedTable(table)
+                      setShowAddDish(true)
+                    }}
+                    className="px-2 py-1 text-[11px] bg-[#F8FAFC] text-[#334155] rounded-md hover:bg-[#F1F5F9] cursor-pointer"
+                    disabled={loading || order.status === 'settled'}
+                  >
+                    加餐
+                  </button>
+                  <button
+                    onClick={() => setSelectedTable(table)}
+                    className="px-2 py-1 text-[11px] bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                    disabled={loading || order.status === 'settled'}
+                  >
+                    结账
+                  </button>
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
@@ -482,31 +517,32 @@ export default function TableBoard() {
                           <div className="font-medium text-sm text-[#0F172A] truncate">{dish.name}</div>
                           <div className="text-xs text-[#94A3B8]">¥{dish.price}</div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {qty > 0 ? (
-                            <>
-                              <button
-                                onClick={() => updateCartItem(dish, -1)}
-                                className="w-7 h-7 flex items-center justify-center bg-gray-200 text-[#334155] rounded-md hover:bg-gray-300 cursor-pointer"
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <span className="w-6 text-center font-semibold text-sm">{qty}</span>
-                              <button
-                                onClick={() => updateCartItem(dish, 1)}
-                                className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
-                              >
-                                <Plus size={14} />
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => updateCartItem(dish, 1)}
-                              className="px-3 py-1.5 bg-[#2563EB] text-white text-xs rounded-md hover:bg-[#1D4ED8] cursor-pointer"
-                            >
-                              添加
-                            </button>
-                          )}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={qty === 0 ? '' : qty}
+                            placeholder="0"
+                            onChange={(e) => setCartItemQty(dish, Number(e.target.value))}
+                            onBlur={(e) => {
+                              if (e.target.value === '') {
+                                setCartItemQty(dish, 0)
+                              }
+                            }}
+                            className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-md text-center bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                          />
+                          <button
+                            onClick={() => updateCartItem(dish, 1)}
+                            className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => updateCartItem(dish, -1)}
+                            className="w-7 h-7 flex items-center justify-center bg-gray-200 text-[#334155] rounded-md hover:bg-gray-300 cursor-pointer"
+                          >
+                            <Minus size={14} />
+                          </button>
                         </div>
                       </div>
                     )
@@ -535,7 +571,7 @@ export default function TableBoard() {
                   onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
                   className="flex-1 py-3 bg-gray-100 text-[#334155] rounded-xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
                 >
-                  关闭
+                  取消
                 </button>
                 <button
                   onClick={() => handleAddDish(selectedTable!.current_order!.id, 0, '', '')}
@@ -543,13 +579,14 @@ export default function TableBoard() {
                   className="flex-1 py-3 bg-[#10B981] text-white rounded-xl text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <ShoppingCart size={16} />
-                  {loading ? '提交中...' : `提交加餐（${getCartCount()}件）`}
+                  {loading ? '提交中...' : `确认加餐（${getCartCount()}件）`}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
 
       {/* 空闲桌台点击弹窗（仅显示信息） */}
       {selectedTable && !selectedTable.current_order && (

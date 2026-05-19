@@ -16,17 +16,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 h-16 bg-white border-b border-gray-200 z-30 shrink-0 flex items-center justify-between px-4 md:px-6">
+    <header className="sticky top-0 h-14 lg:h-16 bg-white border-b border-gray-200 z-30 shrink-0 flex items-center justify-between px-3 sm:px-4 lg:px-6">
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="md:hidden p-2 text-[#334155] hover:bg-gray-100 rounded-lg cursor-pointer"
+          className="hidden"
         >
           <Menu size={20} />
         </button>
-        <h1 className="text-lg font-semibold text-[#0F172A]">后台管理系统</h1>
+        <h1 className="text-base sm:text-lg font-semibold text-[#0F172A]">后台管理系统</h1>
       </div>
-      <div className="flex items-center gap-3 md:gap-4">
+      <div className="hidden sm:flex items-center gap-3 md:gap-4">
         <div className="flex items-center gap-2 text-sm text-[#334155]">
           <div className="w-8 h-8 bg-[#EFF6FF] rounded-full flex items-center justify-center">
             <User size={16} className="text-[#2563EB]" />

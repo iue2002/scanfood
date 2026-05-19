@@ -135,7 +135,7 @@ export class OrdersService {
 
   async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> }) {
     const order = await this.getOrderById(orderId);
-    if (!['submitted', 'printed'].includes(order.status)) {
+    if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
       throw new BadRequestException('订单状态不允许加餐');
     }
 
@@ -376,6 +376,36 @@ export class OrdersService {
       const newTotal = parseFloat(order.total_amount as any) - parseFloat(item.subtotal);
       await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
     }
+
+    const updatedOrder = await this.getOrderById(orderId);
+    this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
+    return updatedOrder;
+  }
+
+  async updateOrderItemQuantity(orderId: number, itemId: number, quantity: number) {
+    const order = await this.getOrderById(orderId);
+    if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
+      throw new BadRequestException('订单状态不允许修改');
+    }
+
+    const item = order.order_items.find((i: any) => i.id === itemId);
+    if (!item) throw new NotFoundException('订单明细不存在');
+
+    if (quantity <= 0) {
+      await db.delete(order_items).where(eq(order_items.id, itemId));
+    } else {
+      const newSubtotal = parseFloat(item.price) * quantity;
+      await db.update(order_items).set({
+        quantity,
+        subtotal: newSubtotal.toFixed(2),
+      }).where(eq(order_items.id, itemId));
+    }
+
+    const oldSubtotal = parseFloat(item.subtotal);
+    const newSubtotalValue = quantity <= 0 ? 0 : parseFloat(item.price) * quantity;
+    const newTotal = parseFloat(order.total_amount as any) - oldSubtotal + newSubtotalValue;
+    await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
 
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);

@@ -24,7 +24,7 @@ Page({
 
   async onLoad(options) {
     let tableNumber = null;
-    let rawTableId = options.tableId || getApp().globalData.tableId;
+    let rawTableId = options.tableId;
 
     if (options.scene) {
       // scene参数是URL编码的，需要解码
@@ -268,6 +268,10 @@ Page({
       app.globalData.carts = {};
       app.globalData.addMoreCarts = {};
       app.globalData.addMore = false;
+      if (app.globalData.userInfo) {
+        app.globalData.userInfo.table_number = null;
+        wx.setStorageSync('userInfo', app.globalData.userInfo);
+      }
     }
 
     // 断开 WebSocket

@@ -37,6 +37,21 @@ App({
     
     try {
       const user = await request({ url: '/auth/me', noLoading: true });
+      
+      if (user && user.table_number) {
+        try {
+          const activeOrder = await request({ url: '/orders/my-active', noLoading: true });
+          if (!activeOrder || !activeOrder.id) {
+            user.table_number = null;
+            console.log('检测到无活跃订单，已清除历史桌号');
+          } else {
+            console.log('检测到活跃订单，保留桌号（支持加餐）:', user.table_number);
+          }
+        } catch (checkErr) {
+          console.warn('检查活跃订单失败，保留当前桌号', checkErr);
+        }
+      }
+      
       wx.setStorageSync('userInfo', user);
       this.globalData.userInfo = user;
     } catch (err) {

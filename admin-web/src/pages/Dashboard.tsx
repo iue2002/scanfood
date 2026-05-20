@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
-import { DollarSign, ShoppingCart, TrendingUp, Users } from 'lucide-react'
+import { useAuthStore } from '@/stores/auth'
+import { DollarSign, ShoppingCart, TrendingUp, Users, LogIn } from 'lucide-react'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
 interface Overview {
@@ -13,6 +14,7 @@ interface Overview {
 export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [loading, setLoading] = useState(true)
+  const lastLogin = useAuthStore((s) => s.lastLogin)
 
   const fetchOverview = useCallback(() => {
     request.get('/statistics/overview').then((res: any) => {
@@ -44,9 +46,28 @@ export default function Dashboard() {
     { label: '总营业额', value: `¥${overview?.total_amount || '0.00'}`, icon: TrendingUp, color: 'bg-[#F59E0B]' },
   ]
 
+  const formatTime = (iso: string) => {
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
   return (
     <div>
       <h2 className="text-2xl font-semibold text-[#0F172A] mb-6">数据总览</h2>
+
+      {lastLogin && (
+        <div className="bg-gradient-to-r from-[#EFF6FF] to-[#F0FDF4] rounded-xl p-4 mb-6 border border-[#BFDBFE]">
+          <div className="flex items-center gap-2 text-sm text-[#1E40AF]">
+            <LogIn size={16} />
+            <span>
+              上次登录：{formatTime(lastLogin.at)}
+              &nbsp;&nbsp;|&nbsp;&nbsp;
+              IP：{lastLogin.ip}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {cards.map((card) => {

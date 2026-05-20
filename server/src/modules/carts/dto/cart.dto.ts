@@ -1,20 +1,56 @@
-import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, IsNotEmpty, Min, Max, MaxLength, Matches, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+const NO_XSS = /^[^<>]*$/;
+
+export class CartItemDto {
+  @IsNumber()
+  @Min(1)
+  dish_id: number;
+
+  @IsNumber()
+  @IsOptional()
+  spec_id?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(NO_XSS)
+  dish_name: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  spec_name?: string;
+
+  @IsNumber()
+  @Min(1)
+  @Max(999)
+  quantity: number;
+
+  @IsNumber()
+  @Min(0)
+  @Max(999999)
+  price: number;
+
+  @IsNumber()
+  @IsOptional()
+  added_by_user_id?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  added_by_nickname?: string;
+}
 
 export class CreateCartDto {
   @IsNumber()
   table_id: number;
 
   @IsArray()
-  items: Array<{
-    dish_id: number;
-    spec_id?: number;
-    dish_name: string;
-    spec_name?: string;
-    quantity: number;
-    price: number;
-    added_by_user_id?: number;
-    added_by_nickname?: string;
-  }>;
+  @ValidateNested({ each: true })
+  @Type(() => CartItemDto)
+  items: CartItemDto[];
 
   @IsNumber()
   @IsOptional()
@@ -22,5 +58,6 @@ export class CreateCartDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   remark?: string;
 }

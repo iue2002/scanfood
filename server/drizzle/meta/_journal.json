@@ -22,6 +22,13 @@
       "when": 1780000000000,
       "tag": "0002_calm_table_service",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1779299234185,
+      "tag": "0003_add_login_logs",
+      "breakpoints": true
     }
   ]
 }

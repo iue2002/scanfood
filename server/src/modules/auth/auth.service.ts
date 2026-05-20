@@ -1,15 +1,96 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { db } from '@/storage/database/mysql-client';
-import { users, tables } from '@/storage/database/shared/schema';
+import { users, tables, login_logs } from '@/storage/database/shared/schema';
 import { LoginDto, RegisterDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import * as https from 'https';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(private readonly jwtService: JwtService) {}
+
+  // ===== 安全加固: 账户锁定（内存 Map） =====
+  // 同一账号连续失败 MAX_FAILED_ATTEMPTS 次 → 锁定 LOCK_DURATION_MS
+  private static readonly MAX_FAILED_ATTEMPTS = 5;
+  private static readonly LOCK_DURATION_MS = 30 * 60 * 1000; // 30 分钟
+  private accountLockMap = new Map<string, { failedCount: number; lockedUntil: number }>();
+
+  private isAccountLocked(username: string): { locked: boolean; remainingMinutes?: number } {
+    const entry = this.accountLockMap.get(username);
+    if (!entry) return { locked: false };
+
+    if (entry.lockedUntil > 0) {
+      if (Date.now() < entry.lockedUntil) {
+        const remainingMinutes = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
+        return { locked: true, remainingMinutes };
+      }
+      this.accountLockMap.delete(username);
+    }
+    return { locked: false };
+  }
+
+  private recordFailedAttempt(username: string): void {
+    const entry = this.accountLockMap.get(username) || { failedCount: 0, lockedUntil: 0 };
+    entry.failedCount++;
+    if (entry.failedCount >= AuthService.MAX_FAILED_ATTEMPTS) {
+      entry.lockedUntil = Date.now() + AuthService.LOCK_DURATION_MS;
+      this.logger.warn(`账户已锁定: ${username}，持续 30 分钟`);
+    }
+    this.accountLockMap.set(username, entry);
+  }
+
+  private clearLockEntry(username: string): void {
+    this.accountLockMap.delete(username);
+  }
+
+  // ===== 审计日志（写入 DB，失败不影响主流程） =====
+  private async recordLoginLog(
+    userId: number | null,
+    username: string,
+    ipAddress: string,
+    userAgent: string,
+    success: boolean,
+    failureReason?: string,
+  ): Promise<void> {
+    try {
+      await db.insert(login_logs).values({
+        user_id: userId,
+        username,
+        ip_address: ipAddress || null,
+        user_agent: userAgent || null,
+        success: success ? 1 : 0,
+        failure_reason: failureReason || null,
+      });
+    } catch (err) {
+      this.logger.error(`登录日志写入失败: ${(err as Error).message}`);
+    }
+  }
+
+  // ===== 查询上次成功登录 =====
+  private async getLastLogin(userId: number): Promise<{ at: string; ip: string } | null> {
+    try {
+      const result = await db
+        .select({ created_at: login_logs.created_at, ip_address: login_logs.ip_address })
+        .from(login_logs)
+        .where(and(eq(login_logs.user_id, userId), eq(login_logs.success, 1)))
+        .orderBy(desc(login_logs.created_at))
+        .limit(2);
+
+      if (result.length >= 2) {
+        return {
+          at: new Date(result[1].created_at).toISOString(),
+          ip: result[1].ip_address || '未知',
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
 
   async getOpenIdFromCode(code: string): Promise<string> {
     const appId = process.env.WX_APP_ID || process.env.WECHAT_APPID;
@@ -38,18 +119,50 @@ export class AuthService {
     });
   }
 
-  async login(dto: LoginDto) {
-    const result = await db.select().from(users).where(eq(users.username, dto.username));
-    const user = result[0];
-    if (!user) throw new UnauthorizedException('用户名或密码错误');
+  // ===== 登录（含锁定检查 + 审计日志 + 上次登录信息） =====
+  async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
+    const username = dto.username;
 
+    // 1. 检查是否被锁定
+    const lockStatus = this.isAccountLocked(username);
+    if (lockStatus.locked) {
+      this.logger.warn(`账户锁定拒绝: ${username}`);
+      await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '账户已锁定');
+      throw new UnauthorizedException(
+        `账户已临时锁定，请 ${lockStatus.remainingMinutes} 分钟后再试`,
+      );
+    }
+
+    // 2. 查找用户
+    const result = await db.select().from(users).where(eq(users.username, username));
+    const user = result[0];
+
+    if (!user) {
+      this.recordFailedAttempt(username);
+      await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
+      throw new UnauthorizedException('用户名或密码错误');
+    }
+
+    // 3. 验证密码
     const isValid = await bcrypt.compare(dto.password, user.password);
-    if (!isValid) throw new UnauthorizedException('用户名或密码错误');
+    if (!isValid) {
+      this.recordFailedAttempt(username);
+      await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
+      throw new UnauthorizedException('用户名或密码错误');
+    }
+
+    // 4. 登录成功：清除锁定 + 记录审计
+    this.clearLockEntry(username);
+    await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', true);
+
+    // 5. 获取上次登录信息
+    const lastLogin = await this.getLastLogin(user.id);
 
     const { password, ...userInfo } = user;
     return {
       user: userInfo,
       token: this.jwtService.sign({ userId: user.id, role: user.role }),
+      last_login: lastLogin || undefined,
     };
   }
 

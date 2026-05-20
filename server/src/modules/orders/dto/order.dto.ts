@@ -1,20 +1,57 @@
-import { IsString, IsNumber, IsOptional, IsNotEmpty, IsArray, IsEnum, IsBoolean } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty, IsArray, IsEnum, IsBoolean, Min, Max, MaxLength, Matches, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+const NO_XSS = /^[^<>]*$/;
+
+// 订单菜品项校验
+export class OrderItemDto {
+  @IsNumber()
+  @Min(1)
+  dish_id: number;
+
+  @IsNumber()
+  @IsOptional()
+  spec_id?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(NO_XSS)
+  dish_name: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  spec_name?: string;
+
+  @IsNumber()
+  @Min(1)
+  @Max(999)
+  quantity: number;
+
+  @IsNumber()
+  @Min(0)
+  @Max(999999)
+  price: number;
+
+  @IsNumber()
+  @IsOptional()
+  added_by_user_id?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  added_by_nickname?: string;
+}
 
 export class CreateOrderDto {
   @IsNumber()
   table_id: number;
 
   @IsArray()
-  items: Array<{
-    dish_id: number;
-    spec_id?: number;
-    dish_name: string;
-    spec_name?: string;
-    quantity: number;
-    price: number;
-    added_by_user_id?: number;
-    added_by_nickname?: string;
-  }>;
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDto)
+  items: OrderItemDto[];
 
   @IsNumber()
   @IsOptional()
@@ -22,7 +59,16 @@ export class CreateOrderDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   remark?: string;
+}
+
+// sync-add-more 请求体
+export class SyncAddMoreDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemDto)
+  items: OrderItemDto[];
 }
 
 export class AddOrderItemDto {
@@ -35,16 +81,22 @@ export class AddOrderItemDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(NO_XSS)
   dish_name: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   spec_name?: string;
 
   @IsNumber()
+  @Min(1)
+  @Max(999)
   quantity: number;
 
   @IsNumber()
+  @Min(0)
   price: number;
 }
 

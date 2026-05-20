@@ -1,7 +1,24 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Server, WebSocket } from 'ws';
 import * as http from 'http';
+import * as url from 'url';
+
+// WebSocket 连接限流：同一 IP 每秒最多 2 个连接
+const ipConnectionCount = new Map<string, { count: number; resetAt: number }>();
+
+function checkConnectionRate(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipConnectionCount.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipConnectionCount.set(ip, { count: 1, resetAt: now + 1000 });
+    return true;
+  }
+  if (entry.count >= 2) return false;
+  entry.count++;
+  return true;
+}
 
 @Injectable()
 export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
@@ -12,6 +29,8 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
   // 支持多客户端订阅同一订单：Map<orderId, Set<WebSocket>>
   private orderClients: Map<string, Set<WebSocket>> = new Map();
   private adminClients: Set<WebSocket> = new Set();
+
+  constructor(private readonly jwtService: JwtService) {}
 
   onModuleInit() {
     // WebSocket 服务器会在 app.listen 后通过 HTTP server 升级
@@ -26,8 +45,40 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
   init(httpServer: http.Server) {
     this.wss = new Server({ server: httpServer, path: '/ws' });
 
-    this.wss.on('connection', (ws: WebSocket) => {
-      this.logger.log('Client connected');
+    this.wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
+      // ===== 安全加固: WebSocket 连接鉴权 =====
+      // 从查询参数中提取 token 进行 JWT 验证
+      const clientIp = req.headers['x-forwarded-for'] as string
+        || req.socket.remoteAddress
+        || 'unknown';
+
+      // 连接限流
+      if (!checkConnectionRate(clientIp)) {
+        this.logger.warn(`WebSocket connection rate limit exceeded: ${clientIp}`);
+        ws.close(4001, '连接过于频繁');
+        return;
+      }
+
+      // JWT 验证
+      const queryParams = url.parse(req.url || '', true).query;
+      const token = queryParams?.token as string;
+
+      if (!token) {
+        this.logger.warn(`WebSocket connection rejected (no token): ${clientIp}`);
+        ws.close(4001, '缺少认证令牌');
+        return;
+      }
+
+      try {
+        const payload = await this.jwtService.verifyAsync(token);
+        (ws as any).userId = payload.userId;
+        (ws as any).role = payload.role;
+        this.logger.log(`Client authenticated: userId=${payload.userId}, role=${payload.role}`);
+      } catch (err) {
+        this.logger.warn(`WebSocket auth failed: ${clientIp}, error: ${(err as Error).message}`);
+        ws.close(4001, '令牌无效或已过期');
+        return;
+      }
 
       ws.on('message', (data: string) => {
         try {

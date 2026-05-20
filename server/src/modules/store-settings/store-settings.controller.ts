@@ -1,5 +1,6 @@
 import { Controller, Get, Put, Body } from '@nestjs/common';
 import { StoreSettingsService } from './store-settings.service';
+import { UpdateStoreSettingsDto } from './dto/store-settings.dto';
 
 @Controller('store-settings')
 export class StoreSettingsController {
@@ -12,8 +13,8 @@ export class StoreSettingsController {
   }
 
   @Put()
-  async updateSettings(@Body() body: { store_name: string; store_avatar?: string }) {
-    const settings = await this.storeSettingsService.updateStoreSettings(body);
+  async updateSettings(@Body() dto: UpdateStoreSettingsDto) {
+    const settings = await this.storeSettingsService.updateStoreSettings(dto);
     return { success: true, data: settings };
   }
 }

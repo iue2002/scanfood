@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto, UpdateOrderItemServedDto } from './dto/order.dto';
+import { CreateOrderDto, SyncAddMoreDto, AddOrderItemDto, UpdateOrderStatusDto, UpdateOrderItemServedDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
 
@@ -47,7 +47,7 @@ export class OrdersController {
   @Post(':id/sync-add-more')
   async syncAddMore(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> },
+    @Body() dto: SyncAddMoreDto,
   ) {
     console.log('[POST /api/orders/:id/sync-add-more]', { id, dto });
     return await this.ordersService.syncAddMore(id, dto);

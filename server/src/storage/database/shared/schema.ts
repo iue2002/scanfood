@@ -254,3 +254,23 @@ export const table_validations = mysqlTable(
     index("table_validations_table_id_idx").on(table.table_id),
   ]
 );
+
+// 登录审计日志表（安全加固：记录每次登录尝试）
+export const login_logs = mysqlTable(
+  "login_logs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    user_id: int("user_id"),  // 可为空（用户不存在时的失败尝试）
+    username: varchar("username", { length: 50 }).notNull(),
+    ip_address: varchar("ip_address", { length: 45 }),  // 支持 IPv6
+    user_agent: varchar("user_agent", { length: 500 }),
+    success: int("success").notNull().default(0),  // 0=失败 1=成功
+    failure_reason: varchar("failure_reason", { length: 100 }),  // 失败原因
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("login_logs_user_id_idx").on(table.user_id),
+    index("login_logs_username_idx").on(table.username),
+    index("login_logs_created_at_idx").on(table.created_at),
+  ]
+);

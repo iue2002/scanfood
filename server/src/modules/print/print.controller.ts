@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { PrintService } from './print.service';
+import { PrintReportDto } from './dto/print.dto';
 
 @Controller('print')
 export class PrintController {
@@ -19,8 +20,8 @@ export class PrintController {
   }
 
   @Post('report')
-  async printReport(@Body() data: { title: string; content: string }) {
-    console.log('[POST /api/print/report]', data);
-    return await this.printService.printReport(data);
+  async printReport(@Body() dto: PrintReportDto) {
+    console.log('[POST /api/print/report]', dto);
+    return await this.printService.printReport(dto);
   }
 }

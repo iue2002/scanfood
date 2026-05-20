@@ -18,8 +18,12 @@ COPY . .
 # 构建
 RUN pnpm build
 
-# 生产阶段
+# ===== 生产阶段 =====
 FROM node:22-alpine AS production
+
+# 安全加固: 创建非 root 用户
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
 
 WORKDIR /app
 
@@ -36,8 +40,12 @@ RUN pnpm install --production
 COPY --from=builder /app/dist/src ./dist
 COPY --from=builder /app/drizzle ./drizzle
 
-# 创建上传目录
-RUN mkdir -p uploads
+# 创建上传、日志目录并设置权限
+RUN mkdir -p uploads logs && \
+    chown -R appuser:appgroup /app
+
+# 切换到非 root 用户
+USER appuser
 
 # 暴露端口
 EXPOSE 3000

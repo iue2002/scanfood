@@ -1,44 +1,60 @@
-import { IsString, IsNumber, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty, Min, Max, MaxLength, Matches } from 'class-validator';
+
+const NO_XSS = /^[^<>]*$/;
 
 export class CreateDishDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(NO_XSS)
   name: string;
 
   @IsNumber()
+  @Min(1)
   category_id: number;
 
   @IsNumber()
+  @Min(0)
+  @Max(999999)
   price: number;
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(512)
   image_url?: string;
 }
 
 export class UpdateDishDto {
   @IsString()
   @IsOptional()
+  @MaxLength(100)
+  @Matches(NO_XSS)
   name?: string;
 
   @IsNumber()
   @IsOptional()
+  @Min(1)
   category_id?: number;
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
+  @Max(999999)
   price?: number;
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(512)
   image_url?: string;
 
   @IsString()
@@ -48,22 +64,31 @@ export class UpdateDishDto {
 
 export class CreateDishSpecDto {
   @IsNumber()
+  @Min(1)
   dish_id: number;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(NO_XSS)
   spec_name: string;
 
   @IsNumber()
+  @Min(0)
+  @Max(999999)
   price: number;
 }
 
 export class CreateCategoryDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
+  @Matches(NO_XSS)
   name: string;
 
   @IsNumber()
   @IsOptional()
+  @Min(0)
+  @Max(999)
   sort_order?: number;
 }

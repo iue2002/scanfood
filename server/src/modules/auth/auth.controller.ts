@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
@@ -8,10 +8,15 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    console.log('[POST /api/auth/login]', dto);
-    const result = await this.authService.login(dto);
-    console.log('[Response]', result);
+  async login(@Body() dto: LoginDto, @Req() req: any) {
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || req.ip
+      || req.connection?.remoteAddress
+      || '';
+    const userAgent = (req.headers['user-agent'] as string) || '';
+    console.log('[POST /api/auth/login]', { username: dto.username, ip: ipAddress });
+    const result = await this.authService.login(dto, ipAddress, userAgent);
+    console.log('[Response]', { userId: result.user?.id, hasLastLogin: !!result.last_login });
     return result;
   }
 

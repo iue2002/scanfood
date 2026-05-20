@@ -205,52 +205,145 @@ Page({
     });
   },
 
+  // 再来一单功能 - 修改为提示用户扫描桌号
   async reorder(e) {
     const orderId = e.currentTarget.dataset.id;
     const order = this.data.orders.find(o => o.id === orderId);
-    
+
     if (!order || !order.order_items) {
       wx.showToast({ title: '无法获取订单信息', icon: 'none' });
       return;
     }
-    
+
+    // 显示提示，要求用户扫描桌号
     wx.showModal({
-      title: '再来一单',
-      content: '确定要重新下单吗？',
-      success: async (res) => {
+      title: '提示',
+      content: '请先扫描桌号二维码，获取当前桌号',
+      confirmText: '立即扫码',
+      cancelText: '取消',
+      success: (res) => {
         if (res.confirm) {
-          wx.showLoading({ title: '下单中...' });
-          try {
-            const items = order.order_items.map(item => ({
-              dish_id: item.dish_id,
-              dish_name: item.dish_name,
-              price: parseFloat(item.price),
-              quantity: item.quantity,
-              added_by_user_id: this.data.userInfo?.id,
-              added_by_nickname: this.data.userInfo?.nickname || '未知用户'
-            }));
-            
-            const result = await request({
-              url: '/orders',
-              method: 'POST',
-              data: {
-                table_id: order.table_id,
-                items: items,
-                user_id: this.data.userInfo?.id
+          // 调用扫码功能，传入订单菜品数据
+          this.scanTableCode(order.order_items);
+        }
+      }
+    });
+  },
+
+  // 扫描桌号功能：扫码 → 验证桌号 → 创建购物车 → 跳转确认页
+  async scanTableCode(reorderItems) {
+    wx.scanCode({
+      onlyFromCamera: true,
+      scanType: ['qrCode'],
+      success: async (res) => {
+        console.log('再来一单扫码结果:', res);
+        let tableNumber = '';
+
+        // 优先从 path 的 scene 参数中提取桌码号（小程序码扫码）
+        if (res.path) {
+          const queryStr = res.path.split('?')[1];
+          if (queryStr) {
+            const params = queryStr.split('&');
+            for (let param of params) {
+              const [key, value] = param.split('=');
+              if (key === 'scene' && value) {
+                tableNumber = decodeURIComponent(value).trim();
+                break;
               }
-            });
-            
-            wx.hideLoading();
-            wx.showToast({ title: '下单成功', icon: 'success' });
-            
-            setTimeout(() => {
-              wx.redirectTo({ url: `/pages/order/detail?id=${result.id}` });
-            }, 1500);
-          } catch (err) {
-            wx.hideLoading();
-            wx.showToast({ title: '下单失败', icon: 'none' });
-            console.error('再来一单失败', err);
+            }
           }
+        }
+
+        // 如果 path 中没有，尝试从 result 中解析（普通二维码）
+        if (!tableNumber && res.result) {
+          if (res.result.includes('tableNumber=')) {
+            tableNumber = res.result.split('tableNumber=')[1].split('&')[0];
+          } else if (res.result.includes('table_id=')) {
+            tableNumber = res.result.split('table_id=')[1].split('&')[0];
+          } else if (res.result.includes('scene=')) {
+            const sceneMatch = res.result.match(/scene=([^&]*)/);
+            if (sceneMatch && sceneMatch[1]) {
+              tableNumber = decodeURIComponent(sceneMatch[1]).trim();
+            }
+          } else {
+            tableNumber = res.result.trim();
+          }
+        }
+
+        if (!tableNumber) {
+          wx.showToast({ title: '未能识别桌码，请重试', icon: 'none' });
+          return;
+        }
+
+        wx.showLoading({ title: '处理中...' });
+
+        try {
+          // 1. 验证桌号
+          const validation = await request({ url: `/tables/validate/${tableNumber}`, noLoading: true });
+          if (!validation || !validation.valid) {
+            wx.hideLoading();
+            wx.showModal({
+              title: '桌号无效',
+              content: validation?.message || '该桌号不存在或已被删除，请联系服务员',
+              showCancel: false,
+              confirmText: '我知道了'
+            });
+            return;
+          }
+
+          // 2. 获取桌台信息
+          const table = await request({ url: `/tables/number/${tableNumber}`, noLoading: true });
+          const tableId = table.id;
+
+          // 3. 用再来一单的菜品构建购物车数据
+          const items = reorderItems.map(item => ({
+            dish_id: item.dish_id,
+            dish_name: item.dish_name,
+            price: parseFloat(item.price) || 0,
+            quantity: Number(item.quantity) || 1,
+            added_by_user_id: getApp().globalData.userInfo?.id,
+            added_by_nickname: getApp().globalData.userInfo?.nickname || '未知用户'
+          }));
+
+          // 4. 同步购物车到后端
+          const cartResult = await request({
+            url: '/carts/sync',
+            method: 'POST',
+            data: {
+              table_id: parseInt(tableId),
+              items: items,
+              user_id: getApp().globalData.userInfo?.id
+            },
+            noLoading: true
+          });
+
+          // 5. 同步到本地购物车（确认页 fallback 使用）
+          const cartCount = {};
+          reorderItems.forEach(item => {
+            cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + (Number(item.quantity) || 1);
+          });
+          const app = getApp();
+          app.globalData.tableId = tableId;
+          const cart = app.getCart(tableId);
+          cart.cartCount = cartCount;
+          cart.currentCartId = cartResult?.id || null;
+
+          wx.hideLoading();
+
+          // 6. 跳转到订单确认提交页
+          wx.navigateTo({
+            url: `/pages/order/confirm?tableId=${tableId}`
+          });
+        } catch (err) {
+          wx.hideLoading();
+          console.error('再来一单处理失败', err);
+          wx.showToast({ title: '处理失败，请重试', icon: 'none' });
+        }
+      },
+      fail: (err) => {
+        console.error('扫码失败', err);
+        if (err.errMsg !== 'scanCode:fail cancel') {
+          wx.showToast({ title: '扫码失败', icon: 'none' });
         }
       }
     });

@@ -168,15 +168,7 @@ Page({
         }
       });
 
-      const cartId = this.data.cartId || cart.currentCartId;
-      if (cartId) {
-        await request({
-          url: `/carts/${cartId}`,
-          method: 'DELETE',
-          noLoading: true
-        });
-      }
-      
+      // 订单创建成功，立即清理本地状态并跳转
       app.clearCart(this.data.tableId);
       this.setData({ cartId: null });
 
@@ -184,6 +176,16 @@ Page({
       wx.redirectTo({
         url: `/pages/order/detail?id=${result.id}`,
       });
+
+      // 清理服务端购物车（best-effort，失败不影响主流程）
+      const cartId = this.data.cartId || cart.currentCartId;
+      if (cartId) {
+        request({
+          url: `/carts/${cartId}`,
+          method: 'DELETE',
+          noLoading: true
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error('提交订单失败', err);
       wx.showToast({ title: '提交失败', icon: 'none' });

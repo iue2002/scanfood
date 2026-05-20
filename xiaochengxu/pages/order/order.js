@@ -329,6 +329,18 @@ Page({
 
   async fetchTableInfoByNumber(tableNumber) {
     try {
+      // 先验证桌号是否有效
+      const validation = await request({ url: `/tables/validate/${tableNumber}`, noLoading: true });
+      if (!validation || !validation.valid) {
+        wx.showModal({
+          title: '桌号无效',
+          content: validation?.message || '该桌号不存在或已被删除，请联系服务员',
+          showCancel: false,
+          confirmText: '我知道了'
+        });
+        return;
+      }
+
       const table = await request({ url: `/tables/number/${tableNumber}`, noLoading: true });
       this.setData({ tableId: table.id, tableNumber: table.table_number });
       getApp().globalData.tableId = table.id;

@@ -239,3 +239,18 @@ export const store_settings = mysqlTable(
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   }
 );
+
+// 桌号验证表（扫码时验证桌号是否有效）
+export const table_validations = mysqlTable(
+  "table_validations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    table_number: varchar("table_number", { length: 20 }).notNull().unique(),
+    table_id: int("table_id").notNull().references(() => tables.id, { onDelete: "cascade" }),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("table_validations_table_number_idx").on(table.table_number),
+    index("table_validations_table_id_idx").on(table.table_id),
+  ]
+);

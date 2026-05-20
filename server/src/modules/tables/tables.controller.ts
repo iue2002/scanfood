@@ -34,6 +34,13 @@ export class TablesController {
     return await this.tablesService.getTableByNumber(tableNumber);
   }
 
+  // 验证桌号是否有效（扫码时使用，无需登录）
+  @Get('validate/:tableNumber')
+  async validateTableNumber(@Param('tableNumber') tableNumber: string) {
+    console.log('[GET /api/tables/validate/:tableNumber]', { tableNumber });
+    return await this.tablesService.validateTableNumber(tableNumber);
+  }
+
   // 创建桌台
   @Post()
   async createTable(@Body() dto: CreateTableDto) {

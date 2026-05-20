@@ -1,5 +1,6 @@
-import { Controller, Get, Put, Body } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { StoreSettingsService } from './store-settings.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateStoreSettingsDto } from './dto/store-settings.dto';
 
 @Controller('store-settings')
@@ -12,6 +13,7 @@ export class StoreSettingsController {
     return { success: true, data: settings };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put()
   async updateSettings(@Body() dto: UpdateStoreSettingsDto) {
     const settings = await this.storeSettingsService.updateStoreSettings(dto);

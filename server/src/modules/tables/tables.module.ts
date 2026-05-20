@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { TablesController } from './tables.controller';
 import { TablesService } from './tables.service';
 import { WechatModule } from '@/modules/wechat/wechat.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [WechatModule],
+  imports: [WechatModule, AuthModule],
   controllers: [TablesController],
   providers: [TablesService],
   exports: [TablesService],

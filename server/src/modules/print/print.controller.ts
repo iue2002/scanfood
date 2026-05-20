@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { PrintService } from './print.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrintReportDto } from './dto/print.dto';
 
 @Controller('print')
+@UseGuards(JwtAuthGuard)
 export class PrintController {
   constructor(private readonly printService: PrintService) {}
 

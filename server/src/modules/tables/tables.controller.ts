@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { TablesService } from './tables.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
 
 @Controller('tables')
@@ -7,6 +8,7 @@ export class TablesController {
   constructor(private readonly tablesService: TablesService) {}
 
   // 获取所有桌台
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getTables() {
     console.log('[GET /api/tables]');
@@ -14,6 +16,7 @@ export class TablesController {
   }
 
   // 获取桌台看板数据（含当前订单）
+  @UseGuards(JwtAuthGuard)
   @Get('board')
   async getTableBoard() {
     console.log('[GET /api/tables/board]');
@@ -21,6 +24,7 @@ export class TablesController {
   }
 
   // 获取单个桌台
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getTableById(@Param('id', ParseIntPipe) id: number) {
     console.log('[GET /api/tables/:id]', { id });
@@ -42,6 +46,7 @@ export class TablesController {
   }
 
   // 创建桌台
+  @UseGuards(JwtAuthGuard)
   @Post()
   async createTable(@Body() dto: CreateTableDto) {
     console.log('[POST /api/tables]', dto);
@@ -49,6 +54,7 @@ export class TablesController {
   }
 
   // 更新桌台
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   async updateTable(
     @Param('id', ParseIntPipe) id: number,
@@ -59,6 +65,7 @@ export class TablesController {
   }
 
   // 更新桌台状态
+  @UseGuards(JwtAuthGuard)
   @Post(':id/status')
   async updateTableStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -69,6 +76,7 @@ export class TablesController {
   }
 
   // 删除桌台
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async deleteTable(@Param('id', ParseIntPipe) id: number) {
     console.log('[DELETE /api/tables/:id]', { id });
@@ -76,6 +84,7 @@ export class TablesController {
   }
 
   // 生成二维码
+  @UseGuards(JwtAuthGuard)
   @Post(':id/qrcode')
   async generateQrCode(@Param('id', ParseIntPipe) id: number) {
     console.log('[POST /api/tables/:id/qrcode]', { id });

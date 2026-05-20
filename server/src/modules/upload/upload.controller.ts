@@ -1,13 +1,15 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { TinifyService } from './tinify.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 const uploadDir = 'uploads';
 
 @Controller('upload')
+@UseGuards(JwtAuthGuard)
 export class UploadController {
   constructor(private tinifyService: TinifyService) {}
 

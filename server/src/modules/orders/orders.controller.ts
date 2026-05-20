@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto, UpdateOrderItemServedDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
 
@@ -124,6 +124,17 @@ export class OrdersController {
   ) {
     console.log('[PUT /api/orders/:id/items/:itemId]', { id, itemId, quantity });
     return await this.ordersService.updateOrderItemQuantity(id, itemId, quantity);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/items/:itemId/served')
+  async updateOrderItemServed(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Body() dto: UpdateOrderItemServedDto,
+  ) {
+    console.log('[POST /api/orders/:id/items/:itemId/served]', { id, itemId, dto });
+    return await this.ordersService.updateOrderItemServed(id, itemId, dto.served);
   }
 
   @UseGuards(JwtAuthGuard)

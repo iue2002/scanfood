@@ -78,10 +78,10 @@ export default function OrderManage() {
   const [dateTo, setDateTo] = useState('')
   const [activeTag, setActiveTag] = useState('')
   const [detail, setDetail] = useState<Order | null>(null)
+  const [addDishOrder, setAddDishOrder] = useState<Order | null>(null)
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
   const { showToast, showConfirm } = useModal()
   const [loading, setLoading] = useState(false)
-  const [showAddDish, setShowAddDish] = useState(false)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [addDishCart, setAddDishCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
@@ -177,10 +177,10 @@ export default function OrderManage() {
   }, [])
 
   useEffect(() => {
-    if (showAddDish) {
+    if (addDishOrder) {
       loadDishes()
     }
-  }, [showAddDish, loadDishes])
+  }, [addDishOrder, loadDishes])
 
   const updateCartItem = (dish: Dish, delta: number) => {
     setAddDishCart(prev => {
@@ -241,7 +241,7 @@ export default function OrderManage() {
       }
       fetchOrders()
       setAddDishCart({})
-      setShowAddDish(false)
+      setAddDishOrder(null)
       setSearchQuery('')
       showToast('加餐成功', 'success')
     } finally {
@@ -356,6 +356,34 @@ export default function OrderManage() {
     navigator.clipboard.writeText(orderNumber)
     showToast('订单号已复制', 'success')
   }
+
+  const openDetail = (order: Order) => {
+    setAddDishOrder(null)
+    setSearchQuery('')
+    setAddDishCart({})
+    setDetail(order)
+  }
+
+  const openAddDish = (order: Order) => {
+    setDetail(null)
+    setAddDishOrder(order)
+  }
+
+  const closeAddDishModal = () => {
+    setAddDishOrder(null)
+    setSearchQuery('')
+    setAddDishCart({})
+  }
+
+  const renderCardSeparator = (key: string) => (
+    <div key={key} className="px-2">
+      <div className="flex items-center gap-3 px-2">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#BFDBFE] to-transparent" />
+        <div className="w-2.5 h-2.5 rounded-full bg-[#60A5FA]" />
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#BFDBFE] to-transparent" />
+      </div>
+    </div>
+  )
 
   return (
     <div>
@@ -523,7 +551,7 @@ export default function OrderManage() {
                   <td className="px-4 py-3 text-[#94A3B8]">{formatFullDateTime(order.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setDetail(order)} className="p-1.5 text-[#2563EB] hover:bg-[#EFF6FF] rounded transition-colors cursor-pointer" title="查看详情">
+                      <button onClick={() => openDetail(order)} className="p-1.5 text-[#2563EB] hover:bg-[#EFF6FF] rounded transition-colors cursor-pointer" title="查看详情">
                         <Eye size={16} />
                       </button>
                       {order.status === 'submitted' || order.status === 'printed' ? (
@@ -531,7 +559,7 @@ export default function OrderManage() {
                           <button onClick={() => handleSettle(order.id)} className="p-1.5 text-[#10B981] hover:bg-[#D1FAE5] rounded transition-colors cursor-pointer" title="标记结账">
                             <CheckCircle size={16} />
                           </button>
-                          <button onClick={() => { setDetail(order); setShowAddDish(true); }} className="p-1.5 text-[#F59E0B] hover:bg-amber-50 rounded transition-colors cursor-pointer" title="加餐">
+                          <button onClick={() => openAddDish(order)} className="p-1.5 text-[#F59E0B] hover:bg-amber-50 rounded transition-colors cursor-pointer" title="加餐">
                             <PlusCircle size={16} />
                           </button>
                         </>
@@ -556,239 +584,245 @@ export default function OrderManage() {
 
       {/* 订单列表 - 平板端卡片式表格 */}
       <div className="hidden lg:block xl:hidden space-y-4">
-        {orders.map((order) => {
+        {orders.map((order, index) => {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
           const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
           return (
-            <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {/* 主信息栏 */}
-              <div className="p-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-4">
-                  {/* 桌号 */}
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</div>
-                    <div className="text-xs text-[#94A3B8]">桌</div>
+            <>
+              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* 主信息栏 */}
+                <div className="p-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-4">
+                    {/* 桌号 */}
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</div>
+                      <div className="text-xs text-[#94A3B8]">桌</div>
+                    </div>
+                    
+                    {/* 订单信息 */}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm text-[#334155]">{order.order_number}</span>
+                        <button
+                          onClick={() => copyOrderNumber(order.order_number)}
+                          className="p-1 text-[#94A3B8] hover:text-[#2563EB] cursor-pointer"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      </div>
+                      <div className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</div>
+                    </div>
                   </div>
                   
-                  {/* 订单信息 */}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-[#334155]">{order.order_number}</span>
+                  <div className="flex items-center gap-4">
+                    {/* 金额 */}
+                    <div className="text-right">
+                      <div className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</div>
+                    </div>
+                    
+                    {/* 状态 */}
+                    <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${s.color}`}>{s.label}</span>
+                  </div>
+                </div>
+
+                {/* 菜品摘要/明细 */}
+                <div className="border-t border-gray-100">
+                  {!isExpanded ? (
+                    <div className="px-4 py-3 flex items-center justify-between">
+                      <div className="text-sm text-[#64748B]">
+                        {items.length > 0
+                          ? items.map(i => `${i.dish_name}×${i.quantity}`).join('、')
+                          : '无菜品'}
+                      </div>
                       <button
-                        onClick={() => copyOrderNumber(order.order_number)}
-                        className="p-1 text-[#94A3B8] hover:text-[#2563EB] cursor-pointer"
+                        onClick={() => toggleExpand(order.id)}
+                        className="text-sm text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
                       >
-                        <Copy size={14} />
+                        <ChevronDown size={14} />
+                        展开明细 ({items.length}道)
                       </button>
                     </div>
-                    <div className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {/* 金额 */}
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</div>
-                  </div>
-                  
-                  {/* 状态 */}
-                  <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${s.color}`}>{s.label}</span>
-                </div>
-              </div>
-
-              {/* 菜品摘要/明细 */}
-              <div className="border-t border-gray-100">
-                {!isExpanded ? (
-                  <div className="px-4 py-3 flex items-center justify-between">
-                    <div className="text-sm text-[#64748B]">
-                      {items.length > 0
-                        ? items.map(i => `${i.dish_name}×${i.quantity}`).join('、')
-                        : '无菜品'}
-                    </div>
-                    <button
-                      onClick={() => toggleExpand(order.id)}
-                      className="text-sm text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <ChevronDown size={14} />
-                      展开明细 ({items.length}道)
-                    </button>
-                  </div>
-                ) : (
-                  <div className="px-4 pb-4 pt-3">
-                    {groupedItems.map((group, gi) => (
-                      <div key={gi} className="mb-3 last:mb-0">
-                        {/* 分组标题 */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                            {group.label}
-                          </span>
-                          <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>
-                        </div>
-                        
-                        {/* 菜品列表 */}
-                        <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-2">
-                          {group.items.map((item, ii) => (
-                            <div key={ii} className="flex justify-between items-center">
-                              <div className="flex-1">
-                                <span className="text-sm text-[#0F172A]">
-                                  {item.dish_name}
-                                  {item.spec_name && <span className="text-[#94A3B8]">({item.spec_name})</span>}
-                                </span>
-                                <span className="text-xs text-[#64748B] ml-2">×{item.quantity}</span>
+                  ) : (
+                    <div className="px-4 pb-4 pt-3">
+                      {groupedItems.map((group, gi) => (
+                        <div key={gi} className="mb-3 last:mb-0">
+                          {/* 分组标题 */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                              {group.label}
+                            </span>
+                            <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>
+                          </div>
+                          
+                          {/* 菜品列表 */}
+                          <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-2">
+                            {group.items.map((item, ii) => (
+                              <div key={ii} className="flex justify-between items-center">
+                                <div className="flex-1">
+                                  <span className="text-sm text-[#0F172A]">
+                                    {item.dish_name}
+                                    {item.spec_name && <span className="text-[#94A3B8]">({item.spec_name})</span>}
+                                  </span>
+                                  <span className="text-xs text-[#64748B] ml-2">×{item.quantity}</span>
+                                </div>
+                                <span className="text-sm font-medium text-[#0F172A] ml-4">¥{item.subtotal}</span>
                               </div>
-                              <span className="text-sm font-medium text-[#0F172A] ml-4">¥{item.subtotal}</span>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    
-                    {/* 收起按钮 */}
-                    <button
-                      onClick={() => toggleExpand(order.id)}
-                      className="w-full mt-3 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm flex items-center justify-center gap-1 hover:bg-[#E2E8F0] transition-colors cursor-pointer"
-                    >
-                      <ChevronUp size={14} />
-                      收起明细
-                    </button>
-                  </div>
-                )}
-              </div>
+                      ))}
+                      
+                      {/* 收起按钮 */}
+                      <button
+                        onClick={() => toggleExpand(order.id)}
+                        className="w-full mt-3 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm flex items-center justify-center gap-1 hover:bg-[#E2E8F0] transition-colors cursor-pointer"
+                      >
+                        <ChevronUp size={14} />
+                        收起明细
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              {/* 操作按钮 */}
-              <div className="px-4 pb-4 flex items-center justify-end gap-2">
-                <button onClick={() => setDetail(order)} className="px-4 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1">
-                  <Eye size={14} /> 详情
-                </button>
-                {order.status === 'submitted' || order.status === 'printed' ? (
-                  <>
-                    <button onClick={() => handleSettle(order.id)} className="px-4 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1">
-                      <CheckCircle size={14} /> 结账
-                    </button>
-                    <button onClick={() => { setDetail(order); setShowAddDish(true); }} className="px-4 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center gap-1">
-                      <PlusCircle size={14} /> 加餐
-                    </button>
-                  </>
-                ) : null}
+                {/* 操作按钮 */}
+                <div className="px-4 pb-4 flex items-center justify-end gap-2">
+                  <button onClick={() => openDetail(order)} className="px-4 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1">
+                    <Eye size={14} /> 详情
+                  </button>
+                  {order.status === 'submitted' || order.status === 'printed' ? (
+                    <>
+                      <button onClick={() => handleSettle(order.id)} className="px-4 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1">
+                        <CheckCircle size={14} /> 结账
+                      </button>
+                      <button onClick={() => openAddDish(order)} className="px-4 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center gap-1">
+                        <PlusCircle size={14} /> 加餐
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </div>
+              {index < orders.length - 1 ? renderCardSeparator(`tablet-separator-${order.id}`) : null}
+            </>
           )
         })}
       </div>
 
       {/* 订单列表 - 移动端卡片 */}
       <div className="lg:hidden space-y-4">
-        {orders.map((order) => {
+        {orders.map((order, index) => {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
           const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
           return (
-            <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {/* 卡片头部 */}
-              <div className="p-4">
-                {/* 第一行：桌号（大字）+ 状态 */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</span>
-                    <span className="text-sm text-[#94A3B8]">桌</span>
+            <>
+              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* 卡片头部 */}
+                <div className="p-4">
+                  {/* 第一行：桌号（大字）+ 状态 */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</span>
+                      <span className="text-sm text-[#94A3B8]">桌</span>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${s.color}`}>{s.label}</span>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${s.color}`}>{s.label}</span>
+                  
+                  {/* 第二行：时间 + 点餐用户 */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</span>
+                    {(order.user || order.users) && (
+                      <div className="flex items-center gap-1 text-xs text-[#64748B]">
+                        <User size={12} />
+                        <span>{(order.user || order.users)?.nickname || (order.user || order.users)?.username || '未知用户'}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 收起/展开按钮 */}
+                  <button
+                    onClick={() => toggleExpand(order.id)}
+                    className="w-full py-2 bg-[#F8FAFC] text-[#64748B] rounded-lg text-sm flex items-center justify-center gap-1 hover:bg-[#E2E8F0] transition-colors cursor-pointer"
+                  >
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {isExpanded ? '收起菜品明细' : `展开菜品明细 (${items.length}道菜)`}
+                  </button>
                 </div>
                 
-                {/* 第二行：时间 + 点餐用户 */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</span>
-                  {(order.user || order.users) && (
-                    <div className="flex items-center gap-1 text-xs text-[#64748B]">
-                      <User size={12} />
-                      <span>{(order.user || order.users)?.nickname || (order.user || order.users)?.username || '未知用户'}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* 收起/展开按钮 */}
-                <button
-                  onClick={() => toggleExpand(order.id)}
-                  className="w-full py-2 bg-[#F8FAFC] text-[#64748B] rounded-lg text-sm flex items-center justify-center gap-1 hover:bg-[#E2E8F0] transition-colors cursor-pointer"
-                >
-                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  {isExpanded ? '收起菜品明细' : `展开菜品明细 (${items.length}道菜)`}
-                </button>
-              </div>
-
-              {/* 展开的菜品明细 */}
-              {isExpanded && (
-                <div className="px-4 pb-4 border-t border-gray-100 pt-4">
-                  {/* 按点餐时间分组 */}
-                  {groupedItems.map((group, gi) => (
-                    <div key={gi} className="mb-4 last:mb-0">
-                      {/* 分组标题 */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                          {group.label}
+                {/* 展开的菜品明细 */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 border-t border-gray-100 pt-4">
+                    {/* 按点餐时间分组 */}
+                    {groupedItems.map((group, gi) => (
+                      <div key={gi} className="mb-4 last:mb-0">
+                        {/* 分组标题 */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                            {group.label}
+                          </div>
+                          <div className="flex-1 h-px bg-gray-200"></div>
+                          <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
                         </div>
-                        <div className="flex-1 h-px bg-gray-200"></div>
-                        <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
-                      </div>
-                      
-                      {/* 菜品列表 */}
-                      <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-2">
-                        {group.items.map((item, ii) => (
-                          <div key={ii} className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="text-base font-medium text-[#0F172A] flex items-center gap-2">
-                                <span className="truncate">{item.dish_name}</span>
-                                {item.spec_name && <span className="text-[#94A3B8] text-sm">({item.spec_name})</span>}
-                                <span className="text-[#64748B] text-sm">×{item.quantity}</span>
+                        
+                        {/* 菜品列表 */}
+                        <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-2">
+                          {group.items.map((item, ii) => (
+                            <div key={ii} className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="text-base font-medium text-[#0F172A] flex items-center gap-2">
+                                  <span className="truncate">{item.dish_name}</span>
+                                  {item.spec_name && <span className="text-[#94A3B8] text-sm">({item.spec_name})</span>}
+                                  <span className="text-[#64748B] text-sm">×{item.quantity}</span>
+                                </div>
+                              </div>
+                              <div className="text-right ml-3">
+                                <div className="text-sm font-medium text-[#0F172A]">¥{item.subtotal}</div>
                               </div>
                             </div>
-                            <div className="text-right ml-3">
-                              <div className="text-sm font-medium text-[#0F172A]">¥{item.subtotal}</div>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {/* 备注 */}
-                  {order.remark && (
-                    <div className="mt-3 p-2 bg-[#FEF3C7] rounded-lg text-sm text-[#92400E]">
-                      备注：{order.remark}
-                    </div>
-                  )}
+                    {/* 备注 */}
+                    {order.remark && (
+                      <div className="mt-3 p-2 bg-[#FEF3C7] rounded-lg text-sm text-[#92400E]">
+                        备注：{order.remark}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="px-4 pb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[#64748B]">总金额</span>
+                    <span className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</span>
+                  </div>
                 </div>
-              )}
 
-              <div className="px-4 pb-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#64748B]">总金额</span>
-                  <span className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</span>
+                {/* 操作按钮 */}
+                <div className="px-4 pb-4 flex items-center gap-2">
+                  <button onClick={() => openDetail(order)} className="flex-1 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center justify-center gap-1">
+                    <Eye size={14} /> 详情
+                  </button>
+                  {order.status === 'submitted' || order.status === 'printed' ? (
+                    <>
+                      <button onClick={() => handleSettle(order.id)} className="flex-1 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center justify-center gap-1">
+                        <CheckCircle size={14} /> 结账
+                      </button>
+                      <button onClick={() => openAddDish(order)} className="flex-1 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center justify-center gap-1">
+                        <PlusCircle size={14} /> 加餐
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
-
-              {/* 操作按钮 */}
-              <div className="px-4 pb-4 flex items-center gap-2">
-                <button onClick={() => setDetail(order)} className="flex-1 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                  <Eye size={14} /> 详情
-                </button>
-                {order.status === 'submitted' || order.status === 'printed' ? (
-                  <>
-                    <button onClick={() => handleSettle(order.id)} className="flex-1 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                      <CheckCircle size={14} /> 结账
-                    </button>
-                    <button onClick={() => { setDetail(order); setShowAddDish(true); }} className="flex-1 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                      <PlusCircle size={14} /> 加餐
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            </div>
+              {index < orders.length - 1 ? renderCardSeparator(`mobile-separator-${order.id}`) : null}
+            </>
           )
         })}
       </div>
@@ -833,7 +867,7 @@ export default function OrderManage() {
       {/* 订单详情弹窗 */}
       {detail && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between mb-3 p-4 pb-0">
               <h3 className="text-base font-semibold text-[#0F172A]">订单详情</h3>
               <button onClick={() => setDetail(null)} className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer text-lg leading-none">×</button>
@@ -956,7 +990,7 @@ export default function OrderManage() {
                 </button>
                 {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
                   <button
-                    onClick={() => setShowAddDish(true)}
+                    onClick={() => openAddDish(detail)}
                     className="flex-1 py-2 bg-[#F8FAFC] text-[#334155] rounded-lg text-xs font-medium hover:bg-[#F1F5F9] transition-colors cursor-pointer flex items-center justify-center gap-1"
                     disabled={loading}
                   >
@@ -981,13 +1015,16 @@ export default function OrderManage() {
       )}
 
       {/* 加餐弹窗 */}
-      {showAddDish && detail && (
+      {addDishOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-              <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
+              <div>
+                <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
+                <p className="text-xs text-[#94A3B8] mt-1">{addDishOrder.tables?.table_number || '-'}桌</p>
+              </div>
               <button
-                onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
+                onClick={closeAddDishModal}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               >
                 <XCircle size={20} />
@@ -1007,7 +1044,7 @@ export default function OrderManage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-3">
+            <div className="flex-1 overflow-y-auto px-5 py-3 bg-[#F8FAFC]">
               {filteredDishes.length === 0 ? (
                 <div className="text-center text-sm text-[#94A3B8] py-8">
                   {searchQuery ? '未找到匹配的菜品' : '暂无菜品'}
@@ -1020,7 +1057,7 @@ export default function OrderManage() {
                     return (
                       <div
                         key={dish.id}
-                        className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg"
+                        className="flex items-center justify-between p-3 bg-white border border-[#E2E8F0] rounded-2xl"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm text-[#0F172A] truncate">{dish.name}</div>
@@ -1061,15 +1098,28 @@ export default function OrderManage() {
             </div>
 
             <div className="px-5 py-4 border-t border-gray-100 shrink-0 bg-white">
+              {Object.keys(addDishCart).length > 0 && (
+                <div className="mb-3 p-3 bg-[#FEF3C7] rounded-2xl">
+                  <div className="text-xs text-[#92400E] mb-1">已选菜品</div>
+                  <div className="space-y-1">
+                    {Object.values(addDishCart).map(item => (
+                      <div key={item.dish.id} className="flex justify-between text-xs text-[#92400E]">
+                        <span>{item.dish.name} x{item.quantity}</span>
+                        <span>¥{(parseFloat(item.dish.price) * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => { setShowAddDish(false); setSearchQuery(''); setAddDishCart({}) }}
+                  onClick={closeAddDishModal}
                   className="flex-1 py-3 bg-gray-100 text-[#334155] rounded-xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
                 >
                   关闭
                 </button>
                 <button
-                  onClick={() => handleAddDish(detail.id)}
+                  onClick={() => handleAddDish(addDishOrder.id)}
                   disabled={loading || Object.keys(addDishCart).length === 0}
                   className="flex-1 py-3 bg-[#10B981] text-white rounded-xl text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >

@@ -413,6 +413,29 @@ export class OrdersService {
     return updatedOrder;
   }
 
+  async updateOrderItemServed(orderId: number, itemId: number, served: boolean) {
+    const order = await this.getOrderById(orderId);
+    if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
+      throw new BadRequestException('订单状态不允许修改上菜状态');
+    }
+
+    const item = order.order_items.find((currentItem: any) => currentItem.id === itemId);
+    if (!item) throw new NotFoundException('订单明细不存在');
+
+    await db
+      .update(order_items)
+      .set({
+        served_at: served ? new Date() : null,
+      })
+      .where(and(eq(order_items.id, itemId), eq(order_items.order_id, orderId)));
+
+    const updatedOrder = await this.getOrderById(orderId);
+    this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
+    this.ordersGateway.notifyOrderUpdate(orderId, updatedOrder);
+    this.ordersGateway.notifyOrderItemServedChanged(order.table_id, updatedOrder, { itemId, served });
+    return updatedOrder;
+  }
+
   async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
     const order = await this.getOrderById(orderId);
     const updateData: any = { status: dto.status };

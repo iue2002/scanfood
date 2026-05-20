@@ -305,4 +305,55 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Notified order ${order.id} of status change, ${orderClients.size} clients`);
     }
   }
+
+  notifyOrderItemServedChanged(tableId: string | number, order: any, itemMeta: { itemId: number; served: boolean }) {
+    const message = JSON.stringify({
+      event: 'orderItemServedChanged',
+      data: {
+        tableId,
+        orderId: order.id,
+        itemId: itemMeta.itemId,
+        served: itemMeta.served,
+        order,
+      },
+    });
+
+    const tableClients = this.tableClients.get(String(tableId));
+    if (tableClients && tableClients.size > 0) {
+      tableClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify table ${tableId} served change`, err.message);
+            tableClients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified table ${tableId} of served change, ${tableClients.size} clients`);
+    }
+
+    const orderClients = this.orderClients.get(String(order.id));
+    if (orderClients && orderClients.size > 0) {
+      orderClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+          } catch (err) {
+            this.logger.error(`Failed to notify order ${order.id} served change`, err.message);
+            orderClients.delete(client);
+          }
+        }
+      });
+      this.logger.log(`Notified order ${order.id} of served change, ${orderClients.size} clients`);
+    }
+
+    this.notifyAllAdmins('orderItemServedChanged', {
+      tableId,
+      orderId: order.id,
+      itemId: itemMeta.itemId,
+      served: itemMeta.served,
+      order,
+    });
+  }
 }

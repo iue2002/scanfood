@@ -20,7 +20,7 @@ export class TablesService {
     const tableList = await db.select().from(tables).orderBy(asc(tables.table_number));
 
     const activeOrders = await db.select().from(orders)
-      .where(inArray(orders.status, ['submitted', 'printed']))
+      .where(inArray(orders.status, ['submitted', 'printed', 'unpaid']))
       .orderBy(desc(orders.created_at));
 
     const orderIds = activeOrders.map(o => o.id);

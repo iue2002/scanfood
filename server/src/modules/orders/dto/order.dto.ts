@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsNotEmpty, IsArray, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty, IsArray, IsEnum, IsBoolean } from 'class-validator';
 
 export class CreateOrderDto {
   @IsNumber()
@@ -52,4 +52,9 @@ export class UpdateOrderStatusDto {
   @IsString()
   @IsEnum(['draft', 'submitted', 'printed', 'settled', 'cancelled', 'refunded'])
   status: string;
+}
+
+export class UpdateOrderItemServedDto {
+  @IsBoolean()
+  served: boolean;
 }

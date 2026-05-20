@@ -379,105 +379,72 @@ export default function TableBoard() {
       </div>
 
       {selectedTable && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl">
-            <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#2563EB] px-4 py-4 sm:px-6 sm:py-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="text-2xl sm:text-3xl font-bold text-white">{selectedTable.table_number}号桌</h3>
-                    <span className="px-3 py-1 rounded-full bg-white/15 text-white text-sm">
-                      出餐管理面板
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/80">
-                    <span>订单号：{selectedOrder.order_number}</span>
-                    <span>待上菜 {selectedOrder.order_items.length - servedCount} 道</span>
-                    <span>已上菜 {servedCount} 道</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:w-auto">
-                  <div className="rounded-2xl bg-white/10 px-4 py-3">
-                    <div className="text-xs text-white/70">菜品总数</div>
-                    <div className="mt-1 text-2xl font-semibold text-white">{selectedOrder.order_items.length}</div>
-                  </div>
-                  <div className="rounded-2xl bg-white/10 px-4 py-3">
-                    <div className="text-xs text-white/70">完成进度</div>
-                    <div className="mt-1 text-2xl font-semibold text-white">
-                      {selectedOrder.order_items.length === 0 ? '0%' : `${Math.round((servedCount / selectedOrder.order_items.length) * 100)}%`}
-                    </div>
-                  </div>
-                </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-xl overflow-hidden w-full max-w-2xl max-h-[85vh] flex flex-col shadow-lg border border-gray-100">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-bold text-[#0F172A]">{selectedTable.table_number}号桌</h3>
+                <span className="px-2 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B] text-xs">
+                  出餐管理
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[#EF4444]">待上菜 {selectedOrder.order_items.length - servedCount}</span>
+                <span className="text-[#10B981]">已上菜 {servedCount}</span>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 bg-[#F8FAFC]">
+            <div className="flex-1 overflow-y-auto px-3 py-3 bg-white">
               {selectedOrderGroups.length === 0 ? (
-                <div className="text-center text-sm text-[#94A3B8] py-12">暂无待处理菜品</div>
+                <div className="text-center text-sm text-[#94A3B8] py-8">暂无待处理菜品</div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {selectedOrderGroups.map((group) => (
-                    <div key={`${group.label}-${group.time || 'no-time'}`} className="bg-white rounded-3xl border border-[#E2E8F0] shadow-sm overflow-hidden">
-                      <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-base font-semibold text-[#0F172A]">{group.label}</div>
-                          {group.time && <div className="text-xs text-[#64748B]">{formatDateTime(group.time)}</div>}
-                        </div>
+                    <div key={`${group.label}-${group.time || 'no-time'}`} className="bg-white rounded-lg border border-gray-100">
+                      <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                        <span className="text-sm font-medium text-[#334155]">{group.label}</span>
+                        {group.time && <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>}
                       </div>
-                      <div className="p-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="p-2 space-y-1.5">
                         {group.items.map((item) => (
                           <button
                             key={item.id}
                             type="button"
                             onClick={() => handleToggleServed(selectedTable.id, selectedOrder.id, item)}
                             disabled={loading}
-                            className={`w-full text-left rounded-2xl border px-4 py-4 transition-all cursor-pointer disabled:opacity-60 ${
+                            className={`w-full text-left rounded-lg border px-3 py-2.5 transition-all cursor-pointer disabled:opacity-60 ${
                               item.served_at
-                                ? 'border-[#86EFAC] bg-[#F0FDF4]'
-                                : 'border-[#BFDBFE] bg-[#EFF6FF] hover:border-[#60A5FA] hover:shadow-sm'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-blue-200 bg-blue-50 hover:border-blue-300'
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                      item.served_at ? 'bg-[#16A34A] text-white' : 'border border-[#60A5FA] text-transparent'
-                                    }`}
-                                  >
-                                    <CheckCircle size={12} />
-                                  </span>
-                                  <span className="text-base font-semibold text-[#0F172A] truncate">{item.dish_name}</span>
-                                </div>
-                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                                  {item.spec_name && (
-                                    <span className="px-2 py-1 rounded-full bg-white text-[#475569] border border-[#E2E8F0]">
-                                      {item.spec_name}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                    item.served_at ? 'bg-green-500 text-white' : 'border border-blue-400 text-transparent'
+                                  }`}
+                                >
+                                  <CheckCircle size={10} />
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-[#0F172A] truncate">{item.dish_name}</div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {item.spec_name && (
+                                      <span className="text-xs text-[#64748B]">{item.spec_name}</span>
+                                    )}
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      item.served_at ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {item.served_at ? '已上菜' : '待上菜'}
                                     </span>
-                                  )}
-                                  <span
-                                    className={`px-2 py-1 rounded-full ${
-                                      item.served_at ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-white text-[#2563EB] border border-[#BFDBFE]'
-                                    }`}
-                                  >
-                                    {item.served_at ? '已上菜' : '待上菜'}
-                                  </span>
-                                  {item.added_by_nickname && (
-                                    <span className="px-2 py-1 rounded-full bg-[#FFF7ED] text-[#9A3412]">
-                                      {item.added_by_nickname}
-                                    </span>
-                                  )}
+                                  </div>
                                 </div>
                               </div>
-                              <div className={`shrink-0 text-sm font-medium ${item.served_at ? 'text-[#16A34A]' : 'text-[#2563EB]'}`}>
-                                {item.served_at ? '已完成' : '点击上菜'}
-                              </div>
+                              <span className={`text-xs font-medium flex-shrink-0 ${item.served_at ? 'text-green-600' : 'text-blue-600'}`}>
+                                ×{item.quantity}
+                              </span>
                             </div>
-                            {item.served_at && (
-                              <div className="mt-3 text-xs text-[#166534]">
-                                上菜时间：{formatDateTime(item.served_at)}
-                              </div>
-                            )}
                           </button>
                         ))}
                       </div>
@@ -487,12 +454,12 @@ export default function TableBoard() {
               )}
             </div>
 
-            <div className="border-t border-[#E2E8F0] bg-white px-4 py-4 sm:px-6">
+            <div className="border-t border-gray-100 bg-white px-4 py-3">
               <button
                 onClick={() => setSelectedTable(null)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#0F172A] text-white text-sm font-medium hover:bg-[#1E293B] transition-colors cursor-pointer"
+                className="w-full py-2 rounded-lg bg-[#F1F5F9] text-[#334155] text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={14} />
                 返回
               </button>
             </div>

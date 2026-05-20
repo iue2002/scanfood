@@ -2,9 +2,21 @@
 
 /* ========== 页面基础配置 ========== */
 page {
-  background: #f7f7f7;
+  /* Slate/Blue Theme Variables */
+  --primary: #2563eb;        /* Blue 600 */
+  --primary-light: #eff6ff;  /* Blue 50 */
+  --bg-slate: #f8fafc;       /* Slate 50 */
+  --text-main: #0f172a;      /* Slate 900 */
+  --text-secondary: #334155; /* Slate 700 */
+  --text-muted: #64748b;     /* Slate 500 */
+  --border-color: #e5e7eb;   /* Gray 200 */
+  --success: #10b981;        /* Emerald 500 */
+  --danger: #ef4444;         /* Red 500 */
+  --radius-xl: 24rpx;        /* modern rounded corners */
+
+  background: var(--bg-slate);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #1a1a1a;
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 28rpx;
@@ -133,11 +145,11 @@ button::after {
 .text-2xl { font-size: 40rpx; }
 
 /* ========== 文字颜色 ========== */
-.text-primary { color: #1a1a1a; }
-.text-secondary { color: #666; }
-.text-muted { color: #999; }
-.text-accent { color: #ea580c; }
-.text-success { color: #10b981; }
+.text-primary { color: var(--text-main); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.text-accent { color: var(--primary); }
+.text-success { color: var(--success); }
 
 /* ========== 安全区域适配 ========== */
 .safe-area-top {
@@ -153,17 +165,17 @@ button::after {
 /* ========== 通用卡片样式 ========== */
 .card {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 .card-title {
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-main);
   padding: 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 2rpx solid var(--border-color);
 }
 
 /* ========== 触控区域最小尺寸 ========== */

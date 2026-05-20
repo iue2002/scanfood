@@ -41,9 +41,8 @@ Page({
       }
     }
 
-    // 先处理桌台信息并加载数据，让用户立即看到内容
+    // 先验证桌号再设置页面数据，避免无效桌号显示在页面上
     if (tableNumber) {
-      this.setData({ tableNumber, hasScannedTable: true });
       this.fetchTableInfoByNumber(tableNumber);
     } else if (rawTableId) {
       const tableId = String(rawTableId).replace(/[^\d]/g, '');
@@ -88,6 +87,10 @@ Page({
       const token = wx.getStorageSync('token');
       if (!token) {
         console.log('未登录，跳过检查未完成订单');
+        // 未登录时也释放桌号资源
+        if (this.data.tableId) {
+          this.releaseTableResources();
+        }
         return false;
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
@@ -104,9 +107,17 @@ Page({
         });
         return true;
       }
+      // 没有未完成订单，释放桌号资源
+      if (this.data.tableId) {
+        this.releaseTableResources();
+      }
       return false;
     } catch (err) {
       console.log('没有未完成的订单', err);
+      // 请求失败也释放桌号资源
+      if (this.data.tableId) {
+        this.releaseTableResources();
+      }
       return false;
     }
   },
@@ -342,11 +353,12 @@ Page({
       }
 
       const table = await request({ url: `/tables/number/${tableNumber}`, noLoading: true });
-      this.setData({ tableId: table.id, tableNumber: table.table_number });
+      this.setData({ tableId: table.id, tableNumber: table.table_number, hasScannedTable: true });
       getApp().globalData.tableId = table.id;
       wx.setStorageSync('savedTableId', table.id);
       this.bindTable(tableNumber);
       this.initWebSocket();
+      this.fetchCurrentCart();
     } catch (err) {
       console.error('获取桌台信息失败', err);
       wx.showToast({
@@ -524,9 +536,7 @@ Page({
         }
         
         if (tableNumber) {
-          this.setData({ tableNumber, hasScannedTable: true });
           this.fetchTableInfoByNumber(tableNumber);
-          this.fetchCurrentCart();
         } else {
           wx.showToast({
             title: '未能识别桌码',

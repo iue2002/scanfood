@@ -2,9 +2,9 @@
 
 /* ========== 基础容器 ========== */
 page {
-  background: #f5f5f5;
+  background: var(--bg-slate);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #1a1a1a;
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   box-sizing: border-box;
@@ -12,7 +12,7 @@ page {
 
 .detail-container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-slate);
   padding-bottom: env(safe-area-inset-bottom);
   padding-bottom: constant(safe-area-inset-bottom);
 }
@@ -23,7 +23,17 @@ page {
   text-align: center;
   margin-bottom: 12rpx;
   background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+}
+/* 未支付 提示文字红色 */
+.status-submitted .status-tips,
+.status-printed .status-tips {
+  color: #e53e3e !important;
+}
+
+/* 已付款 提示文字绿色 */
+.status-settled .status-tips {
+  color: #00b96b !important;
 }
 
 .status-main {
@@ -34,13 +44,13 @@ page {
   font-size: 34rpx;
   font-weight: 700;
   margin-bottom: 6rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   letter-spacing: 1rpx;
 }
 
 .status-tips {
   font-size: 24rpx;
-  color: #999;
+  color: var(--text-muted);
   letter-spacing: 0.3rpx;
 }
 
@@ -49,7 +59,7 @@ page {
   justify-content: space-between;
   align-items: center;
   padding-top: 16rpx;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 2rpx solid var(--border-color);
 }
 
 .status-info-item {
@@ -64,38 +74,37 @@ page {
 
 .info-label {
   font-size: 24rpx;
-  color: #999;
+  color: var(--text-muted);
   margin-right: 8rpx;
   flex-shrink: 0;
 }
 
 .info-value {
   font-size: 24rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 500;
 }
 
 .table-no {
-  color: #2563eb;
+  color: var(--primary);
   font-weight: 600;
   font-size: 28rpx;
 }
-
 /* ========== 通用区块 - 紧凑边距 ========== */
 .section {
   background: #fff;
   margin: 0 16rpx 12rpx;
-  border-radius: 12rpx;
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 .section-title {
   font-size: 26rpx;
   font-weight: 600;
   padding: 16rpx 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-  color: #1a1a1a;
+  border-bottom: 2rpx solid var(--border-color);
+  color: var(--text-main);
   letter-spacing: 0.5rpx;
 }
 
@@ -106,10 +115,10 @@ page {
 
 .group-label {
   font-size: 22rpx;
-  color: #2563eb;
+  color: var(--primary);
   padding: 10rpx 20rpx;
-  background: #f0f6ff;
-  border-left: 4rpx solid #2563eb;
+  background: var(--primary-light);
+  border-left: 4rpx solid var(--primary);
   font-weight: 600;
 }
 
@@ -117,7 +126,7 @@ page {
 .dish-item {
   display: flex;
   padding: 16rpx 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 2rpx solid var(--border-color);
   box-sizing: border-box;
   align-items: flex-start;
 }
@@ -132,7 +141,7 @@ page {
   border-radius: 8rpx;
   margin-right: 16rpx;
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: var(--bg-slate);
 }
 
 .dish-info {
@@ -154,7 +163,7 @@ page {
 
 .dish-name {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -166,7 +175,7 @@ page {
 
 .dish-spec {
   font-size: 20rpx;
-  color: #999;
+  color: var(--text-muted);
   flex-shrink: 0;
   max-width: 100%;
   overflow: hidden;
@@ -188,8 +197,8 @@ page {
 
 .adder-tag {
   font-size: 18rpx;
-  color: #ff6b35;
-  background: #fff5f0;
+  color: var(--primary);
+  background: var(--primary-light);
   padding: 2rpx 10rpx;
   border-radius: 6rpx;
   display: inline-block;
@@ -207,13 +216,13 @@ page {
 
 .dish-qty {
   font-size: 22rpx;
-  color: #999;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .dish-price {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 600;
   flex-shrink: 0;
   margin-left: 16rpx;
@@ -225,14 +234,16 @@ page {
   justify-content: space-between;
   align-items: center;
   padding: 20rpx;
-  background: #fafafa;
-  border-top: 1rpx solid #f0f0f0;
+  background: var(--bg-slate);
+  border-top: 2rpx solid var(--border-color);
   min-height: 72rpx;
+  border-bottom-left-radius: var(--radius-xl);
+  border-bottom-right-radius: var(--radius-xl);
 }
 
 .total-label {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 600;
   letter-spacing: 0.5rpx;
   flex-shrink: 0;
@@ -240,7 +251,7 @@ page {
 
 .total-price {
   font-size: 34rpx;
-  color: #ea580c;
+  color: var(--primary);
   font-weight: 700;
   letter-spacing: 0.5rpx;
   flex-shrink: 0;
@@ -254,19 +265,19 @@ page {
   padding: 16rpx 20rpx;
   margin: 0 16rpx 12rpx;
   background: #fff;
-  border-radius: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 .order-no-label {
   font-size: 24rpx;
-  color: #999;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .order-no-value {
   font-size: 22rpx;
-  color: #666;
+  color: var(--text-secondary);
   font-family: Consolas, Monaco, 'Courier New', monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -285,8 +296,8 @@ page {
   align-items: center;
   padding: 16rpx 20rpx;
   background: #fff;
-  border-radius: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
   flex-wrap: wrap;
   gap: 8rpx;
 }
@@ -303,7 +314,7 @@ page {
 
 .payment-text {
   font-size: 24rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 500;
   flex: 1;
   white-space: normal;
@@ -311,12 +322,12 @@ page {
 }
 
 .payment-status.settled .payment-text {
-  color: #10b981;
+  color: var(--success);
 }
 
 .payment-time {
   font-size: 20rpx;
-  color: #999;
+  color: var(--text-muted);
   margin-left: 8rpx;
   flex-shrink: 0;
 }
@@ -330,10 +341,10 @@ page {
 
 .add-dish-btn {
   width: 100%;
-  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+  background: var(--primary);
   color: #fff;
   border: none;
-  border-radius: 12rpx;
+  border-radius: var(--radius-xl);
   padding: 24rpx 0;
   font-size: 30rpx;
   font-weight: 600;
@@ -342,7 +353,7 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(26, 26, 26, 0.3);
+  box-shadow: 0 4rpx 16rpx rgba(37, 99, 235, 0.3);
 }
 
 .add-dish-btn:active {
@@ -371,16 +382,16 @@ page {
   height: 85vh;
   max-height: 1000rpx;
   background: #fff;
-  border-radius: 20rpx;
+  border-radius: 32rpx;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20rpx 60rpx rgba(15, 23, 42, 0.25);
 }
 
 .modal-header {
   padding: 20rpx 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 2rpx solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -392,12 +403,12 @@ page {
 .modal-header .title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-main);
 }
 
 .modal-header .close {
   font-size: 40rpx;
-  color: #999;
+  color: var(--text-muted);
   padding: 6rpx;
   line-height: 1;
   min-width: 44rpx;
@@ -417,7 +428,7 @@ page {
 /* 分类列表 */
 .category-list {
   width: 160rpx;
-  background: #f8f8f8;
+  background: var(--bg-slate);
   flex-shrink: 0;
   height: 100%;
 }
@@ -426,7 +437,7 @@ page {
   padding: 24rpx 14rpx;
   text-align: center;
   font-size: 24rpx;
-  color: #666;
+  color: var(--text-muted);
   border-left: 4rpx solid transparent;
   min-height: 80rpx;
   display: flex;
@@ -439,10 +450,10 @@ page {
 }
 
 .category-item.active {
-  background: #fff;
-  color: #1a1a1a;
+  background: var(--primary-light);
+  color: var(--primary);
   font-weight: 600;
-  border-left-color: #1a1a1a;
+  border-left-color: var(--primary);
 }
 
 /* 菜品列表 */
@@ -455,7 +466,7 @@ page {
 .modal-dish-item {
   display: flex;
   padding: 12rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
+  border-bottom: 2rpx solid var(--border-color);
   align-items: center;
   box-sizing: border-box;
   min-height: 100rpx;
@@ -471,7 +482,7 @@ page {
   border-radius: 8rpx;
   margin-right: 12rpx;
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: var(--bg-slate);
 }
 
 .modal-dish-info {
@@ -486,7 +497,7 @@ page {
 
 .modal-dish-name {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -496,7 +507,7 @@ page {
 
 .modal-dish-desc {
   font-size: 20rpx;
-  color: #999;
+  color: var(--text-muted);
   margin-top: 2rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -513,7 +524,7 @@ page {
 
 .modal-dish-price {
   font-size: 26rpx;
-  color: #ea580c;
+  color: var(--text-main);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -540,19 +551,19 @@ page {
 }
 
 .modal-dish-action .minus {
-  border: 2rpx solid #ddd;
-  color: #666;
+  border: 2rpx solid var(--border-color);
+  color: var(--text-muted);
   background: #fff;
 }
 
 .modal-dish-action .plus {
-  background: #1a1a1a;
+  background: var(--primary);
   color: #fff;
 }
 
 .modal-dish-action .count {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 600;
   min-width: 40rpx;
   text-align: center;
@@ -562,7 +573,7 @@ page {
 /* 弹窗底部 */
 .modal-footer {
   padding: 20rpx;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 2rpx solid var(--border-color);
   flex-shrink: 0;
   min-height: 100rpx;
   box-sizing: border-box;
@@ -580,23 +591,23 @@ page {
 
 .cart-count {
   font-size: 22rpx;
-  color: #666;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .cart-total {
   font-size: 28rpx;
-  color: #ea580c;
+  color: var(--primary);
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .submit-btn {
   width: 100%;
-  background: #ccc;
+  background: var(--border-color);
   color: #fff;
   border: none;
-  border-radius: 12rpx;
+  border-radius: var(--radius-xl);
   padding: 24rpx 0;
   font-size: 28rpx;
   font-weight: 600;
@@ -608,8 +619,8 @@ page {
 }
 
 .submit-btn.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 4rpx 12rpx rgba(16, 185, 129, 0.3);
+  background: var(--primary);
+  box-shadow: 0 4rpx 16rpx rgba(37, 99, 235, 0.3);
 }
 
 .submit-btn.active:active {

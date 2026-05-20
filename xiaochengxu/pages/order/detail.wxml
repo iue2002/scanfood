@@ -4,18 +4,17 @@
   <view class="status-card status-{{order.status}}">
     <view class="status-main">
       <view class="status-text">{{statusMap[order.status]}}</view>
-      <view class="status-tips" wx:if="{{order.status === 'submitted' || order.status === 'printed'}}">厨师正在准备您的菜品，请稍候</view>
-      <view class="status-tips" wx:if="{{order.status === 'settled'}}">感谢您的光临，欢迎下次再来</view>
+      <view class="status-tips" wx:if="{{order.status === 'submitted' || order.status === 'printed'}}">未付款，请餐后到前台结账</view>
+      <view class="status-tips" wx:if="{{order.status === 'settled'}}">已结账，感谢您的光临，欢迎下次再来</view>
     </view>
+    <!-- 支付状态 -->
+  
     <view class="status-info-row">
       <view class="status-info-item">
         <text class="info-label">桌号</text>
         <text class="info-value table-no">{{order.tables ? order.tables.table_number + '号桌' : '未知'}}</text>
       </view>
-      <view class="status-info-item">
-        <text class="info-label">下单时间</text>
-        <text class="info-value">{{order.created_at}}</text>
-      </view>
+      
     </view>
   </view>
 
@@ -73,24 +72,15 @@
 
   <!-- 订单号：放在菜品下方 -->
   <view class="order-no-row">
+    <view class="status-info-item">
+        <text class="info-label">下单时间</text>
+        <text class="info-value">{{order.created_at}}</text>
+      </view>
     <text class="order-no-label">订单号</text>
     <text class="order-no-value">{{order.order_number}}</text>
   </view>
 
-  <!-- 支付状态 -->
-  <view class="payment-section" wx:if="{{order.status !== 'settled'}}">
-    <view class="payment-status">
-      <text class="payment-icon">💰</text>
-      <text class="payment-text">未付款，请餐后到前台结账</text>
-    </view>
-  </view>
-  <view class="payment-section" wx:if="{{order.status === 'settled'}}">
-    <view class="payment-status settled">
-      <text class="payment-icon">✅</text>
-      <text class="payment-text">已结账</text>
-      <text class="payment-time" wx:if="{{order.settled_at}}">（{{order.settled_at}}）</text>
-    </view>
-  </view>
+  
 
   <!-- 操作按钮 -->
   <view class="action-bar" wx:if="{{order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid'}}">

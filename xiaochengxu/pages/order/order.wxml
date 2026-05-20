@@ -1,12 +1,5 @@
 <!--pages/order/order.wxml-->
 <view class="order-container">
-  <!-- 未扫码提示 -->
-  <view class="scan-prompt" wx:if="{{!hasScannedTable}}" bindtap="startScan">
-    <text class="prompt-icon"></text>
-    <text class="prompt-text">请先扫描桌码</text>
-    <text class="prompt-arrow">›</text>
-  </view>
-
   <!-- 顶部桌号 -->
   <view class="header-bar">
     <view class="table-info">
@@ -15,7 +8,10 @@
         <text class="table-label">号桌</text>
       </block>
       <block wx:else>
-        <text class="table-label">正在加载桌位...</text>
+        <view class="scan-hint" bindtap="startScan">
+          <text class="scan-hint-text">请先扫码</text>
+          <text class="scan-hint-arrow">›</text>
+        </view>
       </block>
     </view>
     <view class="scan-entry" bindtap="startScan">

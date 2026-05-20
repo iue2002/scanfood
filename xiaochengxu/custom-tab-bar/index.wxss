@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-around;
   z-index: 999;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 2rpx solid var(--border-color);
   box-sizing: border-box;
 }
 
@@ -35,8 +35,8 @@
   position: absolute;
   bottom: 8rpx;
   width: 40rpx;
-  height: 4rpx;
-  background-color: #333;
-  border-radius: 2rpx;
+  height: 6rpx;
+  background-color: var(--primary);
+  border-radius: 4rpx;
 }
 

@@ -3,7 +3,7 @@
 /* ========== 容器布局 ========== */
 .confirm-container {
   padding: 24rpx;
-  background: #f7f7f7;
+  background: var(--bg-slate);
   min-height: 100vh;
   padding-bottom: 120rpx;
   padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
@@ -14,21 +14,21 @@
 /* ========== 通用区块 ========== */
 .section {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--radius-xl);
   padding: 28rpx;
   margin-bottom: 20rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 .section-title {
   font-size: 28rpx;
   font-weight: 600;
   margin-bottom: 20rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   letter-spacing: 0.5rpx;
   padding-bottom: 16rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 2rpx solid var(--border-color);
 }
 
 /* ========== 订单项 ========== */
@@ -38,7 +38,7 @@
   align-items: center;
   margin-bottom: 14rpx;
   font-size: 26rpx;
-  color: #666;
+  color: var(--text-muted);
   letter-spacing: 0.3rpx;
   min-height: 60rpx;
   box-sizing: border-box;
@@ -65,14 +65,14 @@
 .price {
   width: 120rpx;
   text-align: right;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 500;
   flex-shrink: 0;
 }
 
 /* ========== 合计行 ========== */
 .total-row {
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 2rpx solid var(--border-color);
   padding-top: 20rpx;
   margin-top: 16rpx;
   display: flex;
@@ -80,13 +80,13 @@
   align-items: center;
   font-size: 28rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-main);
   letter-spacing: 0.5rpx;
   min-height: 60rpx;
 }
 
 .total-price {
-  color: #ea580c;
+  color: var(--primary);
   font-size: 32rpx;
 }
 
@@ -96,7 +96,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 2rpx solid var(--border-color);
   min-height: 80rpx;
   box-sizing: border-box;
 }
@@ -107,7 +107,7 @@
 
 .label {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 500;
   letter-spacing: 0.3rpx;
   flex-shrink: 0;
@@ -116,7 +116,7 @@
 
 .picker {
   font-size: 26rpx;
-  color: #666;
+  color: var(--text-muted);
   flex: 1;
   text-align: right;
   overflow: hidden;
@@ -129,7 +129,7 @@
   font-size: 26rpx;
   flex: 1;
   margin-left: 16rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
 }
 
 /* ========== 底部固定栏 ========== */
@@ -149,15 +149,15 @@
   padding-top: 16rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
   padding-bottom: calc(16rpx + constant(safe-area-inset-bottom));
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 2rpx solid var(--border-color);
   box-sizing: border-box;
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 .total {
   flex: 1;
   font-size: 28rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 600;
   letter-spacing: 0.5rpx;
   display: flex;
@@ -167,12 +167,12 @@
 }
 
 .total-label {
-  color: #666;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
 .total-value {
-  color: #ea580c;
+  color: var(--primary);
   font-size: 36rpx;
   font-weight: 700;
 }
@@ -184,12 +184,13 @@
   border-radius: 48rpx !important;
   font-size: 28rpx !important;
   font-weight: 600 !important;
-  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%) !important;
+  background: var(--primary) !important;
+  color: #fff !important;
   letter-spacing: 1rpx !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: 0 4rpx 12rpx rgba(26, 26, 26, 0.3) !important;
+  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.3) !important;
   flex-shrink: 0;
 }
 

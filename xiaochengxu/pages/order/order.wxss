@@ -4,39 +4,29 @@
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  background: #f7f7f7;
+  background: var(--bg-slate);
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
 }
 
-/* 未扫码提示 */
-.scan-prompt {
+/* 未扫码提示（桌号位置内联） */
+.scan-hint {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20rpx 28rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #f0f0f0;
-  flex-shrink: 0;
+  cursor: pointer;
 }
 
-.prompt-icon {
-  font-size: 28rpx;
-  margin-right: 12rpx;
+.scan-hint-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.5rpx;
 }
 
-.prompt-text {
-  flex: 1;
-  font-size: 28rpx;
-  color: #1a1a1a;
-  font-weight: 500;
-  letter-spacing: 0.3rpx;
-}
-
-.prompt-arrow {
+.scan-hint-arrow {
   font-size: 36rpx;
-  color: #ccc;
+  color: var(--primary);
   margin-left: 8rpx;
 }
 
@@ -48,7 +38,7 @@
   padding: 20rpx 28rpx;
   background: #fff;
   flex-shrink: 0;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 2rpx solid var(--border-color);
 }
 
 .table-info {
@@ -59,14 +49,14 @@
 .table-num {
   font-size: 44rpx;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text-main);
   margin-right: 8rpx;
   letter-spacing: 1rpx;
 }
 
 .table-label {
   font-size: 24rpx;
-  color: #999;
+  color: var(--text-muted);
   letter-spacing: 0.3rpx;
 }
 
@@ -117,35 +107,35 @@
   width: 150rpx;
   background: #fff;
   height: 100%;
-  border-right: 1rpx solid #f0f0f0;
+  border-right: 2rpx solid var(--border-color);
 }
 
 .category-item {
   padding: 36rpx 12rpx;
   font-size: 26rpx;
-  color: #666;
+  color: var(--text-muted);
   text-align: center;
   border-left: 6rpx solid transparent;
   letter-spacing: 0.3rpx;
 }
 
 .category-item.active {
-  color: #1a1a1a;
+  color: var(--primary);
   font-weight: 600;
-  background: #f7f7f7;
-  border-left-color: #1a1a1a;
+  background: var(--primary-light);
+  border-left-color: var(--primary);
 }
 
 .dish-list {
   flex: 1;
   padding: 20rpx;
-  background: #f7f7f7;
+  background: var(--bg-slate);
   height: 100%;
 }
 
 .category-title {
   font-size: 24rpx;
-  color: #999;
+  color: var(--text-muted);
   margin-bottom: 16rpx;
   padding-left: 12rpx;
   letter-spacing: 0.3rpx;
@@ -156,7 +146,8 @@
   padding: 20rpx;
   margin-bottom: 16rpx;
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.02);
 }
 
 .dish-image {
@@ -165,7 +156,7 @@
   border-radius: 12rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: var(--bg-slate);
 }
 
 .dish-info {
@@ -178,7 +169,7 @@
 .dish-name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-main);
   letter-spacing: 0.3rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,7 +178,7 @@
 
 .dish-desc {
   font-size: 22rpx;
-  color: #999;
+  color: var(--text-muted);
   margin: 8rpx 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -205,7 +196,7 @@
 
 .dish-price {
   font-size: 30rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 600;
   letter-spacing: 0.3rpx;
 }
@@ -227,12 +218,12 @@
 }
 
 .minus {
-  border: 2rpx solid #e0e0e0;
-  color: #999;
+  border: 2rpx solid var(--border-color);
+  color: var(--text-muted);
 }
 
 .plus {
-  background: #1a1a1a;
+  background: var(--primary);
   color: #fff;
 }
 
@@ -240,7 +231,7 @@
   margin: 0 20rpx;
   font-size: 30rpx;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--text-main);
 }
 
 .bottom-placeholder {
@@ -254,13 +245,13 @@
   left: 28rpx;
   right: 28rpx;
   height: 100rpx;
-  background: #1a1a1a;
+  background: var(--text-main);
   border-radius: 50rpx;
   display: flex;
   align-items: center;
   padding: 0 8rpx 0 36rpx;
   z-index: 100;
-  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12);
+  box-shadow: 0 8rpx 24rpx rgba(15,23,42,0.15);
 }
 
 .cart-info {
@@ -278,8 +269,8 @@
   position: absolute;
   top: -8rpx;
   left: 44rpx;
-  background: #fff;
-  color: #1a1a1a;
+  background: var(--danger);
+  color: #fff;
   font-size: 20rpx;
   padding: 2rpx 12rpx;
   border-radius: 20rpx;
@@ -295,14 +286,18 @@
 }
 
 .submit-btn {
-  background: #fff;
-  color: #1a1a1a;
+  background: var(--primary);
+  color: #fff;
   font-size: 30rpx;
   font-weight: 600;
   height: 84rpx;
   line-height: 84rpx;
   padding: 0 44rpx;
-  margin-right: -8rpx;
-  border-radius: 0 42rpx 42rpx 0;
+  border-radius: 42rpx;
   letter-spacing: 1rpx;
+  transition: opacity 0.2s;
+}
+
+.submit-btn:active {
+  opacity: 0.8;
 }

@@ -12,12 +12,12 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "扫码点餐",
     "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f8f8f8"
+    "backgroundColor": "#f8fafc"
   },
   "tabBar": {
     "custom": true,
-    "color": "#999999",
-    "selectedColor": "#ff9d00",
+    "color": "#64748b",
+    "selectedColor": "#2563eb",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

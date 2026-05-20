@@ -1,7 +1,7 @@
 /* pages/order/list.wxss */
 .list-container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-slate);
   padding-bottom: 24rpx;
 }
 
@@ -22,12 +22,12 @@
 
 .tab-text {
   font-size: 26rpx;
-  color: #999;
+  color: var(--text-muted);
   transition: all 0.3s;
 }
 
 .tab-item.active .tab-text {
-  color: #1a1a1a;
+  color: var(--primary);
   font-weight: 600;
 }
 
@@ -37,9 +37,9 @@
   left: 50%;
   transform: translateX(-50%);
   width: 36rpx;
-  height: 4rpx;
-  background: #1a1a1a;
-  border-radius: 2rpx;
+  height: 6rpx;
+  background: var(--primary);
+  border-radius: 4rpx;
 }
 
 /* 订单列表 */
@@ -55,8 +55,9 @@
 
 .order-card {
   background: #fff;
-  border-radius: 14rpx;
+  border-radius: var(--radius-xl);
   overflow: hidden;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 /* 订单头部 */
@@ -89,7 +90,7 @@
 
 .shop-name {
   font-size: 26rpx;
-  color: #1a1a1a;
+  color: var(--text-main);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -98,14 +99,14 @@
 
 .arrow-icon {
   font-size: 28rpx;
-  color: #999;
+  color: var(--text-muted);
   margin-left: 6rpx;
   flex-shrink: 0;
 }
 
 .order-status {
   font-size: 20rpx;
-  color: #10b981;
+  color: var(--success);
   font-weight: 500;
   flex-shrink: 0;
   margin-left: 12rpx;

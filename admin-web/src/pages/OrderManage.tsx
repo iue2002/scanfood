@@ -158,7 +158,7 @@ export default function OrderManage() {
       await request.put(`/orders/${orderId}/items/${itemId}`, { quantity: newQty })
       const updated = await request.get(`/orders/${orderId}`)
       if (detail && detail.id === orderId) {
-        setDetail(updated as Order)
+        setDetail((updated as unknown as { data: Order }).data || (updated as unknown as Order))
       }
       fetchOrders()
       showToast('已更新', 'success')
@@ -200,6 +200,18 @@ export default function OrderManage() {
     })
   }
 
+  const setCartItemQty = (dish: Dish, quantity: number) => {
+    const safeQty = Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 0
+    setAddDishCart(prev => {
+      if (safeQty <= 0) {
+        const next = { ...prev }
+        delete next[dish.id]
+        return next
+      }
+      return { ...prev, [dish.id]: { dish, quantity: safeQty } }
+    })
+  }
+
   const getCartCount = () => {
     return Object.values(addDishCart).reduce((sum, item) => sum + item.quantity, 0)
   }
@@ -225,7 +237,7 @@ export default function OrderManage() {
 
       const updated = await request.get(`/orders/${orderId}`)
       if (detail && detail.id === orderId) {
-        setDetail(updated as Order)
+        setDetail((updated as unknown as { data: Order }).data || (updated as unknown as Order))
       }
       fetchOrders()
       setAddDishCart({})
@@ -519,8 +531,8 @@ export default function OrderManage() {
                           <button onClick={() => handleSettle(order.id)} className="p-1.5 text-[#10B981] hover:bg-[#D1FAE5] rounded transition-colors cursor-pointer" title="标记结账">
                             <CheckCircle size={16} />
                           </button>
-                          <button onClick={() => handleCancel(order.id)} className="p-1.5 text-[#EF4444] hover:bg-red-50 rounded transition-colors cursor-pointer" title="取消订单">
-                            <XCircle size={16} />
+                          <button onClick={() => { setDetail(order); setShowAddDish(true); }} className="p-1.5 text-[#F59E0B] hover:bg-amber-50 rounded transition-colors cursor-pointer" title="加餐">
+                            <PlusCircle size={16} />
                           </button>
                         </>
                       ) : null}
@@ -656,8 +668,8 @@ export default function OrderManage() {
                     <button onClick={() => handleSettle(order.id)} className="px-4 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1">
                       <CheckCircle size={14} /> 结账
                     </button>
-                    <button onClick={() => handleCancel(order.id)} className="px-4 py-2 bg-[#EF4444] text-white rounded-lg text-sm font-medium hover:bg-[#DC2626] transition-colors cursor-pointer flex items-center gap-1">
-                      <XCircle size={14} /> 取消
+                    <button onClick={() => { setDetail(order); setShowAddDish(true); }} className="px-4 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center gap-1">
+                      <PlusCircle size={14} /> 加餐
                     </button>
                   </>
                 ) : null}
@@ -770,8 +782,8 @@ export default function OrderManage() {
                     <button onClick={() => handleSettle(order.id)} className="flex-1 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center justify-center gap-1">
                       <CheckCircle size={14} /> 结账
                     </button>
-                    <button onClick={() => handleCancel(order.id)} className="flex-1 py-2 bg-[#EF4444] text-white rounded-lg text-sm font-medium hover:bg-[#DC2626] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                      <XCircle size={14} /> 取消
+                    <button onClick={() => { setDetail(order); setShowAddDish(true); }} className="flex-1 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center justify-center gap-1">
+                      <PlusCircle size={14} /> 加餐
                     </button>
                   </>
                 ) : null}
@@ -970,8 +982,8 @@ export default function OrderManage() {
 
       {/* 加餐弹窗 */}
       {showAddDish && detail && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
               <button
@@ -1029,16 +1041,16 @@ export default function OrderManage() {
                             className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-md text-center bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
                           />
                           <button
-                            onClick={() => updateCartItem(dish, 1)}
-                            className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
-                          >
-                            <Plus size={14} />
-                          </button>
-                          <button
                             onClick={() => updateCartItem(dish, -1)}
                             className="w-7 h-7 flex items-center justify-center bg-gray-200 text-[#334155] rounded-md hover:bg-gray-300 cursor-pointer"
                           >
                             <Minus size={14} />
+                          </button>
+                          <button
+                            onClick={() => updateCartItem(dish, 1)}
+                            className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                          >
+                            <Plus size={14} />
                           </button>
                         </div>
                       </div>

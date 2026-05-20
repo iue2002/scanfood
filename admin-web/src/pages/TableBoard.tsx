@@ -328,8 +328,8 @@ export default function TableBoard() {
 
       {/* 订单详情弹窗 */}
       {selectedTable && selectedTable.current_order && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl">
             {/* 弹窗头部 */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <div>
@@ -471,8 +471,8 @@ export default function TableBoard() {
 
       {/* 加餐弹窗 */}
       {showAddDish && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
               <button
@@ -532,16 +532,16 @@ export default function TableBoard() {
                             className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-md text-center bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
                           />
                           <button
-                            onClick={() => updateCartItem(dish, 1)}
-                            className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
-                          >
-                            <Plus size={14} />
-                          </button>
-                          <button
                             onClick={() => updateCartItem(dish, -1)}
                             className="w-7 h-7 flex items-center justify-center bg-gray-200 text-[#334155] rounded-md hover:bg-gray-300 cursor-pointer"
                           >
                             <Minus size={14} />
+                          </button>
+                          <button
+                            onClick={() => updateCartItem(dish, 1)}
+                            className="w-7 h-7 flex items-center justify-center bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                          >
+                            <Plus size={14} />
                           </button>
                         </div>
                       </div>
@@ -590,8 +590,8 @@ export default function TableBoard() {
 
       {/* 空闲桌台点击弹窗（仅显示信息） */}
       {selectedTable && !selectedTable.current_order && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-5 shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-[#0F172A]">{selectedTable.table_number}号桌</h3>
               <button onClick={() => setSelectedTable(null)} className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">

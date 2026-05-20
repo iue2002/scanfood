@@ -117,8 +117,8 @@ function ConfirmDialogItem({
   onCancel: () => void
 }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200" onClick={onCancel}>
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3 mb-4">
           <div className="p-2 bg-[#EFF6FF] rounded-full">
             <AlertCircle className="text-[#2563EB]" size={24} />

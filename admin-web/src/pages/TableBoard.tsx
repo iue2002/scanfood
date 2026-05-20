@@ -417,8 +417,8 @@ export default function TableBoard() {
       </div>
 
       {selectedTable && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3">
-          <div className="bg-white rounded-xl overflow-hidden w-full max-w-2xl max-h-[85vh] flex flex-col shadow-lg border border-gray-100">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3" onClick={() => setSelectedTable(null)}>
+          <div className="bg-white rounded-xl overflow-hidden w-full max-w-2xl max-h-[85vh] flex flex-col shadow-lg border border-gray-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
               <div className="flex items-center gap-3">
                 <h3 className="text-lg font-bold text-[#0F172A]">{selectedTable.table_number}号桌</h3>
@@ -506,8 +506,8 @@ export default function TableBoard() {
       )}
 
       {settleTable && settleOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => setSettleTable(null)}>
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0 bg-white">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-[#0F172A]">{settleTable.table_number}号桌结账详情</h3>
@@ -590,8 +590,8 @@ export default function TableBoard() {
       )}
 
       {addDishTable?.current_order && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[78vh] flex flex-col shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => setAddDishTable(null)}>
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[78vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>
@@ -707,8 +707,8 @@ export default function TableBoard() {
       )}
 
       {selectedTable && !selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedTable(null)}>
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#0F172A]">{selectedTable.table_number}号桌</h3>

@@ -866,8 +866,8 @@ export default function OrderManage() {
 
       {/* 订单详情弹窗 */}
       {detail && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-3" onClick={() => setDetail(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3 p-4 pb-0">
               <h3 className="text-base font-semibold text-[#0F172A]">订单详情</h3>
               <button onClick={() => setDetail(null)} className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer text-lg leading-none">×</button>
@@ -1016,8 +1016,8 @@ export default function OrderManage() {
 
       {/* 加餐弹窗 */}
       {addDishOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setAddDishOrder(null)}>
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>

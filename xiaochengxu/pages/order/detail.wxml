@@ -121,7 +121,7 @@
               <view class="modal-dish-price">¥{{item.price}}</view>
               <view class="modal-dish-action">
                 <view class="minus" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="minus">-</view>
-                <view class="count" wx:if="{{addMoreCartCount[item.id] > 0}}">{{addMoreCartCount[item.id]}}</view>
+                <view class="count" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="onAddMoreCountTap" data-id="{{item.id}}" data-count="{{addMoreCartCount[item.id]}}">{{addMoreCartCount[item.id]}}</view>
                 <view class="plus" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="plus">+</view>
               </view>
             </view>
@@ -136,6 +136,34 @@
         <text class="cart-total">¥{{addMoreTotalStr}}</text>
       </view>
       <button class="submit-btn {{addMoreTotal > 0 ? 'active' : ''}}" bindtap="submitAddMore">{{addMoreTotal > 0 ? '提交加餐' : '请选择菜品'}}</button>
+    </view>
+  </view>
+</view>
+
+<!-- 加餐数量输入弹窗 -->
+<view class="qty-modal" wx:if="{{showQtyModal}}" bindtap="closeQtyModal">
+  <view class="qty-modal-content" catchtap="preventClose">
+    <view class="qty-modal-header">
+      <text class="qty-modal-title">输入数量</text>
+      <text class="qty-modal-dish">{{editDishName}}</text>
+    </view>
+    <view class="qty-modal-body">
+      <view class="qty-modal-ctrl">
+        <view class="qty-modal-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount - 1}}">−</view>
+        <input class="qty-modal-input" type="number" value="{{editDishCount}}" bindinput="onQtyInput" focus="{{true}}" />
+        <view class="qty-modal-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount + 1}}">+</view>
+      </view>
+      <view class="qty-modal-quick">
+        <view class="qty-quick-btn" bindtap="onQtyQuickSet" data-val="5">5</view>
+        <view class="qty-quick-btn" bindtap="onQtyQuickSet" data-val="10">10</view>
+        <view class="qty-quick-btn" bindtap="onQtyQuickSet" data-val="15">15</view>
+        <view class="qty-quick-btn" bindtap="onQtyQuickSet" data-val="20">20</view>
+        <view class="qty-quick-btn danger" bindtap="onQtyQuickSet" data-val="0">清空</view>
+      </view>
+    </view>
+    <view class="qty-modal-footer">
+      <button class="qty-modal-cancel" bindtap="closeQtyModal">取消</button>
+      <button class="qty-modal-confirm" bindtap="confirmQty">确定</button>
     </view>
   </view>
 </view>

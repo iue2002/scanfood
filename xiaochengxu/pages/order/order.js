@@ -17,7 +17,12 @@ Page({
     currentOrderId: null,
     orderStatus: null,
     hasScannedTable: false,
-    isAddMore: false
+    isAddMore: false,
+    // 数量输入弹窗
+    showQtyModal: false,
+    editDishId: null,
+    editDishName: '',
+    editDishCount: 0
   },
 
   isFetchingOrder: false,
@@ -798,5 +803,50 @@ Page({
       wx.showToast({ title: '提交失败', icon: 'none' });
       console.error('提交加餐失败', err);
     }
+  },
+
+  // ===== 数量输入弹窗 =====
+  onCountTap(e) {
+    const { id, count } = e.currentTarget.dataset;
+    const dish = this.data.allDishes.find(d => d.id == id);
+    this.setData({
+      showQtyModal: true,
+      editDishId: id,
+      editDishName: dish?.name || '',
+      editDishCount: count
+    });
+  },
+
+  closeQtyModal() {
+    this.setData({ showQtyModal: false, editDishId: null });
+  },
+
+  preventClose() {},
+
+  onQtyInput(e) {
+    const val = parseInt(e.detail.value);
+    this.setData({ editDishCount: isNaN(val) ? 0 : Math.max(0, val) });
+  },
+
+  onQtyQuickSet(e) {
+    const val = parseInt(e.currentTarget.dataset.val);
+    this.setData({ editDishCount: isNaN(val) ? 0 : Math.max(0, val) });
+  },
+
+  confirmQty() {
+    const { editDishId, editDishCount, cartCount, isAddMore } = this.data;
+    if (editDishId === null) return;
+
+    if (editDishCount <= 0) {
+      delete cartCount[editDishId];
+    } else {
+      cartCount[editDishId] = editDishCount;
+    }
+
+    this.setData({ cartCount, showQtyModal: false, editDishId: null });
+    const cart = isAddMore ? getApp().getAddMoreCart(this.data.tableId) : getApp().getCart(this.data.tableId);
+    cart.cartCount = { ...cartCount };
+    this.calculateTotal();
+    this.syncCartToBackend();
   }
 })

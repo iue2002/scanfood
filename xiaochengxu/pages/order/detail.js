@@ -21,7 +21,12 @@ Page({
     addMoreCartCount: {},
     addMoreTotal: 0,
     cartItemCount: 0,
-    addMoreTotalStr: '0.00'
+    addMoreTotalStr: '0.00',
+    // 数量输入弹窗
+    showQtyModal: false,
+    editDishId: null,
+    editDishName: '',
+    editDishCount: 0
   },
 
   // WebSocket 状态管理
@@ -404,6 +409,57 @@ Page({
           }
         }
       }
+    });
+  },
+
+  // ===== 加餐数量输入弹窗 =====
+  onAddMoreCountTap(e) {
+    const { id, count } = e.currentTarget.dataset;
+    const dish = this.data.allDishes.find(d => d.id == id);
+    this.setData({
+      showQtyModal: true,
+      editDishId: id,
+      editDishName: dish?.name || '',
+      editDishCount: count
+    });
+  },
+
+  closeQtyModal() {
+    this.setData({ showQtyModal: false, editDishId: null });
+  },
+
+  preventClose() {},
+
+  onQtyInput(e) {
+    const val = parseInt(e.detail.value);
+    this.setData({ editDishCount: isNaN(val) ? 0 : Math.max(0, val) });
+  },
+
+  onQtyQuickSet(e) {
+    const val = parseInt(e.currentTarget.dataset.val);
+    this.setData({ editDishCount: isNaN(val) ? 0 : Math.max(0, val) });
+  },
+
+  confirmQty() {
+    const { editDishId, editDishCount, addMoreCartCount, allDishes } = this.data;
+    if (editDishId === null) return;
+
+    if (editDishCount <= 0) {
+      delete addMoreCartCount[editDishId];
+    } else {
+      addMoreCartCount[editDishId] = editDishCount;
+    }
+
+    const addMoreTotal = this.calculateAddMoreTotal(addMoreCartCount);
+    const cartItemCount = Object.keys(addMoreCartCount).length;
+    const addMoreTotalStr = addMoreTotal.toFixed(2);
+    this.setData({
+      addMoreCartCount,
+      addMoreTotal,
+      cartItemCount,
+      addMoreTotalStr,
+      showQtyModal: false,
+      editDishId: null
     });
   }
 })

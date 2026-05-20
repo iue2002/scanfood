@@ -61,11 +61,18 @@ const statusMap: Record<string, { label: string; bg: string; border: string; tex
     badge: 'text-[#10B981] bg-[#D1FAE5]',
   },
   occupied: {
-    label: '用餐中',
-    bg: 'bg-[#FFF7ED]',
-    border: 'border-[#FDBA74]',
-    text: 'text-[#9A3412]',
-    badge: 'text-[#EA580C] bg-[#FFEDD5]',
+    label: '待上菜',
+    bg: 'bg-[#FEF2F2]',
+    border: 'border-[#FCA5A5]',
+    text: 'text-[#991B1B]',
+    badge: 'text-[#EF4444] bg-[#FEE2E2]',
+  },
+  served: {
+    label: '已上菜',
+    bg: 'bg-[#EFF6FF]',
+    border: 'border-[#93C5FD]',
+    text: 'text-[#1E40AF]',
+    badge: 'text-[#2563EB] bg-[#DBEAFE]',
   },
   settled: {
     label: '已结账',
@@ -74,6 +81,17 @@ const statusMap: Record<string, { label: string; bg: string; border: string; tex
     text: 'text-[#166534]',
     badge: 'text-[#16A34A] bg-[#DCFCE7]',
   },
+}
+
+const getServedStatus = (order: CurrentOrder | null) => {
+  if (!order) return { isAllServed: false, servedCount: 0, totalCount: 0 }
+  const totalCount = order.order_items.length
+  const servedCount = order.order_items.filter((item) => item.served_at).length
+  return {
+    isAllServed: totalCount > 0 && servedCount === totalCount,
+    servedCount,
+    totalCount,
+  }
 }
 
 export default function TableBoard() {
@@ -106,13 +124,13 @@ export default function TableBoard() {
       ),
     )
 
-    const patchOpenTable = (table: Table | null) => {
+    const patchOpenTable = (table: Table | null): Table | null => {
       if (!table || table.id !== tableId) return table
       return {
         ...table,
         status: nextOrder ? 'occupied' : 'idle',
         current_order: nextOrder,
-      }
+      } as Table
     }
 
     setSelectedTable((prev) => patchOpenTable(prev))
@@ -292,7 +310,18 @@ export default function TableBoard() {
 
   const filteredDishes = dishes.filter((dish) => dish.name.toLowerCase().includes(searchQuery.toLowerCase()))
   const totalIdle = tables.filter((table) => table.status === 'idle').length
-  const totalOccupied = tables.filter((table) => table.status === 'occupied').length
+  const totalOccupied = tables.filter((table) => {
+    const order = table.current_order
+    if (!order || table.status !== 'occupied') return false
+    const { isAllServed } = getServedStatus(order)
+    return !isAllServed
+  }).length
+  const totalServed = tables.filter((table) => {
+    const order = table.current_order
+    if (!order || table.status !== 'occupied') return false
+    const { isAllServed } = getServedStatus(order)
+    return isAllServed
+  }).length
 
   const selectedOrder = selectedTable?.current_order || null
   const settleOrder = settleTable?.current_order || null
@@ -319,27 +348,40 @@ export default function TableBoard() {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-          <span className="text-sm text-[#64748B]">全部</span>
-          <span className="text-lg font-bold text-[#0F172A]">{tables.length}</span>
+      <div className="flex items-center gap-2 sm:gap-3 mb-5 overflow-x-auto">
+        <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0">
+          <span className="text-xs text-[#64748B]">全部</span>
+          <span className="text-base font-bold text-[#0F172A]">{tables.length}</span>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
-          <span className="text-sm text-[#64748B]">空闲</span>
-          <span className="text-lg font-bold text-[#10B981]">{totalIdle}</span>
+        <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0">
+          <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+          <span className="text-xs text-[#64748B]">空闲</span>
+          <span className="text-base font-bold text-[#10B981]">{totalIdle}</span>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#EA580C]" />
-          <span className="text-sm text-[#64748B]">用餐中</span>
-          <span className="text-lg font-bold text-[#EA580C]">{totalOccupied}</span>
+        <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0">
+          <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+          <span className="text-xs text-[#64748B]">待上菜</span>
+          <span className="text-base font-bold text-[#EF4444]">{totalOccupied}</span>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0">
+          <span className="w-2 h-2 rounded-full bg-[#2563EB]" />
+          <span className="text-xs text-[#64748B]">已上菜</span>
+          <span className="text-base font-bold text-[#2563EB]">{totalServed}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2.5">
         {tables.map((table) => {
-          const status = statusMap[table.status]
           const order = table.current_order
+          const { isAllServed } = getServedStatus(order)
+          
+          let statusKey: keyof typeof statusMap = table.status
+          if (order && table.status === 'occupied' && isAllServed) {
+            statusKey = 'served'
+          }
+          
+          const status = statusMap[statusKey]
+          
           return (
             <div
               key={table.id}
@@ -347,11 +389,7 @@ export default function TableBoard() {
               className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all active:scale-[0.99] cursor-pointer min-h-[100px] sm:min-h-[120px] ${status.bg} ${status.border} hover:shadow-md`}
             >
               <span className={`text-xl sm:text-2xl font-bold ${status.text}`}>{table.table_number}</span>
-              <div className="flex items-center gap-1 mt-1 text-[11px] text-[#64748B]">
-                <Users size={12} />
-                <span>{table.capacity}人</span>
-              </div>
-              <span className={`mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${status.badge}`}>
+              <span className={`mt-1 text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${status.badge}`}>
                 {status.label}
               </span>
               {order && <div className="mt-1 text-xs font-semibold text-[#EA580C]">¥{order.total_amount}</div>}

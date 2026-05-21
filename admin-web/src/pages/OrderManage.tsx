@@ -709,119 +709,129 @@ export default function OrderManage() {
         })}
       </div>
 
-      {/* 订单列表 - 移动端卡片 */}
-      <div className="lg:hidden space-y-4">
+      {/* 订单列表 - 移动端卡片（紧凑布局）*/}
+      <div className="lg:hidden space-y-3">
         {orders.map((order, index) => {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
           const groupedItems = isExpanded ? groupItemsByPhase(items) : []
+          const summaryText = items.length > 0
+            ? items.map(i => `${i.dish_name}×${i.quantity}`).join('，')
+            : '无菜品'
+          const totalCount = items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)
+          const canSettle = order.status === 'submitted' || order.status === 'printed'
 
           return (
-            <>
-              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                {/* 卡片头部 */}
-                <div className="p-4">
-                  {/* 第一行：桌号（大字）+ 状态 */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</span>
-                      <span className="text-sm text-[#94A3B8]">桌</span>
+            <div key={order.id}>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* 紧凑头部：桌号 + 时间用户 + 状态胶囊 */}
+                <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0 flex items-baseline flex-wrap gap-x-3 gap-y-0.5">
+                    <div className="flex items-baseline gap-1 shrink-0">
+                      <span className="text-xl font-bold text-[#0F172A] leading-none">{order.tables?.table_number || '-'}</span>
+                      <span className="text-xs text-[#94A3B8]">桌</span>
                     </div>
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${s.color}`}>{s.label}</span>
-                  </div>
-                  
-                  {/* 第二行：时间 + 点餐用户 */}
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</span>
+                    <span className="text-[11px] text-[#94A3B8] leading-tight">{formatFullDateTime(order.created_at)}</span>
                     {(order.user || order.users) && (
-                      <div className="flex items-center gap-1 text-xs text-[#64748B]">
-                        <User size={12} />
-                        <span>{(order.user || order.users)?.nickname || (order.user || order.users)?.username || '未知用户'}</span>
-                      </div>
+                      <span className="text-[11px] text-[#64748B] leading-tight inline-flex items-center gap-0.5">
+                        <User size={10} className="text-[#94A3B8]" />
+                        {(order.user || order.users)?.nickname || (order.user || order.users)?.username || '未知用户'}
+                      </span>
                     )}
                   </div>
-
-                  {/* 收起/展开按钮 */}
-                  <button
-                    onClick={() => toggleExpand(order.id)}
-                    className="w-full py-2 bg-[#F8FAFC] text-[#64748B] rounded-lg text-sm flex items-center justify-center gap-1 hover:bg-[#E2E8F0] transition-colors cursor-pointer"
-                  >
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    {isExpanded ? '收起菜品明细' : `展开菜品明细 (${items.length}道菜)`}
-                  </button>
+                  <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${s.color}`}>{s.label}</span>
                 </div>
-                
-                {/* 展开的菜品明细 */}
+
+                {/* 单行菜品摘要（点击切换展开/收起，展开时不显示）*/}
+                {!isExpanded && (
+                  <div
+                    onClick={() => toggleExpand(order.id)}
+                    className="px-4 pb-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-[#F8FAFC] active:bg-[#F1F5F9] transition-colors"
+                  >
+                    <span className="flex-1 min-w-0 truncate text-xs text-[#64748B]">{summaryText}</span>
+                    <span className="shrink-0 inline-flex items-center gap-0.5 text-[11px] text-[#94A3B8]">
+                      共{totalCount}件
+                      <ChevronDown size={12} className="text-[#CBD5E1]" />
+                    </span>
+                  </div>
+                )}
+
+                {/* 展开的明细 */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 border-t border-gray-100 pt-4">
-                    {/* 按点餐时间分组 */}
+                  <div className="px-4 py-3 border-t border-gray-100">
                     {groupedItems.map((group, gi) => (
-                      <div key={gi} className="mb-4 last:mb-0">
-                        {/* 分组标题 */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                      <div key={gi} className="mb-3 last:mb-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
                             {group.label}
-                          </div>
+                          </span>
                           <div className="flex-1 h-px bg-gray-200"></div>
-                          <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
+                          <span className="text-[11px] text-[#94A3B8]">{formatDateTime(group.time)}</span>
                         </div>
-                        
-                        {/* 菜品列表 */}
-                        <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-2">
+                        <div className="bg-[#F8FAFC] rounded-lg px-3 py-2 space-y-1.5">
                           {group.items.map((item, ii) => (
-                            <div key={ii} className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="text-base font-medium text-[#0F172A] flex items-center gap-2">
-                                  <span className="truncate">{item.dish_name}</span>
-                                  {item.spec_name && <span className="text-[#94A3B8] text-sm">({item.spec_name})</span>}
-                                  <span className="text-[#64748B] text-sm">×{item.quantity}</span>
-                                </div>
+                            <div key={ii} className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0 text-sm text-[#0F172A] leading-snug">
+                                <span className="truncate">{item.dish_name}</span>
+                                {item.spec_name && <span className="text-[#94A3B8] text-xs ml-1">({item.spec_name})</span>}
+                                <span className="text-[#64748B] text-xs ml-1">×{item.quantity}</span>
                               </div>
-                              <div className="text-right ml-3">
-                                <div className="text-sm font-medium text-[#0F172A]">¥{item.subtotal}</div>
-                              </div>
+                              <span className="shrink-0 text-xs font-medium text-[#0F172A]">¥{item.subtotal}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     ))}
-
-                    {/* 备注 */}
                     {order.remark && (
-                      <div className="mt-3 p-2 bg-[#FEF3C7] rounded-lg text-sm text-[#92400E]">
+                      <div className="mt-2 p-2 bg-[#FEF3C7] rounded-lg text-xs text-[#92400E]">
                         备注：{order.remark}
                       </div>
                     )}
+                    <button
+                      onClick={() => toggleExpand(order.id)}
+                      className="w-full mt-2 py-1 text-[11px] text-[#94A3B8] flex items-center justify-center gap-1 hover:text-[#64748B] cursor-pointer"
+                    >
+                      <ChevronUp size={12} />
+                      收起明细
+                    </button>
                   </div>
                 )}
 
-                <div className="px-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#64748B]">总金额</span>
-                    <span className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</span>
+                {/* 底栏：合计 + 操作（一行） */}
+                <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between gap-3">
+                  <div className="flex items-baseline gap-1 shrink-0">
+                    <span className="text-[11px] text-[#94A3B8]">合计</span>
+                    <span className="text-lg font-bold text-[#2563EB] leading-none">¥{order.total_amount}</span>
                   </div>
-                </div>
-
-                {/* 操作按钮 */}
-                <div className="px-4 pb-4 flex items-center gap-2">
-                  <button onClick={() => openDetail(order)} className="flex-1 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                    <Eye size={14} /> 详情
-                  </button>
-                  {order.status === 'submitted' || order.status === 'printed' ? (
-                    <>
-                      <button onClick={() => handleSettle(order.id)} className="flex-1 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                        <CheckCircle size={14} /> 结账
-                      </button>
-                      <button onClick={() => openAddDish(order)} className="flex-1 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center justify-center gap-1">
-                        <PlusCircle size={14} /> 加餐
-                      </button>
-                    </>
-                  ) : null}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => openDetail(order)}
+                      className="h-8 px-3 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Eye size={12} /> 详情
+                    </button>
+                    {canSettle && (
+                      <>
+                        <button
+                          onClick={() => handleSettle(order.id)}
+                          className="h-8 px-3 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <CheckCircle size={12} /> 结账
+                        </button>
+                        <button
+                          onClick={() => openAddDish(order)}
+                          className="h-8 px-3 bg-[#F59E0B] text-white rounded-lg text-xs font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <PlusCircle size={12} /> 加餐
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
               {index < orders.length - 1 ? renderCardSeparator(`mobile-separator-${order.id}`) : null}
-            </>
+            </div>
           )
         })}
       </div>

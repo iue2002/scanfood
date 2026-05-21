@@ -1,15 +1,25 @@
-<view class="custom-tab-bar">
-  <view 
-    wx:for="{{list}}" 
-    wx:key="index" 
-    class="tab-bar-item" 
-    data-path="{{item.pagePath}}" 
+<view class="om-tabbar">
+  <view
+    wx:for="{{list}}"
+    wx:key="index"
+    class="om-tab {{selected === index ? 'om-tab-active' : ''}}"
+    data-path="{{item.pagePath}}"
     data-index="{{index}}"
     bindtap="switchTab"
+    hover-class="om-tab-hover"
   >
-    <text class="tab-text" style="color: {{selected === index ? selectedColor : color}}">
-      {{item.text}}
-    </text>
-    <view wx:if="{{selected === index}}" class="indicator"></view>
+    <view class="om-tab-icon">
+      <view wx:if="{{index === 0}}" class="om-icon-grid">
+        <view class="om-icon-grid-cell"></view>
+        <view class="om-icon-grid-cell"></view>
+        <view class="om-icon-grid-cell"></view>
+        <view class="om-icon-grid-cell"></view>
+      </view>
+      <view wx:elif="{{index === 1}}" class="om-icon-user">
+        <view class="om-icon-user-head"></view>
+        <view class="om-icon-user-body"></view>
+      </view>
+    </view>
+    <text class="om-tab-text">{{item.text}}</text>
   </view>
 </view>

@@ -1,42 +1,102 @@
-.custom-tab-bar {
+/* custom-tab-bar/index.wxss — admin-web BottomNav 同款 */
+
+.om-tabbar {
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
-  height: 100rpx;
-  padding-bottom: constant(safe-area-inset-bottom);
-  padding-bottom: env(safe-area-inset-bottom);
-  background-color: #ffffff;
+  bottom: 0;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-around;
+  padding: 8rpx 24rpx calc(8rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  border-top: 2rpx solid #F1F5F9;
   z-index: 999;
-  border-top: 2rpx solid var(--border-color);
   box-sizing: border-box;
 }
 
-.tab-bar-item {
+.om-tab {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100rpx;
-  position: relative;
-}
-
-.tab-text {
-  font-size: 28rpx;
+  gap: 4rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 16rpx;
+  margin: 0 8rpx;
+  color: #64748B;
+  font-size: 22rpx;
   font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+.om-tab-hover {
+  opacity: 0.85;
+}
+.om-tab-active {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+
+.om-tab-icon {
+  width: 36rpx;
+  height: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.om-tab-text {
+  font-size: 22rpx;
+  letter-spacing: 0.3rpx;
   line-height: 1;
+  color: inherit;
 }
 
-.indicator {
-  position: absolute;
-  bottom: 8rpx;
-  width: 40rpx;
-  height: 6rpx;
-  background-color: var(--primary);
+/* ====== 图标：用 view 拼，确保选中态颜色跟随 ====== */
+/* LayoutGrid: 4 个圆角小方块 */
+.om-icon-grid {
+  width: 32rpx;
+  height: 32rpx;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4rpx;
+}
+.om-icon-grid-cell {
+  background: currentColor;
   border-radius: 4rpx;
+  opacity: 0.85;
+}
+.om-tab-active .om-icon-grid-cell {
+  opacity: 1;
 }
 
+/* User: 头 + 身 */
+.om-icon-user {
+  position: relative;
+  width: 32rpx;
+  height: 32rpx;
+}
+.om-icon-user-head {
+  position: absolute;
+  top: 2rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14rpx;
+  height: 14rpx;
+  border: 3rpx solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.om-icon-user-body {
+  position: absolute;
+  bottom: 2rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26rpx;
+  height: 13rpx;
+  border: 3rpx solid currentColor;
+  border-bottom: none;
+  border-radius: 14rpx 14rpx 0 0;
+  box-sizing: border-box;
+}

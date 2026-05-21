@@ -188,6 +188,8 @@
   font-size: 22rpx;
   color: #94A3B8;
   flex-shrink: 0;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 .om-dish-bottom {
   display: flex;
@@ -212,11 +214,15 @@
 .om-dish-qty {
   font-size: 22rpx;
   color: #64748B;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 .om-dish-price {
   font-size: 26rpx;
   font-weight: 600;
   color: #0F172A;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 
 /* 合计 */

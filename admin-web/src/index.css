@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 数量/价格等含 ASCII 字符在 RTL 邻居（阿拉伯/希伯来）旁边时
+ * 会被 BiDi 算法吸进 RTL 段，显示成 "1× 阿语菜名"。
+ * 用 isolate + inline-block 切断双向嵌入。
+ */
+.bidi-iso {
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
 body {
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   background-color: #F8FAFC;

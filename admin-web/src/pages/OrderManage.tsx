@@ -665,7 +665,7 @@ export default function OrderManage() {
                                     {item.dish_name}
                                     {item.spec_name && <span className="text-[#94A3B8]">({item.spec_name})</span>}
                                   </span>
-                                  <span className="text-xs text-[#64748B] ml-2">×{item.quantity}</span>
+                                  <span className="text-xs text-[#64748B] ml-2 bidi-iso">×{item.quantity}</span>
                                 </div>
                                 <span className="text-sm font-medium text-[#0F172A] ml-4">¥{item.subtotal}</span>
                               </div>
@@ -775,9 +775,9 @@ export default function OrderManage() {
                               <div className="flex-1 min-w-0 text-sm text-[#0F172A] leading-snug">
                                 <span className="truncate">{item.dish_name}</span>
                                 {item.spec_name && <span className="text-[#94A3B8] text-xs ml-1">({item.spec_name})</span>}
-                                <span className="text-[#64748B] text-xs ml-1">×{item.quantity}</span>
+                                <span className="text-[#64748B] text-xs ml-1 bidi-iso">×{item.quantity}</span>
                               </div>
-                              <span className="shrink-0 text-xs font-medium text-[#0F172A]">¥{item.subtotal}</span>
+                              <span className="shrink-0 text-xs font-medium text-[#0F172A] bidi-iso">¥{item.subtotal}</span>
                             </div>
                           ))}
                         </div>

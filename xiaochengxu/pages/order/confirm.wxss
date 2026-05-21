@@ -64,12 +64,16 @@
   font-size: 24rpx;
   color: #64748B;
   margin-left: 8rpx;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 .om-item-subtotal {
   font-size: 26rpx;
   font-weight: 500;
   color: #0F172A;
   flex-shrink: 0;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 
 .om-total-row {

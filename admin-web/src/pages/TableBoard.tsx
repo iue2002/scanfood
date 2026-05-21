@@ -517,7 +517,7 @@ export default function TableBoard() {
                                   </div>
                                 </div>
                               </div>
-                              <span className={`text-xs font-medium flex-shrink-0 ${item.served_at ? 'text-green-600' : 'text-blue-600'}`}>
+                              <span className={`text-xs font-medium flex-shrink-0 bidi-iso ${item.served_at ? 'text-green-600' : 'text-blue-600'}`}>
                                 ×{item.quantity}
                               </span>
                             </div>

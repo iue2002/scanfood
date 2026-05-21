@@ -286,12 +286,16 @@
   color: #64748B;
   font-size: 22rpx;
   margin-left: 6rpx;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 .om-item-subtotal {
   font-size: 24rpx;
   font-weight: 500;
   color: #0F172A;
   flex-shrink: 0;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 .om-remark {
   margin-top: 16rpx;

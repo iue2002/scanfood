@@ -10,7 +10,9 @@ Page({
     tempAvatarUrl: '',
     tempNickname: '',
     // === 仅 UI：头像加载失败标记 ===
-    avatarError: false
+    avatarError: false,
+    // === 仅 UI：头像首字母占位 ===
+    avatarLetter: 'U'
   },
 
   onShow() {
@@ -40,12 +42,24 @@ Page({
     const app = getApp();
     const token = wx.getStorageSync('token');
     const backendUser = wx.getStorageSync('userInfo');
-    
+
     if (token && backendUser && backendUser.id) {
-      this.setData({ userInfo: backendUser, avatarError: false });
+      this.setData({
+        userInfo: backendUser,
+        avatarError: false,
+        avatarLetter: this.computeAvatarLetter(backendUser)
+      });
       app.globalData.userInfo = backendUser;
       app.globalData.token = token;
     }
+  },
+
+  // === 仅 UI：从昵称取首字母（无昵称时为 'U'） ===
+  computeAvatarLetter(user) {
+    if (!user) return 'U';
+    const name = (user.nickname || user.nickName || '').trim();
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
   },
 
   // === 仅 UI：image 加载失败时切换到字母占位 ===
@@ -167,6 +181,7 @@ Page({
       this.setData({
         userInfo: finalUser,
         avatarError: false,
+        avatarLetter: this.computeAvatarLetter(finalUser),
         tempAvatarUrl: '',
         tempNickname: ''
       });

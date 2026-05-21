@@ -16,6 +16,17 @@ export class LoginDto {
   @MinLength(6)
   @MaxLength(128)
   password: string;
+
+  // 仅在客户端检测到需要验证码时回传，服务端按 username 维度判断是否必须
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  captchaToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  captchaInput?: string;
 }
 
 export class RegisterDto {

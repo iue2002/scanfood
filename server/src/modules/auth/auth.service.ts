@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { db } from '@/storage/database/mysql-client';
 import { users, tables, login_logs } from '@/storage/database/shared/schema';
 import { LoginDto, RegisterDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
+import { CaptchaService } from './captcha.service';
 import * as bcrypt from 'bcryptjs';
 import { eq, desc, and } from 'drizzle-orm';
 import * as https from 'https';
@@ -11,7 +12,10 @@ import * as https from 'https';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly captchaService: CaptchaService,
+  ) {}
 
   // ===== 安全加固: 账户锁定（内存 Map） =====
   // 同一账号连续失败 MAX_FAILED_ATTEMPTS 次 → 锁定 LOCK_DURATION_MS
@@ -73,6 +77,15 @@ export class AuthService {
   private clearLockEntry(username: string): void {
     this.accountLockMap.delete(username);
     this.logger.log(`登录成功，已重置失败计数: ${username}`);
+  }
+
+  // 暴露给登录流程：当前用户名的累计失败次数（窗口内）
+  getFailedCount(username: string): number {
+    const entry = this.accountLockMap.get(username);
+    if (!entry) return 0;
+    if (Date.now() - entry.lastFailAt > AuthService.FAIL_RESET_MS) return 0;
+    return entry.failedCount;
+  }
   }
 
   // ===== 审计日志（写入 DB，失败不影响主流程） =====
@@ -161,29 +174,45 @@ export class AuthService {
       );
     }
 
-    // 2. 查找用户
+    // 2. 验证码：失败 1 次后必须验证（业界主流策略：失败一次就上 captcha）
+    const failed = this.getFailedCount(username);
+    if (failed >= 1) {
+      const passed = this.captchaService.verify(dto.captchaToken || '', dto.captchaInput || '');
+      if (!passed) {
+        // captcha 错误不计入密码失败次数，但要返回标志让前端刷新验证码
+        const err: any = new UnauthorizedException('验证码错误或已过期，请重新获取');
+        err.response = { ...err.response, captchaRequired: true };
+        throw err;
+      }
+    }
+
+    // 3. 查找用户
     const result = await db.select().from(users).where(eq(users.username, username));
     const user = result[0];
 
     if (!user) {
       this.recordFailedAttempt(username);
       await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
-      throw new UnauthorizedException('用户名或密码错误');
+      const err: any = new UnauthorizedException('用户名或密码错误');
+      err.response = { ...err.response, captchaRequired: true };
+      throw err;
     }
 
-    // 3. 验证密码
+    // 4. 验证密码
     const isValid = await bcrypt.compare(dto.password, user.password);
     if (!isValid) {
       this.recordFailedAttempt(username);
       await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
-      throw new UnauthorizedException('用户名或密码错误');
+      const err: any = new UnauthorizedException('用户名或密码错误');
+      err.response = { ...err.response, captchaRequired: true };
+      throw err;
     }
 
-    // 4. 登录成功：清除锁定 + 记录审计
+    // 5. 登录成功：清除锁定 + 记录审计
     this.clearLockEntry(username);
     await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', true);
 
-    // 5. 获取上次登录信息
+    // 6. 获取上次登录信息
     const lastLogin = await this.getLastLogin(user.id);
 
     const { password, ...userInfo } = user;

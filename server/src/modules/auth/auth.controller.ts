@@ -1,11 +1,21 @@
 import { Controller, Post, Get, Body, UseGuards, Request, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { CaptchaService } from './captcha.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly captchaService: CaptchaService,
+  ) {}
+
+  // 验证码图片：返回 { token, svg }，svg 是 SVG 字符串可直接 dangerouslySetInnerHTML
+  @Get('captcha')
+  getCaptcha() {
+    return this.captchaService.generate();
+  }
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: any) {

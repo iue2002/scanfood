@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { CaptchaService } from './captcha.service';
 import { JwtStrategy } from './jwt.strategy';
 import { LoginRateLimitMiddleware } from './login-rate-limit.middleware';
 
@@ -13,8 +14,8 @@ import { LoginRateLimitMiddleware } from './login-rate-limit.middleware';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule],
+  providers: [AuthService, CaptchaService, JwtStrategy],
+  exports: [AuthService, CaptchaService, JwtModule],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

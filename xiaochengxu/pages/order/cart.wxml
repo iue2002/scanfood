@@ -1,56 +1,78 @@
-<!--pages/order/cart.wxml-->
-<view class="cart-container">
+<!--pages/order/cart.wxml — 商家端主题对齐版-->
+<view class="om-page">
   <!-- 顶部信息 -->
-  <view class="header-bar">
-    <view class="table-info">
+  <view class="om-topbar">
+    <view class="om-topbar-left">
       <block wx:if="{{tableNumber}}">
-        <text class="table-num">{{tableNumber}}</text>
-        <text class="table-label">号桌</text>
+        <text class="om-table-num">{{tableNumber}}</text>
+        <text class="om-table-suffix">桌</text>
       </block>
     </view>
-    <view class="header-actions">
-      <view class="action-btn" wx:if="{{cartItems.length > 0}}" catchtap="clearCart">清空</view>
-      <view class="close-btn" catchtap="goBack">✕</view>
+    <view class="om-topbar-actions">
+      <view class="om-btn-clear" wx:if="{{cartItems.length > 0}}" catchtap="clearCart" hover-class="om-btn-clear-hover">清空</view>
+      <view class="om-btn-close" catchtap="goBack" hover-class="om-btn-close-hover">✕</view>
     </view>
   </view>
 
   <!-- 空购物车 -->
-  <view class="empty" wx:if="{{cartItems.length === 0}}">
-    <view class="empty-icon">🛒</view>
-    <view class="empty-text">购物车是空的</view>
-    <view class="empty-desc">快去选择喜欢的菜品吧~</view>
-    <view class="go-back-btn" catchtap="goBack">去点餐</view>
+  <view class="om-empty" wx:if="{{cartItems.length === 0}}">
+    <view class="om-empty-icon">
+      <text class="om-empty-icon-glyph">🛒</text>
+    </view>
+    <view class="om-empty-title">购物车是空的</view>
+    <view class="om-empty-desc">快去选择喜欢的菜品吧</view>
+    <view class="om-empty-cta" catchtap="goBack" hover-class="om-empty-cta-hover">去点餐</view>
   </view>
 
   <!-- 购物车列表 -->
-  <scroll-view class="cart-list" scroll-y wx:if="{{cartItems.length > 0}}">
-    <view class="cart-item" wx:for="{{cartItems}}" wx:key="id">
-      <image class="item-image" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill"></image>
-      <view class="item-info">
-        <view class="item-name">{{item.dish_name}}</view>
-        <view class="item-price">¥{{item.price}}</view>
-        <view class="item-bottom">
-          <view class="quantity-control">
-            <view class="minus" catchtap="updateQuantity" data-id="{{item.id}}" data-type="minus">
-              <text wx:if="{{item.quantity > 1}}">-</text>
-              <text wx:else class="delete-icon">🗑</text>
+  <scroll-view class="om-list" scroll-y wx:if="{{cartItems.length > 0}}" enhanced show-scrollbar="{{false}}">
+    <view class="om-card" wx:for="{{cartItems}}" wx:key="id">
+      <image class="om-card-img" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill" />
+      <view class="om-card-info">
+        <view class="om-card-name">{{item.dish_name}}</view>
+        <view class="om-card-price-row">
+          <text class="om-card-price-symbol">¥</text>
+          <text class="om-card-price-num">{{item.price}}</text>
+        </view>
+        <view class="om-card-bottom">
+          <text class="om-card-subtotal">¥{{item.subtotal}}</text>
+          <view class="om-step">
+            <view
+              class="om-step-minus"
+              catchtap="updateQuantity"
+              data-id="{{item.id}}"
+              data-type="minus"
+              hover-class="om-step-minus-hover"
+            >
+              <text wx:if="{{item.quantity > 1}}">−</text>
+              <text wx:else>🗑</text>
             </view>
-            <view class="quantity">{{item.quantity}}</view>
-            <view class="plus" catchtap="updateQuantity" data-id="{{item.id}}" data-type="plus">+</view>
+            <view class="om-step-count">{{item.quantity}}</view>
+            <view
+              class="om-step-plus"
+              catchtap="updateQuantity"
+              data-id="{{item.id}}"
+              data-type="plus"
+              hover-class="om-step-plus-hover"
+            >+</view>
           </view>
-          <view class="item-subtotal">¥{{item.subtotal}}</view>
         </view>
       </view>
     </view>
-    <view class="bottom-placeholder"></view>
+    <view class="om-bottom-spacer"></view>
   </scroll-view>
 
   <!-- 底部结算栏 -->
-  <view class="footer-bar" wx:if="{{cartItems.length > 0}}">
-    <view class="footer-info">
-      <view class="total-count">共 {{totalCount}} 件</view>
-      <view class="total-amount">¥{{totalPrice}}</view>
+  <view class="om-footer" wx:if="{{cartItems.length > 0}}">
+    <view class="om-footer-info">
+      <text class="om-footer-count">共 {{totalCount}} 件</text>
+      <view class="om-footer-amount">
+        <text class="om-footer-symbol">¥</text>
+        <text class="om-footer-num">{{totalPrice}}</text>
+      </view>
     </view>
-    <view class="submit-btn" catchtap="goToConfirm">{{isAddMore ? '提交加餐' : '去下单'}}</view>
+    <view class="om-footer-submit" catchtap="goToConfirm" hover-class="om-footer-submit-hover">
+      {{isAddMore ? '提交加餐' : '去下单'}}
+    </view>
   </view>
 </view>

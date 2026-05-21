@@ -140,3 +140,81 @@
     </view>
   </view>
 </view>
+
+
+<!-- 购物车弹窗（替代 pages/order/cart 跳转）-->
+<view class="om-cart-modal" wx:if="{{showCartPanel}}" bindtap="closeCartPanel">
+  <view class="om-cart-sheet" catchtap="preventClose">
+    <!-- 顶部 -->
+    <view class="om-cart-head">
+      <view class="om-cart-head-left">
+        <text class="om-cart-head-title">购物车</text>
+        <text class="om-cart-head-meta" wx:if="{{tableNumber}}">{{tableNumber}}号桌</text>
+      </view>
+      <view class="om-cart-head-actions">
+        <view
+          class="om-cart-clear"
+          wx:if="{{cartItems.length > 0}}"
+          bindtap="clearCart"
+          hover-class="om-cart-clear-hover"
+        >清空</view>
+        <view class="om-cart-close" bindtap="closeCartPanel" hover-class="om-cart-close-hover">✕</view>
+      </view>
+    </view>
+
+    <!-- 列表 -->
+    <scroll-view class="om-cart-list" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="om-cart-empty" wx:if="{{cartItems.length === 0}}">
+        <text class="om-cart-empty-text">购物车是空的</text>
+        <text class="om-cart-empty-desc">快去选择喜欢的菜品吧</text>
+      </view>
+
+      <view class="om-cart-row" wx:for="{{cartItems}}" wx:key="id">
+        <image class="om-cart-row-img" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill" />
+        <view class="om-cart-row-info">
+          <text class="om-cart-row-name">{{item.dish_name}}</text>
+          <view class="om-cart-row-price-row">
+            <text class="om-cart-row-price-symbol">¥</text>
+            <text class="om-cart-row-price-num">{{item.price}}</text>
+          </view>
+          <view class="om-cart-row-bottom">
+            <text class="om-cart-row-subtotal">¥{{item.subtotal}}</text>
+            <view class="om-step">
+              <view
+                class="om-step-minus"
+                bindtap="updateCart"
+                data-id="{{item.id}}"
+                data-type="minus"
+                hover-class="om-step-minus-hover"
+              >−</view>
+              <view class="om-step-count" bindtap="onCountTap" data-id="{{item.id}}" data-count="{{item.quantity}}">{{item.quantity}}</view>
+              <view
+                class="om-step-plus"
+                bindtap="updateCart"
+                data-id="{{item.id}}"
+                data-type="plus"
+                hover-class="om-step-plus-hover"
+              >+</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 底部结算 -->
+    <view class="om-cart-foot" wx:if="{{cartItems.length > 0}}">
+      <view class="om-cart-foot-info">
+        <text class="om-cart-foot-count">共 {{totalCount}} 件</text>
+        <view class="om-cart-foot-amount">
+          <text class="om-cart-foot-symbol">¥</text>
+          <text class="om-cart-foot-num">{{totalPrice}}</text>
+        </view>
+      </view>
+      <view
+        class="om-cart-foot-submit"
+        bindtap="goToConfirm"
+        hover-class="om-cart-foot-submit-hover"
+      >{{isAddMore ? '提交加餐' : '去下单'}}</view>
+    </view>
+  </view>
+</view>

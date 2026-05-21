@@ -525,3 +525,218 @@
 .om-qty-confirm::after {
   border: none;
 }
+
+
+/* ====== 购物车弹窗 ====== */
+.om-cart-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: flex-end;
+  z-index: 200;
+}
+.om-cart-sheet {
+  width: 100%;
+  max-height: 80vh;
+  background: #F8FAFC;
+  border-radius: 32rpx 32rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -8rpx 32rpx rgba(15, 23, 42, 0.15);
+}
+.om-cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background: #FFFFFF;
+  border-bottom: 2rpx solid #F1F5F9;
+}
+.om-cart-head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+}
+.om-cart-head-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.5rpx;
+}
+.om-cart-head-meta {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.om-cart-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.om-cart-clear {
+  height: 56rpx;
+  padding: 0 22rpx;
+  background: #FEF2F2;
+  color: #EF4444;
+  border-radius: 14rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  border: 2rpx solid #FEE2E2;
+}
+.om-cart-clear-hover { background: #FEE2E2; }
+.om-cart-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  background: #F1F5F9;
+  color: #64748B;
+  font-size: 28rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.om-cart-close-hover { background: #E2E8F0; }
+
+/* 列表 */
+.om-cart-list {
+  flex: 1;
+  padding: 16rpx 32rpx 0;
+  min-height: 200rpx;
+}
+.om-cart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 32rpx 60rpx;
+  gap: 12rpx;
+}
+.om-cart-empty-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+}
+.om-cart-empty-desc {
+  font-size: 24rpx;
+  color: #94A3B8;
+}
+
+.om-cart-row {
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
+}
+.om-cart-row-img {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 16rpx;
+  background: #F8FAFC;
+  flex-shrink: 0;
+  display: block;
+}
+.om-cart-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6rpx;
+}
+.om-cart-row-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0F172A;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.om-cart-row-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+}
+.om-cart-row-price-symbol {
+  font-size: 22rpx;
+  color: #64748B;
+}
+.om-cart-row-price-num {
+  font-size: 24rpx;
+  color: #64748B;
+  font-weight: 500;
+}
+.om-cart-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+.om-cart-row-subtotal {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #2563EB;
+  letter-spacing: 0.3rpx;
+}
+
+/* 底部 */
+.om-cart-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  border-top: 2rpx solid #F1F5F9;
+}
+.om-cart-foot-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+}
+.om-cart-foot-count {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.om-cart-foot-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+}
+.om-cart-foot-symbol {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #0F172A;
+}
+.om-cart-foot-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #2563EB;
+  letter-spacing: 0.5rpx;
+  line-height: 1.1;
+}
+.om-cart-foot-submit {
+  flex-shrink: 0;
+  height: 88rpx;
+  padding: 0 48rpx;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5rpx;
+}
+.om-cart-foot-submit-hover {
+  background: #1D4ED8;
+}

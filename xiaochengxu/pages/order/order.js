@@ -22,7 +22,10 @@ Page({
     showQtyModal: false,
     editDishId: null,
     editDishName: '',
-    editDishCount: 0
+    editDishCount: 0,
+    // 购物车弹窗
+    showCartPanel: false,
+    cartItems: []
   },
 
   isFetchingOrder: false,
@@ -672,6 +675,11 @@ Page({
       totalCount,
       totalPrice: totalPrice.toFixed(2)
     });
+
+    // 弹窗打开时同步刷新 cartItems
+    if (this.data.showCartPanel) {
+      this.refreshCartItems();
+    }
   },
 
   async syncCartToBackend() {
@@ -759,8 +767,55 @@ Page({
   },
 
   goToCart() {
-    wx.navigateTo({
-      url: `/pages/order/cart?tableId=${this.data.tableId}&tableNumber=${this.data.tableNumber}&isAddMore=${this.data.isAddMore}`,
+    this.refreshCartItems();
+    this.setData({ showCartPanel: true });
+  },
+
+  closeCartPanel() {
+    this.setData({ showCartPanel: false });
+  },
+
+  preventClose() {},
+
+  // 用 cartCount + allDishes 重算 cartItems（带图片）给弹窗渲染
+  refreshCartItems() {
+    const { cartCount, allDishes } = this.data;
+    const items = [];
+    for (const id in cartCount) {
+      const count = cartCount[id];
+      if (count > 0) {
+        const dish = allDishes.find(d => d.id == id);
+        if (dish) {
+          items.push({
+            id: dish.id,
+            dish_name: dish.name,
+            price: parseFloat(dish.price).toFixed(2),
+            quantity: count,
+            subtotal: (count * parseFloat(dish.price)).toFixed(2),
+            image_url: dish.image_url || ''
+          });
+        }
+      }
+    }
+    this.setData({ cartItems: items });
+  },
+
+  // 弹窗里的清空
+  clearCart() {
+    if (this.data.totalCount === 0) return;
+    wx.showModal({
+      title: '提示',
+      content: '确定要清空购物车吗？',
+      success: (res) => {
+        if (!res.confirm) return;
+        if (this.data.isAddMore) {
+          getApp().clearAddMoreCart(this.data.tableId);
+        } else {
+          getApp().clearCart(this.data.tableId);
+        }
+        this.setData({ cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00' });
+        this.syncCartToBackend();
+      }
     });
   },
 

@@ -55,4 +55,33 @@ export class StatisticsController {
     const limitNum = limit ? parseInt(limit, 10) : 10;
     return await this.statisticsService.getDishRanking(limitNum, startDate, endDate);
   }
+
+  // 今日 24 小时分时营业额
+  @Get('hourly-today')
+  async getHourlyToday() {
+    console.log('[GET /api/statistics/hourly-today]');
+    return await this.statisticsService.getHourlyToday();
+  }
+
+  // 桌台排行
+  @Get('table-ranking')
+  async getTableRanking(
+    @Query('limit') limit?: string,
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+  ) {
+    console.log('[GET /api/statistics/table-ranking]', { limit, startDate, endDate });
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return await this.statisticsService.getTableRanking(limitNum, startDate, endDate);
+  }
+
+  // 区间核心 KPI（带环比）
+  @Get('kpi')
+  async getKpi(
+    @Query('start_date') startDate: string,
+    @Query('end_date') endDate: string,
+  ) {
+    console.log('[GET /api/statistics/kpi]', { startDate, endDate });
+    return await this.statisticsService.getKpiSummary(startDate, endDate);
+  }
 }

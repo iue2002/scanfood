@@ -104,22 +104,38 @@
   margin-top: 16rpx;
 }
 
-/* ----- 紧凑头部：单行 ----- */
+/* ----- 紧凑头部：左侧菜品缩略图 + 右侧信息列 ----- */
 .om-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: stretch;
+  gap: 20rpx;
   padding: 24rpx 28rpx 16rpx;
-  gap: 16rpx;
 }
-.om-head-left {
+.om-head-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 16rpx;
+  background: #F1F5F9;
+  flex-shrink: 0;
+  display: block;
+}
+.om-head-thumb-empty {
+  background: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+}
+.om-head-main {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  column-gap: 16rpx;
-  row-gap: 4rpx;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8rpx;
+  padding-top: 4rpx;
+}
+.om-head-row1 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12rpx;
 }
 .om-table-wrap {
   display: flex;
@@ -149,16 +165,6 @@
 }
 .om-time {
   color: #94A3B8;
-}
-.om-meta-dot {
-  color: #CBD5E1;
-}
-.om-user-name {
-  color: #64748B;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 220rpx;
 }
 
 /* 状态胶囊 */

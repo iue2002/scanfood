@@ -38,18 +38,27 @@
 
     <block wx:for="{{filteredOrders}}" wx:key="id" wx:for-index="orderIndex">
       <view class="om-card">
-        <!-- 紧凑头部：桌号 + 时间/用户 + 状态胶囊 一行 -->
+        <!-- 紧凑头部：左侧首张菜品图 + 右侧信息列 -->
         <view class="om-head">
-          <view class="om-head-left">
-            <view class="om-table-wrap">
-              <text class="om-table-num">{{item.tableNumber || item.table_id || '-'}}</text>
-              <text class="om-table-suffix">桌</text>
+          <image
+            wx:if="{{item.firstDishImage}}"
+            class="om-head-thumb"
+            src="{{item.firstDishImage}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="om-head-thumb om-head-thumb-empty"></view>
+          <view class="om-head-main">
+            <view class="om-head-row1">
+              <view class="om-table-wrap">
+                <text class="om-table-num">{{item.tableNumber || item.table_id || '-'}}</text>
+                <text class="om-table-suffix">桌</text>
+              </view>
+              <view class="om-status om-status-{{item.status}}">{{statusMap[item.status]}}</view>
             </view>
             <view class="om-meta">
               <text class="om-time">{{item.created_at}}</text>
             </view>
           </view>
-          <view class="om-status om-status-{{item.status}}">{{statusMap[item.status]}}</view>
         </view>
 
         <!-- 单行：菜品摘要 + 展开箭头（未展开时显示） -->

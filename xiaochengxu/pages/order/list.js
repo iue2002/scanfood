@@ -140,6 +140,10 @@ Page({
             ? order.order_items.map(it => `${it.dish_name}×${it.quantity}`).join('，')
             : '无菜品';
 
+          // === 仅 UI：首张菜品图（卡片左侧缩略图用） ===
+          const firstWithImage = (order.order_items || []).find(it => it.dish_image);
+          order.firstDishImage = firstWithImage ? firstWithImage.dish_image : '';
+
           return order;
         });
 

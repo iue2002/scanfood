@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import request from '@/api/request'
-import { ArrowLeft, CheckCircle, Minus, Plus, PlusCircle, Search, ShoppingCart, Users, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Minus, Plus, PlusCircle, RefreshCw, Search, ShoppingCart, Utensils, Users, WifiOff, X } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { requestNotificationPermission, showNotification } from '@/utils/notification'
 
 interface OrderItem {
   id: number
@@ -101,14 +102,21 @@ export default function TableBoard() {
   const [settleTable, setSettleTable] = useState<Table | null>(null)
   const [addDishTable, setAddDishTable] = useState<Table | null>(null)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [addDishCart, setAddDishCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
   const { showToast, showConfirm } = useModal()
 
   const fetchBoard = useCallback(async () => {
-    const res = await request.get('/tables/board')
-    setTables(res.data || [])
+    setFetchError(null)
+    try {
+      const res = await request.get('/tables/board')
+      setTables(res.data || [])
+    } catch (err: any) {
+      const msg = err?.message || err?.msg || '无法连接服务器，请检查后端服务是否启动'
+      setFetchError(msg)
+    }
   }, [])
 
   const syncTableOrder = useCallback((tableId: number, nextOrder: CurrentOrder | null) => {
@@ -146,6 +154,7 @@ export default function TableBoard() {
 
   useEffect(() => {
     fetchBoard()
+    requestNotificationPermission()
   }, [fetchBoard])
 
   useEffect(() => {
@@ -166,7 +175,7 @@ export default function TableBoard() {
     setAddDishTable(latestTable?.current_order ? latestTable : null)
   }, [tables, addDishTable?.id])
 
-  const handleWebSocketMessage = useCallback((event: string) => {
+  const handleWebSocketMessage = useCallback((event: string, data: any) => {
     if (
       event === 'orderUpdated' ||
       event === 'orderStatusChanged' ||
@@ -175,7 +184,34 @@ export default function TableBoard() {
     ) {
       fetchBoard()
     }
-  }, [fetchBoard])
+
+    // Toast 通知
+    if (event === 'orderStatusChanged' && data) {
+      const tableNum = data.tables?.table_number || data.table_id
+      if (data.status === 'submitted') {
+        showToast(`${tableNum}号桌 提交了新订单`, 'success')
+        showNotification(`${tableNum}号桌 新订单`, {
+          body: `订单 ${data.order_number || '#' + data.id}，总额 ¥${data.total_amount || '-'}`,
+        })
+      } else if (data.status === 'settled') {
+        showToast(`${tableNum}号桌 已结账`, 'info')
+      } else if (data.status === 'cancelled') {
+        showToast(`${tableNum}号桌 订单已取消`, 'warning')
+      }
+    }
+
+    if (event === 'refundCreated' && data) {
+      showToast(`订单 #${data.order_id} 提交了退款申请 ¥${data.amount}`, 'warning')
+      showNotification('收到退款申请', {
+        body: `订单 #${data.order_id} 申请退款 ¥${data.amount}，原因：${data.reason || '-'}`,
+      })
+    }
+
+    if (event === 'refundUpdated' && data) {
+      const label = data.status === 'approved' ? '已通过' : '已拒绝'
+      showToast(`退款申请${label}`, 'info')
+    }
+  }, [fetchBoard, showToast])
 
   useWebSocket({
     onMessage: handleWebSocketMessage,
@@ -370,51 +406,87 @@ export default function TableBoard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2.5">
-        {tables.map((table) => {
-          const order = table.current_order
-          const { isAllServed } = getServedStatus(order)
-          
-          let statusKey: keyof typeof statusMap = table.status
-          if (order && table.status === 'occupied' && isAllServed) {
-            statusKey = 'served'
-          }
-          
-          const status = statusMap[statusKey]
-          
-          return (
-            <div
-              key={table.id}
-              onClick={() => setSelectedTable(table)}
-              className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all active:scale-[0.99] cursor-pointer min-h-[100px] sm:min-h-[120px] ${status.bg} ${status.border} hover:shadow-md`}
-            >
-              <span className={`text-xl sm:text-2xl font-bold ${status.text}`}>{table.table_number}</span>
-              <span className={`mt-1 text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${status.badge}`}>
-                {status.label}
-              </span>
-              {order && <div className="mt-1 text-xs font-semibold text-[#EA580C]">¥{order.total_amount}</div>}
-              {order && (
-                <div className="mt-2 flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
-                  <button
-                    onClick={() => setAddDishTable(table)}
-                    className="px-2 py-1 text-[11px] bg-[#F8FAFC] text-[#334155] rounded-md hover:bg-[#F1F5F9] cursor-pointer"
-                    disabled={loading || order.status === 'settled'}
-                  >
-                    加餐
-                  </button>
-                  <button
-                    onClick={() => setSettleTable(table)}
-                    className="px-2 py-1 text-[11px] bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
-                    disabled={loading || order.status === 'settled'}
-                  >
-                    结账
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      {fetchError ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-16 h-16 rounded-full bg-[#FEF2F2] flex items-center justify-center">
+            <WifiOff className="w-8 h-8 text-[#EF4444]" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-base font-semibold text-[#0F172A] mb-1">加载失败</h3>
+            <p className="text-sm text-[#64748B] max-w-sm">{fetchError}</p>
+          </div>
+          <button
+            onClick={fetchBoard}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors"
+          >
+            <RefreshCw size={16} />
+            重新加载
+          </button>
+        </div>
+      ) : tables.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-16 h-16 rounded-full bg-[#F1F5F9] flex items-center justify-center">
+            <Utensils className="w-8 h-8 text-[#94A3B8]" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-base font-semibold text-[#0F172A] mb-1">暂无桌台</h3>
+            <p className="text-sm text-[#64748B]">请先新增桌台，再进行点餐</p>
+          </div>
+          <button
+            onClick={() => navigate('/tables')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors"
+          >
+            <PlusCircle size={16} />
+            新增桌台
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2.5">
+          {tables.map((table) => {
+            const order = table.current_order
+            const { isAllServed } = getServedStatus(order)
+
+            let statusKey: keyof typeof statusMap = table.status
+            if (order && table.status === 'occupied' && isAllServed) {
+              statusKey = 'served'
+            }
+
+            const status = statusMap[statusKey]
+
+            return (
+              <div
+                key={table.id}
+                onClick={() => setSelectedTable(table)}
+                className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all active:scale-[0.99] cursor-pointer min-h-[100px] sm:min-h-[120px] ${status.bg} ${status.border} hover:shadow-md`}
+              >
+                <span className={`text-xl sm:text-2xl font-bold ${status.text}`}>{table.table_number}</span>
+                <span className={`mt-1 text-[10px] sm:text-[11px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${status.badge}`}>
+                  {status.label}
+                </span>
+                {order && <div className="mt-1 text-xs font-semibold text-[#EA580C]">¥{order.total_amount}</div>}
+                {order && (
+                  <div className="mt-2 flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                    <button
+                      onClick={() => setAddDishTable(table)}
+                      className="px-2 py-1 text-[11px] bg-[#F8FAFC] text-[#334155] rounded-md hover:bg-[#F1F5F9] cursor-pointer"
+                      disabled={loading || order.status === 'settled'}
+                    >
+                      加餐
+                    </button>
+                    <button
+                      onClick={() => setSettleTable(table)}
+                      className="px-2 py-1 text-[11px] bg-[#2563EB] text-white rounded-md hover:bg-[#1D4ED8] cursor-pointer"
+                      disabled={loading || order.status === 'settled'}
+                    >
+                      结账
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {selectedTable && selectedOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3" onClick={() => setSelectedTable(null)}>

@@ -17,8 +17,20 @@ export function useWebSocket(options: UseWebSocketOptions) {
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
-    const wsURL = baseURL.replace('http', 'ws').replace('https', 'wss').replace('/api', '') + '/ws'
+    const token = localStorage.getItem('admin_token')
+    if (!token) {
+      // 未登录，3 秒后重试
+      reconnectTimerRef.current = setTimeout(connect, reconnectInterval)
+      return
+    }
+
+    // 同源 WebSocket：避免 HTTPS 页面被浏览器拦截明文 ws:// 连接
+    // 开发环境通过 Vite proxy (/ws) 转发到后端
+    // 生产环境通过 Nginx 反向代理 /ws
+    const apiBase = import.meta.env.VITE_API_BASE_URL
+    const wsURL = apiBase
+      ? apiBase.replace('http', 'ws').replace('https', 'wss').replace(/\/api$/, '') + `/ws?token=${token}`
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token}`
 
     const ws = new WebSocket(wsURL)
     wsRef.current = ws
@@ -38,9 +50,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       setConnected(false)
       wsRef.current = null
+      // 如果是认证失败，不再重连
+      if (event.code === 4001) {
+        console.warn('WebSocket 认证失败，停止重连。请重新登录。')
+        return
+      }
       if (autoReconnect) {
         reconnectTimerRef.current = setTimeout(connect, reconnectInterval)
       }

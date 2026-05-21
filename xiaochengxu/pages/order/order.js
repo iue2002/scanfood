@@ -196,22 +196,24 @@ Page({
 
   initWebSocket() {
     if (!this.data.tableId) return;
-    
-    const wsUrl = serverURL.replace('http', 'ws').replace('https', 'wss') + '/ws';
+    if (this._wsConnecting || this._wsConnected) return;
+
+    const token = wx.getStorageSync('token');
+    if (!token) return;
+
+    this._wsConnecting = true;
+    const wsUrl = serverURL.replace('http', 'ws').replace('https', 'wss') + `/ws?token=${token}`;
     console.log('连接 WebSocket:', wsUrl);
     
     this.ws = wx.connectSocket({
       url: wsUrl,
-      success: () => {
-        console.log('WebSocket 连接成功');
-      },
-      fail: (err) => {
-        console.error('WebSocket 连接失败', err);
-      }
     });
 
     this.ws.onOpen(() => {
       console.log('WebSocket 已打开，订阅桌台:', this.data.tableId);
+      this._wsConnected = true;
+      this._wsConnecting = false;
+      this._reconnectDelay = 1000;
       this.ws.send({
         data: JSON.stringify({
           event: 'subscribeTable',
@@ -237,16 +239,42 @@ Page({
 
     this.ws.onError((err) => {
       console.error('WebSocket 错误', err);
+      this._wsConnected = false;
+      this._wsConnecting = false;
     });
 
-    this.ws.onClose(() => {
-      console.log('WebSocket 连接关闭');
+    this.ws.onClose((res) => {
+      console.log('WebSocket 连接关闭, code:', res.code);
+      this._wsConnected = false;
+      this._wsConnecting = false;
+      this.ws = null;
+
+      // 已结账或取消的订单不再重连
+      const orderStatus = (getApp().getCart(this.data.tableId) || {}).orderStatus;
+      if (orderStatus === 'settled' || orderStatus === 'cancelled') return;
+
+      // 指数退避重连
+      const delay = this._reconnectDelay || 1000;
+      this._reconnectDelay = Math.min((this._reconnectDelay || 1000) * 2, 30000);
+      console.log(`[WS] ${delay}ms 后尝试重连`);
+      this._reconnectTimer = setTimeout(() => {
+        this._reconnectTimer = null;
+        this.initWebSocket();
+      }, delay);
     });
   },
 
   closeWebSocket() {
+    this._wsConnected = false;
+    this._wsConnecting = false;
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
     if (this.ws) {
-      this.ws.close();
+      try {
+        this.ws.close({ code: 1000, reason: 'page unload' });
+      } catch (e) {}
       this.ws = null;
     }
   },

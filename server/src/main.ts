@@ -32,7 +32,8 @@ async function bootstrap() {
     origin: [
       'https://www.ali88.online',
       'https://servicewechat.com',       // 微信小程序
-      'http://localhost:5173',            // 商家端本地开发
+      'https://localhost:5173',           // 商家端本地开发（HTTPS）
+      'http://localhost:5173',            // 商家端本地开发（HTTP）
       'http://localhost:3000',            // 本地调试
       'http://127.0.0.1:5173',
     ],

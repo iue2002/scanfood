@@ -113,8 +113,13 @@ export class CartsService {
   async deleteCart(cartId: number, tableId?: number) {
     const cart = await db.select().from(carts).where(eq(carts.id, cartId));
     const current = cart[0];
+
+    // 幂等：购物车已不存在（多人同时清空或已被提交订单时清理），直接返回成功
     if (!current) {
-      throw new NotFoundException('购物车不存在');
+      if (tableId) {
+        this.ordersGateway.notifyTableCartUpdate(tableId, null);
+      }
+      return { success: true, message: '购物车已不存在' };
     }
 
     await db.delete(cart_items).where(eq(cart_items.cart_id, cartId));

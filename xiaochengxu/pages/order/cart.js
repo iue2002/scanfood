@@ -87,15 +87,23 @@ Page({
 
   initWebSocket() {
     if (!serverURL) return;
-    const wsUrl = serverURL.replace('http', 'ws').replace('https', 'wss') + '/ws';
+    if (this._wsConnecting || this._wsConnected) return;
+
+    const token = wx.getStorageSync('token');
+    if (!token) return;
+
+    this._wsConnecting = true;
+    const wsUrl = serverURL.replace('http', 'ws').replace('https', 'wss') + `/ws?token=${token}`;
     console.log('购物车连接 WebSocket:', wsUrl);
     this.ws = wx.connectSocket({
       url: wsUrl,
-      success: () => { console.log('购物车 WebSocket 连接成功'); },
-      fail: (err) => { console.error('购物车 WebSocket 连接失败', err); }
     });
 
     this.ws.onOpen(() => {
+      console.log('购物车 WebSocket 已打开');
+      this._wsConnected = true;
+      this._wsConnecting = false;
+      this._reconnectDelay = 1000;
       this.ws.send({
         data: JSON.stringify({ event: 'subscribeTable', data: { tableId: parseInt(this.data.tableId) } })
       });
@@ -110,14 +118,42 @@ Page({
       }
     });
 
-    this.ws.onClose(() => {
-      console.log('购物车 WebSocket 连接关闭');
+    this.ws.onError((err) => {
+      console.error('购物车 WebSocket 错误', err);
+      this._wsConnected = false;
+      this._wsConnecting = false;
+    });
+
+    this.ws.onClose((res) => {
+      console.log('购物车 WebSocket 连接关闭, code:', res.code);
+      this._wsConnected = false;
+      this._wsConnecting = false;
+      this.ws = null;
+
+      const orderStatus = (getApp().getCart(this.data.tableId) || {}).orderStatus;
+      if (orderStatus === 'settled' || orderStatus === 'cancelled') return;
+
+      const delay = this._reconnectDelay || 1000;
+      this._reconnectDelay = Math.min((this._reconnectDelay || 1000) * 2, 30000);
+      console.log(`购物车 [WS] ${delay}ms 后尝试重连`);
+      this._reconnectTimer = setTimeout(() => {
+        this._reconnectTimer = null;
+        this.initWebSocket();
+      }, delay);
     });
   },
 
   closeWebSocket() {
+    this._wsConnected = false;
+    this._wsConnecting = false;
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
     if (this.ws) {
-      this.ws.close();
+      try {
+        this.ws.close({ code: 1000, reason: 'page unload' });
+      } catch (e) {}
       this.ws = null;
     }
   },

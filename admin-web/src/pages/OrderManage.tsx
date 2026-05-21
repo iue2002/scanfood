@@ -3,6 +3,7 @@ import request from '@/api/request'
 import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { requestNotificationPermission, showNotification } from '@/utils/notification'
 
 interface OrderItem {
   id: number
@@ -119,6 +120,7 @@ export default function OrderManage() {
 
   useEffect(() => {
     fetchOrders()
+    requestNotificationPermission()
   }, [fetchOrders])
 
   const handleWebSocketMessage = useCallback((event: string, data: any) => {
@@ -127,7 +129,35 @@ export default function OrderManage() {
     } else if (event === 'orderDeleted') {
       setOrders(prev => prev.filter(o => o.id !== data.id))
     }
-  }, [fetchOrders])
+
+    // Toast 通知
+    if (event === 'orderStatusChanged' && data) {
+      const tableNum = data.tables?.table_number || data.table_id
+      const orderNo = data.order_number || `#${data.id}`
+      if (data.status === 'submitted') {
+        showToast(`新订单 ${orderNo}（${tableNum}号桌）`, 'success')
+        showNotification(`${tableNum}号桌 新订单`, {
+          body: `订单 ${orderNo}，总额 ¥${data.total_amount || '-'}`,
+        })
+      } else if (data.status === 'settled') {
+        showToast(`${orderNo}（${tableNum}号桌）已结账`, 'info')
+      } else if (data.status === 'cancelled') {
+        showToast(`${orderNo}（${tableNum}号桌）已取消`, 'warning')
+      }
+    }
+
+    if (event === 'refundCreated' && data) {
+      showToast(`订单 #${data.order_id} 提交了退款申请 ¥${data.amount}`, 'warning')
+      showNotification('收到退款申请', {
+        body: `订单 #${data.order_id} 申请退款 ¥${data.amount}`,
+      })
+    }
+
+    if (event === 'refundUpdated' && data) {
+      const label = data.status === 'approved' ? '已通过' : '已拒绝'
+      showToast(`退款申请${label}`, 'info')
+    }
+  }, [fetchOrders, showToast])
 
   useWebSocket({
     onMessage: handleWebSocketMessage,

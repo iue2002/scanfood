@@ -3,6 +3,8 @@ import request from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
 import { DollarSign, ShoppingCart, TrendingUp, Users, LogIn } from 'lucide-react'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useModal } from '@/components/ModalProvider'
+import { requestNotificationPermission, showNotification } from '@/utils/notification'
 
 interface Overview {
   today_amount: string
@@ -15,6 +17,7 @@ export default function Dashboard() {
   const [overview, setOverview] = useState<Overview | null>(null)
   const [loading, setLoading] = useState(true)
   const lastLogin = useAuthStore((s) => s.lastLogin)
+  const { showToast } = useModal()
 
   const fetchOverview = useCallback(() => {
     request.get('/statistics/overview').then((res: any) => {
@@ -25,13 +28,31 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchOverview()
+    requestNotificationPermission()
   }, [fetchOverview])
 
-  const handleWebSocketMessage = useCallback((event: string) => {
+  const handleWebSocketMessage = useCallback((event: string, data: any) => {
     if (event === 'orderUpdated' || event === 'orderStatusChanged' || event === 'orderDeleted') {
       fetchOverview()
     }
-  }, [fetchOverview])
+
+    // Toast 通知：仅重要事件
+    if (event === 'orderStatusChanged' && data) {
+      if (data.status === 'submitted') {
+        showToast(`新订单已提交（${data.tables?.table_number || data.table_id}号桌）`, 'success')
+        showNotification(`${data.tables?.table_number || data.table_id}号桌 新订单`, {
+          body: `订单 ${data.order_number || '#' + data.id}，总额 ¥${data.total_amount || '-'}`,
+        })
+      }
+    }
+
+    if (event === 'refundCreated' && data) {
+      showToast(`收到退款申请 ¥${data.amount}（订单 #${data.order_id}）`, 'warning')
+      showNotification('收到退款申请', {
+        body: `订单 #${data.order_id} 申请退款 ¥${data.amount}`,
+      })
+    }
+  }, [fetchOverview, showToast])
 
   useWebSocket({
     onMessage: handleWebSocketMessage,

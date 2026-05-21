@@ -70,8 +70,14 @@ Page({
   initWebSocket(orderId) {
     if (!SERVER_URL || this.wsStatus === 'connecting') return;
 
+    const token = wx.getStorageSync('token');
+    if (!token) {
+      this.startPolling(orderId);
+      return;
+    }
+
     this.wsStatus = 'connecting';
-    const wsUrl = SERVER_URL.replace('http', 'ws').replace('https', 'wss') + '/ws';
+    const wsUrl = SERVER_URL.replace('http', 'ws').replace('https', 'wss') + `/ws?token=${token}`;
     
     console.log(`[WS] 正在连接: ${wsUrl}`);
 
@@ -81,6 +87,7 @@ Page({
       console.log('[WS] 连接成功');
       this.wsStatus = 'connected';
       this.reconnectDelay = 1000;
+      this._reconnectCount = 0;
       this.stopPolling();
       this.sendSubscribe(orderId);
     });
@@ -132,14 +139,22 @@ Page({
     this.wsStatus = 'closed';
     this.ws = null;
 
-    // 启用轮询作为备用
+    // 使用轮询作为备用（无论是否继续重连，轮询都是兜底）
     this.startPolling(orderId);
+
+    // 重连次数限制：最多 5 次指数退避重连，之后只靠轮询
+    this._reconnectCount = (this._reconnectCount || 0) + 1;
+    const maxReconnect = 5;
+    if (this._reconnectCount > maxReconnect) {
+      console.log(`[WS] 已达最大重连次数(${maxReconnect})，停止重连，仅轮询`);
+      return;
+    }
 
     // 指数退避重连
     const delay = this.reconnectDelay;
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
     
-    console.log(`[WS] ${delay}ms 后尝试重连`);
+    console.log(`[WS] ${delay}ms 后尝试重连 (${this._reconnectCount}/${maxReconnect})`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.initWebSocket(orderId);

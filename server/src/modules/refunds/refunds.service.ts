@@ -3,9 +3,12 @@ import { db } from '@/storage/database/mysql-client';
 import { refunds, orders } from '@/storage/database/shared/schema';
 import { CreateRefundDto, UpdateRefundStatusDto } from './dto/refund.dto';
 import { eq, desc } from 'drizzle-orm';
+import { OrdersGateway } from '../orders/orders.gateway';
 
 @Injectable()
 export class RefundsService {
+  constructor(private readonly ordersGateway: OrdersGateway) {}
+
   async getRefunds() {
     return await db.select().from(refunds).orderBy(desc(refunds.created_at));
   }
@@ -29,7 +32,18 @@ export class RefundsService {
       operator_id: 0,
     });
     const newId = (insertResult as any)[0].insertId;
-    return await this.getRefundById(newId);
+    const refund = await this.getRefundById(newId);
+
+    // 通知所有商家端：有新的退款申请
+    this.ordersGateway.notifyAllAdmins('refundCreated', {
+      id: refund.id,
+      order_id: refund.order_id,
+      amount: refund.amount,
+      reason: refund.reason,
+      created_at: refund.created_at,
+    });
+
+    return refund;
   }
 
   async updateRefundStatus(id: number, dto: UpdateRefundStatusDto) {
@@ -47,6 +61,15 @@ export class RefundsService {
       await db.update(orders).set({ status: 'refunded' }).where(eq(orders.id, refund.order_id));
     }
 
-    return await this.getRefundById(id);
+    const updated = await this.getRefundById(id);
+
+    // 通知所有商家端：退款已处理
+    this.ordersGateway.notifyAllAdmins('refundUpdated', {
+      id: updated.id,
+      order_id: updated.order_id,
+      status: updated.status,
+    });
+
+    return updated;
   }
 }

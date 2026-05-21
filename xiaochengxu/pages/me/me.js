@@ -28,7 +28,10 @@ Page({
 
     // 兜底：如果上次弹窗未正常关闭，进 me 页时确保 TabBar 显示
     if (!this.data.showOrdersSheet) {
-      wx.showTabBar({ animation: false });
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) {
+        tabBar.setHidden(false);
+      }
     }
 
     // 状态栏高度只算一次（自绘 navbar 占位）
@@ -46,7 +49,10 @@ Page({
     // 切到其它 TabBar 时，关掉弹窗 + 恢复 TabBar 状态
     if (this.data.showOrdersSheet) {
       this.setData({ showOrdersSheet: false });
-      wx.showTabBar({ animation: false });
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) {
+        tabBar.setHidden(false);
+      }
     }
   },
 
@@ -299,15 +305,20 @@ Page({
     const ordersPrefetch = require('../../utils/orders-prefetch');
     ordersPrefetch.prefetchFirstPage(20);
 
-    // 隐藏 TabBar，让弹窗能真正全屏覆盖
-    wx.hideTabBar({ animation: false });
+    // 隐藏自定义 TabBar，让弹窗能真正全屏覆盖
+    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+    if (tabBar && tabBar.setHidden) {
+      tabBar.setHidden(true);
+    }
 
     this.setData({ showOrdersSheet: true });
   },
 
   onOrdersSheetClose() {
     this.setData({ showOrdersSheet: false });
-    // 弹窗关闭后再显示 TabBar
-    wx.showTabBar({ animation: false });
+    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+    if (tabBar && tabBar.setHidden) {
+      tabBar.setHidden(false);
+    }
   }
 })

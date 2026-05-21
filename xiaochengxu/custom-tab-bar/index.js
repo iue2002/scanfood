@@ -5,6 +5,7 @@ Component({
     selectedColor: '#2563eb',
     borderStyle: 'white',
     backgroundColor: '#ffffff',
+    hidden: false,
     list: [
       {
         pagePath: '/pages/order/order',
@@ -32,10 +33,14 @@ Component({
     }
   },
   methods: {
-    // 给页面调用，防止重复 setData
     setSelected(index) {
       if (this.data.selected !== index) {
         this.setData({ selected: index })
+      }
+    },
+    setHidden(hidden) {
+      if (this.data.hidden !== hidden) {
+        this.setData({ hidden })
       }
     },
     switchTab(e) {

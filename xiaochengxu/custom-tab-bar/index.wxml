@@ -1,4 +1,4 @@
-<view class="om-tabbar">
+<view class="om-tabbar" wx:if="{{!hidden}}">
   <view
     wx:for="{{list}}"
     wx:key="index"

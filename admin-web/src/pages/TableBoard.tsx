@@ -106,7 +106,7 @@ export default function TableBoard() {
   const [dishes, setDishes] = useState<Dish[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [addDishCart, setAddDishCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
-  const { showToast, showConfirm } = useModal()
+  const { showToast, showConfirm, markLocalAction } = useModal()
 
   const fetchBoard = useCallback(async () => {
     setFetchError(null)
@@ -272,9 +272,11 @@ export default function TableBoard() {
 
   const handleSettle = async () => {
     if (!settleTable?.current_order) return
+    const orderId = settleTable.current_order.id
     setLoading(true)
     try {
-      await request.post(`/orders/${settleTable.current_order.id}/status`, { status: 'settled' })
+      await request.post(`/orders/${orderId}/status`, { status: 'settled' })
+      markLocalAction(`order:settled:${orderId}`)
       setSelectedTable(null)
       setSettleTable(null)
       closeAddDishModal()

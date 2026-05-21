@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
 import { CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react'
 
 interface Toast {
@@ -18,6 +18,13 @@ interface ConfirmDialog {
 interface ModalContextType {
   showToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void
   showConfirm: (title: string, message: string, onConfirm: () => void, onCancel?: () => void) => void
+  /**
+   * 标记自己刚刚执行过的动作，让全局 NotificationCenter 在 dedupe 窗口内屏蔽对应的 ws 推送。
+   * 例：本页点结账成功后调 markLocalAction('order:settled:1023')，3 秒内同 key 的 ws 通知会被静默。
+   */
+  markLocalAction: (key: string) => void
+  /** NotificationCenter 内部用：判断某个 key 是否是刚刚自己触发的 */
+  hasRecentLocalAction: (key: string) => boolean
 }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined)
@@ -30,16 +37,55 @@ export function useModal() {
   return context
 }
 
+// 短时间内相同文案的 toast 抑制窗口（毫秒）
+const TOAST_DEDUPE_WINDOW_MS = 3000
+// 本地动作 → ws 推送 的抑制窗口（毫秒）
+const LOCAL_ACTION_WINDOW_MS = 4000
+
 export function ModalProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null)
+  const recentMessagesRef = useRef<Map<string, number>>(new Map())
+  const recentActionsRef = useRef<Map<string, number>>(new Map())
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
-    const id = Date.now()
+    const now = Date.now()
+    const key = `${type}::${message}`
+    const last = recentMessagesRef.current.get(key)
+    if (last && now - last < TOAST_DEDUPE_WINDOW_MS) {
+      // 同 type+message 在 dedupe 窗口内已弹过，忽略（防御 React 严格模式 / ws 重复发）
+      return
+    }
+    recentMessagesRef.current.set(key, now)
+
+    // 顺手清理超过窗口的旧记录
+    if (recentMessagesRef.current.size > 50) {
+      const cutoff = now - TOAST_DEDUPE_WINDOW_MS
+      for (const [k, t] of recentMessagesRef.current) {
+        if (t < cutoff) recentMessagesRef.current.delete(k)
+      }
+    }
+
+    const id = now + Math.random()
     setToasts(prev => [...prev, { id, message, type }])
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, 3000)
+  }, [])
+
+  const markLocalAction = useCallback((key: string) => {
+    recentActionsRef.current.set(key, Date.now())
+    if (recentActionsRef.current.size > 50) {
+      const cutoff = Date.now() - LOCAL_ACTION_WINDOW_MS
+      for (const [k, t] of recentActionsRef.current) {
+        if (t < cutoff) recentActionsRef.current.delete(k)
+      }
+    }
+  }, [])
+
+  const hasRecentLocalAction = useCallback((key: string) => {
+    const t = recentActionsRef.current.get(key)
+    return !!t && Date.now() - t < LOCAL_ACTION_WINDOW_MS
   }, [])
 
   const showConfirm = useCallback((title: string, message: string, onConfirm: () => void, onCancel?: () => void) => {
@@ -62,7 +108,7 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
   }, [confirmDialog])
 
   return (
-    <ModalContext.Provider value={{ showToast, showConfirm }}>
+    <ModalContext.Provider value={{ showToast, showConfirm, markLocalAction, hasRecentLocalAction }}>
       {children}
       {/* Toast 容器 */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">

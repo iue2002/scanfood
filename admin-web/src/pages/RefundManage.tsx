@@ -22,7 +22,7 @@ const statusMap: Record<string, { label: string; color: string }> = {
 
 export default function RefundManage() {
   const [refunds, setRefunds] = useState<Refund[]>([])
-  const { showToast, showConfirm } = useModal()
+  const { showToast, showConfirm, markLocalAction } = useModal()
 
   const fetchRefunds = () => {
     request.get('/refunds').then((res: any) => setRefunds(res || []))
@@ -40,6 +40,7 @@ export default function RefundManage() {
   const handleApprove = async (id: number) => {
     showConfirm('确认通过', '确认通过该退款申请？', async () => {
       await request.post(`/refunds/${id}/status`, { status: 'approved' })
+      markLocalAction(`refund:approved:${id}`)
       fetchRefunds()
       showToast('退款已通过', 'success')
     })
@@ -48,6 +49,7 @@ export default function RefundManage() {
   const handleReject = async (id: number) => {
     showConfirm('确认拒绝', '确认拒绝该退款申请？', async () => {
       await request.post(`/refunds/${id}/status`, { status: 'rejected' })
+      markLocalAction(`refund:rejected:${id}`)
       fetchRefunds()
       showToast('退款已拒绝', 'success')
     })

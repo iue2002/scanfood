@@ -81,7 +81,7 @@ export default function OrderManage() {
   const [detail, setDetail] = useState<Order | null>(null)
   const [addDishOrder, setAddDishOrder] = useState<Order | null>(null)
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
-  const { showToast, showConfirm } = useModal()
+  const { showToast, showConfirm, markLocalAction } = useModal()
   const [loading, setLoading] = useState(false)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -135,6 +135,7 @@ export default function OrderManage() {
   const handleSettle = async (id: number) => {
     showConfirm('确认结账', '确认标记该订单为已结账？', async () => {
       await request.post(`/orders/${id}/status`, { status: 'settled' })
+      markLocalAction(`order:settled:${id}`)
       fetchOrders()
       showToast('订单已结账', 'success')
     })
@@ -143,6 +144,7 @@ export default function OrderManage() {
   const handleCancel = async (id: number) => {
     showConfirm('确认取消', '确认取消该订单？', async () => {
       await request.post(`/orders/${id}/status`, { status: 'cancelled' })
+      markLocalAction(`order:cancelled:${id}`)
       fetchOrders()
       showToast('订单已取消', 'success')
     })

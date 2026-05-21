@@ -572,7 +572,8 @@
   z-index: 220;
 }
 .om-qty-card {
-  width: 600rpx;
+  width: calc(100% - 64rpx);
+  max-width: 600rpx;
   background: #FFFFFF;
   border-radius: 32rpx;
   border: 2rpx solid #F1F5F9;

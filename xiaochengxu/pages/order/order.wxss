@@ -8,7 +8,7 @@
 .om-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background: #F8FAFC;
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
@@ -422,7 +422,8 @@
   z-index: 200;
 }
 .om-qty-card {
-  width: 600rpx;
+  width: calc(100% - 64rpx);
+  max-width: 600rpx;
   background: #FFFFFF;
   border-radius: 32rpx;
   border: 2rpx solid #F1F5F9;

@@ -675,3 +675,67 @@
 .om-qty-confirm::after {
   border: none;
 }
+
+
+/* ====== 详情页骨架屏 ====== */
+.om-skeleton {
+  padding: 24rpx 32rpx;
+}
+.om-skel-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  border: 2rpx solid #F1F5F9;
+  padding: 28rpx;
+}
+.om-skel-line {
+  height: 28rpx;
+  background: #F1F5F9;
+  border-radius: 8rpx;
+  position: relative;
+  overflow: hidden;
+}
+.om-skel-w-30 { width: 30%; }
+.om-skel-w-40 { width: 40%; }
+.om-skel-w-50 { width: 50%; }
+.om-skel-w-70 { width: 70%; }
+.om-skel-row {
+  display: flex;
+  gap: 24rpx;
+}
+.om-skel-block {
+  flex: 1;
+  height: 60rpx;
+  background: #F1F5F9;
+  border-radius: 12rpx;
+  position: relative;
+  overflow: hidden;
+}
+.om-skel-row-item {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+.om-skel-thumb {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 12rpx;
+  background: #F1F5F9;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.om-skel-main { flex: 1; }
+.om-skel-line::after,
+.om-skel-block::after,
+.om-skel-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: om-shimmer-detail 1.4s infinite;
+}
+@keyframes om-shimmer-detail {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

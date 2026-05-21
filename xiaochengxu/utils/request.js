@@ -1,11 +1,23 @@
 const config = require('../config');
 
+/**
+ * 网络请求封装
+ *
+ * 设计原则（重要）：
+ * - 默认 **不显示** loading 蒙层。loading 蒙层 mask:true 会全屏冻结交互，
+ *   80% 的接口（按钮提交除外）应该静默请求 + 局部 spinner / 骨架屏。
+ * - 需要 loading 的场景显式传 loading: true（例如：用户提交订单的 submit 按钮）。
+ *
+ * 兼容旧代码：noLoading: true 仍然有效（含义不变：明确不显示）。
+ */
 const request = (options) => {
   return new Promise((resolve, reject) => {
     const token = wx.getStorageSync('token');
-    
-    if (!options.noLoading) {
-      wx.showLoading({ title: '加载中...', mask: true });
+
+    // 默认不显示 loading；显式 loading:true 才显示
+    const showLoading = options.loading === true && !options.noLoading;
+    if (showLoading) {
+      wx.showLoading({ title: options.loadingTitle || '加载中...', mask: true });
     }
 
     const requestUrl = options.url.startsWith('http') ? options.url : config.baseURL + options.url;
@@ -63,7 +75,7 @@ const request = (options) => {
         reject(err);
       },
       complete: () => {
-        if (!options.noLoading) {
+        if (showLoading) {
           wx.hideLoading();
         }
       }

@@ -35,6 +35,7 @@ Page({
   _lastSyncedSnapshot: null,  // 最近一次发起同步时的 cartCount 快照
   _lastSyncAt: 0,             // 最近一次本地同步发起时间，用于忽略 ws 回声
   _lastActiveCheckAt: 0,      // 最近一次检查 my-active 时间，节流避免 onShow 反复请求
+  _lastOnShowAt: 0,           // 最近一次 onShow 时间，用于跳过短时间频繁切换的请求
 
   async onLoad(options) {
     let tableNumber = null;
@@ -142,8 +143,15 @@ Page({
     // 先处理页面状态，让用户立即看到内容
     if (getApp().globalData.addMore) {
       getApp().globalData.addMore = false;
-      this.setData({ isAddMore: true });
+      if (!this.data.isAddMore) {
+        this.setData({ isAddMore: true });
+      }
     }
+
+    // 节流：onShow 间隔太短直接跳过（30 秒内频繁切换 TabBar）
+    const now = Date.now();
+    const isSecondShow = this._lastOnShowAt && now - this._lastOnShowAt < 30000;
+    this._lastOnShowAt = now;
 
     if (this.data.tableId && !this.data.isAddMore) {
       const cart = getApp().getCart(this.data.tableId);
@@ -151,34 +159,43 @@ Page({
       const hasLocalData = Object.values(cartCount).some(count => count > 0);
 
       if (hasLocalData) {
-        this.setData({
-          cartCount: { ...cartCount },
-          currentCartId: cart.currentCartId || null,
-          currentOrderId: null,
-          orderStatus: null
-        });
-        this.calculateTotal();
-      } else {
-        this.setData({ cartCount: {}, currentCartId: null, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+        // 本地有购物车数据，恢复 UI（仅在内容变了才 setData）
+        if (!this.cartCountEqual(this.data.cartCount, cartCount) ||
+            this.data.currentCartId !== (cart.currentCartId || null)) {
+          this.setData({
+            cartCount: { ...cartCount },
+            currentCartId: cart.currentCartId || null,
+            currentOrderId: null,
+            orderStatus: null
+          });
+          this.calculateTotal();
+        }
+      } else if (!isSecondShow) {
+        // 首次 onShow（或长时间未 show）才发请求；30 秒内频繁切跳过
         this.fetchCurrentCart();
       }
     } else if (this.data.tableId && this.data.isAddMore) {
       const addMoreCart = getApp().getAddMoreCart(this.data.tableId);
-      if (!addMoreCart.currentOrderId) {
+      if (!addMoreCart.currentOrderId && !isSecondShow) {
         this.fetchCurrentOrderForAddMore();
-      } else {
-        this.setData({
-          cartCount: { ...addMoreCart.cartCount },
-          currentOrderId: addMoreCart.currentOrderId,
-          orderStatus: addMoreCart.orderStatus
-        });
-        this.calculateTotal();
+      } else if (addMoreCart.currentOrderId) {
+        if (!this.cartCountEqual(this.data.cartCount, addMoreCart.cartCount || {}) ||
+            this.data.currentOrderId !== addMoreCart.currentOrderId) {
+          this.setData({
+            cartCount: { ...addMoreCart.cartCount },
+            currentOrderId: addMoreCart.currentOrderId,
+            orderStatus: addMoreCart.orderStatus
+          });
+          this.calculateTotal();
+        }
       }
     }
     this.updateTabBar();
 
-    // 异步检查未付款订单，不阻塞页面显示
-    this.checkActiveOrderAsync();
+    // 异步检查未付款订单（已节流），不阻塞页面显示
+    if (!isSecondShow) {
+      this.checkActiveOrderAsync();
+    }
   },
 
   async onPullDownRefresh() {

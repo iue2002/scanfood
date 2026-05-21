@@ -165,7 +165,9 @@ Page({
           items: items,
           user_id: userInfo?.id,
           remark: this.data.remark,
-        }
+        },
+        loading: true,
+        loadingTitle: '提交中...'
       });
 
       // 订单创建成功，立即清理本地状态并跳转

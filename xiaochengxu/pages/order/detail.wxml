@@ -1,8 +1,30 @@
 <!--pages/order/detail.wxml — 商家端主题对齐版（仅视觉重构）-->
 <view class="om-page">
 
+  <!-- 加载骨架屏：未拿到 order 时显示，提升感知速度 -->
+  <view wx:if="{{isLoading && !order}}" class="om-skeleton">
+    <view class="om-skel-card">
+      <view class="om-skel-line om-skel-w-30"></view>
+      <view class="om-skel-line om-skel-w-50" style="margin-top: 16rpx"></view>
+      <view class="om-skel-row" style="margin-top: 24rpx">
+        <view class="om-skel-block"></view>
+        <view class="om-skel-block"></view>
+      </view>
+    </view>
+    <view class="om-skel-card" style="margin-top: 24rpx">
+      <view class="om-skel-line om-skel-w-40"></view>
+      <view class="om-skel-row-item" wx:for="{{[0,1]}}" wx:key="*this" style="margin-top: 24rpx">
+        <view class="om-skel-thumb"></view>
+        <view class="om-skel-main">
+          <view class="om-skel-line om-skel-w-70"></view>
+          <view class="om-skel-line om-skel-w-40" style="margin-top: 12rpx"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <!-- 状态卡 -->
-  <view class="om-status-card om-status-{{order.status}}">
+  <view wx:if="{{order}}" class="om-status-card om-status-{{order.status}}">
     <view class="om-status-row">
       <view class="om-status-pill om-pill-{{order.status}}">{{statusMap[order.status]}}</view>
       <text class="om-status-time">{{order.created_at}}</text>
@@ -24,7 +46,7 @@
   </view>
 
   <!-- 菜品明细卡 -->
-  <view class="om-card">
+  <view wx:if="{{order}}" class="om-card">
     <view class="om-card-head">
       <text class="om-card-title">菜品明细</text>
     </view>
@@ -87,7 +109,7 @@
   </view>
 
   <!-- 订单号卡 -->
-  <view class="om-card">
+  <view wx:if="{{order}}" class="om-card">
     <view class="om-info-row">
       <text class="om-info-label">订单号</text>
       <text class="om-info-value om-mono">{{order.order_number}}</text>

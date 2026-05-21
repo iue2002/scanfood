@@ -1,6 +1,7 @@
 // pages/order/detail.js
 const { request } = require('../../utils/request');
 const { SERVER_URL } = require('../../config');
+const dishesCache = require('../../utils/dishes-cache');
 
 Page({
   data: {
@@ -13,6 +14,7 @@ Page({
       'cancelled': '已取消',
       'refunded': '已退款'
     },
+    isLoading: true,
     showAddMoreModal: false,
     categories: [],
     currentCategory: '',
@@ -182,11 +184,13 @@ Page({
 
   async fetchOrderDetail(id) {
     try {
-      const order = await request({ url: `/orders/${id}` });
+      // 并行：订单详情 + 菜品（菜品走双层缓存，命中即同步返回）
+      const [order, dishes] = await Promise.all([
+        request({ url: `/orders/${id}`, noLoading: true }),
+        dishesCache.getDishes()
+      ]);
 
       if (order.order_items && order.order_items.length > 0) {
-        const dishes = await request({ url: '/dishes' });
-
         order.order_items = order.order_items.map(item => {
           const dish = dishes.find(d => d.id === item.dish_id);
           let dishImage = dish ? dish.image_url : '';
@@ -209,7 +213,7 @@ Page({
         order.settled_at = this.formatDate(order.settled_at);
       }
 
-      this.setData({ order });
+      this.setData({ order, isLoading: false });
 
       // 如果订单已结账，立即释放桌号资源
       if (order.status === 'settled' || order.status === 'cancelled') {
@@ -290,21 +294,27 @@ Page({
 
   async fetchCategoriesAndDishes() {
     try {
-      const categories = await request({ url: '/dishes/categories', noLoading: true });
-      let allDishes = await request({ url: '/dishes', noLoading: true });
+      const [categories, allDishes] = await Promise.all([
+        request({ url: '/dishes/categories', noLoading: true }),
+        dishesCache.getDishes()
+      ]);
 
-      allDishes = allDishes.map(dish => {
+      const processed = (allDishes || []).map(dish => {
         if (dish.image_url && !dish.image_url.startsWith('http')) {
-          dish.image_url = SERVER_URL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
+          if (dish.image_url.includes('__tmp__') || dish.image_url.includes('tmp/')) {
+            dish.image_url = '';
+          } else {
+            dish.image_url = SERVER_URL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
+          }
         }
         return dish;
       });
 
       this.setData({
         categories,
-        allDishes,
+        allDishes: processed,
         currentCategory: categories.length > 0 ? categories[0].id : '',
-        dishes: categories.length > 0 ? allDishes.filter(d => d.category_id == categories[0].id) : []
+        dishes: categories.length > 0 ? processed.filter(d => d.category_id == categories[0].id) : []
       });
     } catch (err) {
       console.error('加载菜品数据失败', err);

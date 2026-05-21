@@ -26,7 +26,11 @@
   <view class="om-list">
     <view class="om-empty" wx:if="{{filteredOrders.length === 0 && !isLoading}}">
       <view class="om-empty-icon">
-        <text class="om-empty-icon-emoji">📋</text>
+        <view class="om-icon-list-empty">
+          <view class="om-icon-list-empty-line"></view>
+          <view class="om-icon-list-empty-line"></view>
+          <view class="om-icon-list-empty-line"></view>
+        </view>
       </view>
       <view class="om-empty-title">暂无订单</view>
       <view class="om-empty-desc">快去扫码点餐吧</view>
@@ -92,7 +96,6 @@
 
           <view class="om-collapse" bindtap="toggleExpand" data-id="{{item.id}}">
             <text>收起明细</text>
-            <text class="om-collapse-arrow">⌃</text>
           </view>
         </view>
 

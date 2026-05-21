@@ -403,10 +403,25 @@
   justify-content: center;
   margin-bottom: 12rpx;
 }
-.om-empty-icon-emoji {
-  font-size: 56rpx;
-  opacity: 0.5;
+
+/* 列表线条图标 (lucide ClipboardList 简化版) */
+.om-icon-list-empty {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8rpx;
+  align-items: center;
 }
+.om-icon-list-empty-line {
+  width: 36rpx;
+  height: 4rpx;
+  background: #94A3B8;
+  border-radius: 2rpx;
+}
+.om-icon-list-empty-line:nth-child(2) { width: 28rpx; }
+.om-icon-list-empty-line:nth-child(3) { width: 20rpx; }
 .om-empty-title {
   font-size: 30rpx;
   font-weight: 600;

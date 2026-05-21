@@ -8,7 +8,9 @@ Page({
     showAuthModal: false,
     showNicknameModal: false,
     tempAvatarUrl: '',
-    tempNickname: ''
+    tempNickname: '',
+    // === 仅 UI：头像加载失败标记 ===
+    avatarError: false
   },
 
   onShow() {
@@ -40,10 +42,15 @@ Page({
     const backendUser = wx.getStorageSync('userInfo');
     
     if (token && backendUser && backendUser.id) {
-      this.setData({ userInfo: backendUser });
+      this.setData({ userInfo: backendUser, avatarError: false });
       app.globalData.userInfo = backendUser;
       app.globalData.token = token;
     }
+  },
+
+  // === 仅 UI：image 加载失败时切换到字母占位 ===
+  onAvatarError() {
+    this.setData({ avatarError: true });
   },
 
   showAuthModal() {

@@ -94,7 +94,12 @@
   <view class="om-cart-bar" wx:if="{{totalCount > 0}}">
     <view class="om-cart-bar-info" bindtap="goToCart">
       <view class="om-cart-bar-icon">
-        <text class="om-cart-bar-icon-glyph">🛒</text>
+        <view class="om-icon-cart-mini">
+          <view class="om-icon-cart-mini-handle"></view>
+          <view class="om-icon-cart-mini-body"></view>
+          <view class="om-icon-cart-mini-wheel"></view>
+          <view class="om-icon-cart-mini-wheel om-icon-cart-mini-wheel-2"></view>
+        </view>
         <view class="om-cart-bar-badge">{{totalCount}}</view>
       </view>
       <view class="om-cart-bar-amount">

@@ -17,7 +17,12 @@
   <!-- 空购物车 -->
   <view class="om-empty" wx:if="{{cartItems.length === 0}}">
     <view class="om-empty-icon">
-      <text class="om-empty-icon-glyph">🛒</text>
+      <view class="om-icon-cart">
+        <view class="om-icon-cart-handle"></view>
+        <view class="om-icon-cart-body"></view>
+        <view class="om-icon-cart-wheel"></view>
+        <view class="om-icon-cart-wheel om-icon-cart-wheel-2"></view>
+      </view>
     </view>
     <view class="om-empty-title">购物车是空的</view>
     <view class="om-empty-desc">快去选择喜欢的菜品吧</view>
@@ -43,10 +48,7 @@
               data-id="{{item.id}}"
               data-type="minus"
               hover-class="om-step-minus-hover"
-            >
-              <text wx:if="{{item.quantity > 1}}">−</text>
-              <text wx:else>🗑</text>
-            </view>
+            >−</view>
             <view class="om-step-count">{{item.quantity}}</view>
             <view
               class="om-step-plus"

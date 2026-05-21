@@ -267,9 +267,44 @@
   justify-content: center;
   margin-bottom: 16rpx;
 }
-.om-empty-icon-glyph {
-  font-size: 64rpx;
-  opacity: 0.5;
+
+/* 购物车线条图标 (lucide ShoppingCart 简化版) */
+.om-icon-cart {
+  position: relative;
+  width: 64rpx;
+  height: 64rpx;
+}
+.om-icon-cart-handle {
+  position: absolute;
+  top: 8rpx;
+  left: 4rpx;
+  width: 14rpx;
+  height: 4rpx;
+  background: #94A3B8;
+  border-radius: 2rpx;
+}
+.om-icon-cart-body {
+  position: absolute;
+  top: 16rpx;
+  left: 8rpx;
+  width: 44rpx;
+  height: 28rpx;
+  border: 4rpx solid #94A3B8;
+  border-radius: 4rpx 8rpx 4rpx 4rpx;
+  box-sizing: border-box;
+  background: transparent;
+}
+.om-icon-cart-wheel {
+  position: absolute;
+  bottom: 4rpx;
+  left: 16rpx;
+  width: 8rpx;
+  height: 8rpx;
+  background: #94A3B8;
+  border-radius: 50%;
+}
+.om-icon-cart-wheel-2 {
+  left: 40rpx;
 }
 .om-empty-title {
   font-size: 32rpx;

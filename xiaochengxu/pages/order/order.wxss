@@ -318,9 +318,44 @@
   flex-shrink: 0;
 }
 .om-cart-bar-icon-glyph {
-  font-size: 36rpx;
-  line-height: 1;
+  display: none;
 }
+
+/* 购物车线条图标（admin-web ShoppingCart 简化版） */
+.om-icon-cart-mini {
+  position: relative;
+  width: 36rpx;
+  height: 36rpx;
+}
+.om-icon-cart-mini-handle {
+  position: absolute;
+  top: 4rpx;
+  left: 0;
+  width: 10rpx;
+  height: 3rpx;
+  background: #2563EB;
+  border-radius: 2rpx;
+}
+.om-icon-cart-mini-body {
+  position: absolute;
+  top: 8rpx;
+  left: 4rpx;
+  width: 28rpx;
+  height: 18rpx;
+  border: 3rpx solid #2563EB;
+  border-radius: 4rpx 6rpx 4rpx 4rpx;
+  box-sizing: border-box;
+}
+.om-icon-cart-mini-wheel {
+  position: absolute;
+  bottom: 2rpx;
+  left: 8rpx;
+  width: 6rpx;
+  height: 6rpx;
+  background: #2563EB;
+  border-radius: 50%;
+}
+.om-icon-cart-mini-wheel-2 { left: 22rpx; }
 .om-cart-bar-badge {
   position: absolute;
   top: -6rpx;

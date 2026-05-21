@@ -28,8 +28,12 @@ Page({
     cartItems: []
   },
 
+  // 业务实例字段（不放 data，避免触发 setData）
   isFetchingOrder: false,
   ws: null,
+  _syncTimer: null,           // 同步购物车防抖定时器
+  _lastSyncedSnapshot: null,  // 最近一次发起同步时的 cartCount 快照
+  _lastSyncAt: 0,             // 最近一次本地同步发起时间，用于忽略 ws 回声
 
   async onLoad(options) {
     let tableNumber = null;
@@ -194,6 +198,10 @@ Page({
   },
 
   onUnload() {
+    if (this._syncTimer) {
+      clearTimeout(this._syncTimer);
+      this._syncTimer = null;
+    }
     this.closeWebSocket();
   },
 
@@ -299,13 +307,19 @@ Page({
   },
 
   handleCartUpdate(cart) {
-    console.log('处理购物车更新:', cart);
+    // 忽略本地刚刚同步上去的回声（1.5 秒内）——避免输入抖动闪屏
+    if (this._lastSyncAt && Date.now() - this._lastSyncAt < 1500) {
+      return;
+    }
 
     if (!cart || !cart.cart_items) {
       const emptyCart = getApp().getCart(this.data.tableId);
       emptyCart.cartCount = {};
       emptyCart.currentCartId = null;
-      this.setData({ cartCount: {}, currentCartId: null, totalCount: 0, totalPrice: '0.00' });
+      // 已经为空就别再 setData
+      const cur = this.data.cartCount;
+      if (cur && Object.keys(cur).length === 0 && !this.data.currentCartId) return;
+      this.setData({ cartCount: {}, currentCartId: null, totalCount: 0, totalPrice: '0.00', cartItems: [] });
       return;
     }
 
@@ -314,12 +328,69 @@ Page({
       cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
     });
 
+    // 与本地状态完全一致就 ignore，避免无意义重渲染
+    if (this.cartCountEqual(this.data.cartCount, cartCount) && this.data.currentCartId === cart.id) {
+      return;
+    }
+
     const localCart = getApp().getCart(this.data.tableId);
     localCart.cartCount = { ...cartCount };
     localCart.currentCartId = cart.id;
 
-    this.setData({ cartCount, currentCartId: cart.id });
-    this.calculateTotal();
+    // 一次合并 setData
+    const { allDishes, showCartPanel } = this.data;
+    let totalCount = 0;
+    let totalPrice = 0;
+    for (const k in cartCount) {
+      const c = cartCount[k];
+      if (c > 0) {
+        const dish = allDishes.find(d => d.id == k);
+        if (dish) {
+          totalCount += c;
+          totalPrice += c * parseFloat(dish.price);
+        }
+      }
+    }
+    const patch = {
+      cartCount,
+      currentCartId: cart.id,
+      totalCount,
+      totalPrice: totalPrice.toFixed(2)
+    };
+    if (showCartPanel) {
+      const items = [];
+      for (const k in cartCount) {
+        const c = cartCount[k];
+        if (c > 0) {
+          const dish = allDishes.find(d => d.id == k);
+          if (dish) {
+            items.push({
+              id: dish.id,
+              dish_name: dish.name,
+              price: parseFloat(dish.price).toFixed(2),
+              quantity: c,
+              subtotal: (c * parseFloat(dish.price)).toFixed(2),
+              image_url: dish.image_url || ''
+            });
+          }
+        }
+      }
+      patch.cartItems = items;
+    }
+    this.setData(patch);
+  },
+
+  // 浅比较两个 cartCount 对象是否相等
+  cartCountEqual(a, b) {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    const ak = Object.keys(a);
+    const bk = Object.keys(b);
+    if (ak.length !== bk.length) return false;
+    for (const k of ak) {
+      if (a[k] !== b[k]) return false;
+    }
+    return true;
   },
 
   // 释放桌号资源 - 结账/取消后必须清理，避免缓存导致下次进入混乱
@@ -639,20 +710,68 @@ Page({
     }
 
     const { id, type } = e.currentTarget.dataset;
-    const { cartCount } = this.data;
+    const { cartCount, allDishes, isAddMore, tableId, showCartPanel } = this.data;
     const count = cartCount[id] || 0;
-    
-    if (type === 'plus') {
-      cartCount[id] = count + 1;
+    const nextCount = type === 'plus' ? count + 1 : Math.max(0, count - 1);
+
+    // ① 计算下一帧的 cartCount（不可变拷贝，避免 setData diff 失效）
+    const nextCartCount = { ...cartCount };
+    if (nextCount === 0) {
+      delete nextCartCount[id];
     } else {
-      cartCount[id] = Math.max(0, count - 1);
+      nextCartCount[id] = nextCount;
     }
 
-    this.setData({ cartCount });
-    const cart = this.data.isAddMore ? getApp().getAddMoreCart(this.data.tableId) : getApp().getCart(this.data.tableId);
-    cart.cartCount = { ...cartCount };
-    this.calculateTotal();
-    this.syncCartToBackend();
+    // ② 同步算合计（避免再走一次 setData）
+    let totalCount = 0;
+    let totalPrice = 0;
+    for (const k in nextCartCount) {
+      const c = nextCartCount[k];
+      if (c > 0) {
+        const dish = allDishes.find(d => d.id == k);
+        if (dish) {
+          totalCount += c;
+          totalPrice += c * parseFloat(dish.price);
+        }
+      }
+    }
+
+    // ③ 弹窗打开时同步 cartItems，关闭时不算
+    let patch = {
+      cartCount: nextCartCount,
+      totalCount,
+      totalPrice: totalPrice.toFixed(2)
+    };
+    if (showCartPanel) {
+      const items = [];
+      for (const k in nextCartCount) {
+        const c = nextCartCount[k];
+        if (c > 0) {
+          const dish = allDishes.find(d => d.id == k);
+          if (dish) {
+            items.push({
+              id: dish.id,
+              dish_name: dish.name,
+              price: parseFloat(dish.price).toFixed(2),
+              quantity: c,
+              subtotal: (c * parseFloat(dish.price)).toFixed(2),
+              image_url: dish.image_url || ''
+            });
+          }
+        }
+      }
+      patch.cartItems = items;
+    }
+
+    // ④ 一次 setData 完成所有 UI 更新
+    this.setData(patch);
+
+    // ⑤ 写入全局 cart（同步内存，不触发渲染）
+    const cart = isAddMore ? getApp().getAddMoreCart(tableId) : getApp().getCart(tableId);
+    cart.cartCount = { ...nextCartCount };
+
+    // ⑥ 防抖同步到后端，连续点击只发最后一次
+    this.scheduleSyncCart();
   },
 
   calculateTotal() {
@@ -682,9 +801,23 @@ Page({
     }
   },
 
+  // 防抖触发同步购物车，连续点击只发最后一次
+  scheduleSyncCart() {
+    if (this._syncTimer) {
+      clearTimeout(this._syncTimer);
+    }
+    this._syncTimer = setTimeout(() => {
+      this._syncTimer = null;
+      this.syncCartToBackend();
+    }, 300);
+  },
+
   async syncCartToBackend() {
     const { cartCount, allDishes, tableId, currentCartId, currentOrderId, isAddMore } = this.data;
     if (!tableId) return;
+    // 标记本次本地同步时间，handleCartUpdate 在窗口内会忽略 ws 回声
+    this._lastSyncAt = Date.now();
+
     const items = [];
     const userInfo = getApp().globalData.userInfo;
     
@@ -716,7 +849,15 @@ Page({
         });
         getApp().clearCart(this.data.tableId);
       }
-      this.setData({ cartCount: {}, currentCartId: null, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00' });
+      // 仅在状态实际变化时 setData
+      const cur = this.data.cartCount;
+      const isAlreadyEmpty = cur && Object.keys(cur).length === 0
+        && this.data.currentCartId === null
+        && this.data.currentOrderId === null
+        && this.data.totalCount === 0;
+      if (!isAlreadyEmpty) {
+        this.setData({ cartCount: {}, currentCartId: null, currentOrderId: null, orderStatus: null, totalCount: 0, totalPrice: '0.00', cartItems: [] });
+      }
       return;
     }
 
@@ -759,7 +900,11 @@ Page({
         });
         const cart = getApp().getCart(this.data.tableId);
         cart.currentCartId = result?.id || null;
-        this.setData({ currentCartId: result?.id || null });
+        const nextCartId = result?.id || null;
+        // 仅在变化时 setData，避免无意义渲染
+        if (this.data.currentCartId !== nextCartId) {
+          this.setData({ currentCartId: nextCartId });
+        }
       }
     } catch (err) {
       console.error('同步购物车失败', err);

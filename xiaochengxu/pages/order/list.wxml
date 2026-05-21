@@ -24,7 +24,24 @@
 
   <!-- 列表 -->
   <view class="om-list">
-    <view class="om-empty" wx:if="{{filteredOrders.length === 0 && !isLoading}}">
+    <!-- 骨架屏：首屏加载时立即显示 3 张骨架卡，提升感知速度 -->
+    <view wx:if="{{isLoading && filteredOrders.length === 0}}" class="om-skeleton-list">
+      <view class="om-skeleton-card" wx:for="{{[0,1,2]}}" wx:key="*this">
+        <view class="om-skeleton-row">
+          <view class="om-skeleton-thumb"></view>
+          <view class="om-skeleton-main">
+            <view class="om-skeleton-line om-skeleton-line-mid"></view>
+            <view class="om-skeleton-line om-skeleton-line-short"></view>
+          </view>
+        </view>
+        <view class="om-skeleton-foot">
+          <view class="om-skeleton-line-foot"></view>
+          <view class="om-skeleton-line-foot"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="om-empty" wx:elif="{{filteredOrders.length === 0 && !isLoading}}">
       <view class="om-empty-icon">
         <view class="om-icon-list-empty">
           <view class="om-icon-list-empty-line"></view>
@@ -133,7 +150,7 @@
       </view>
     </block>
 
-    <view class="om-loading" wx:if="{{isLoading}}">
+    <view class="om-loading" wx:if="{{isLoading && filteredOrders.length > 0}}">
       <view class="om-spinner"></view>
       <text>加载中</text>
     </view>

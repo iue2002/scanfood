@@ -1,5 +1,6 @@
 // pages/order/list.js
 const { request } = require('../../utils/request');
+const dishesCache = require('../../utils/dishes-cache');
 
 Page({
   data: {
@@ -29,8 +30,13 @@ Page({
 
   onShow() {
     this.loadUserInfo();
-    // 每次进入页面只重置一次后请求第一页
+
+    // 立即触发骨架屏渲染（先于 fetch，避免白屏）
+    if (this.data.filteredOrders.length === 0 && !this.data.isLoading) {
+      this.setData({ isLoading: true });
+    }
     this.resetAndFetch();
+
     // === 仅 UI：自绘 navbar 需要状态栏高度 ===
     if (!this.data.statusBarHeight) {
       try {
@@ -44,6 +50,8 @@ Page({
 
   async onPullDownRefresh() {
     try {
+      // 下拉刷新强制重拉 dishes
+      dishesCache.refreshInBackground();
       await this.resetAndFetch();
       wx.stopPullDownRefresh();
     } catch (err) {
@@ -54,7 +62,8 @@ Page({
 
   // 重置到第一页
   async resetAndFetch() {
-    this.setData({ page: 1, hasMore: true, orders: [], filteredOrders: [] });
+    // 不清空已显示的 orders，让用户看着旧数据等新数据回来（无白屏）
+    this.setData({ page: 1, hasMore: true });
     await this.fetchOrders(true);
   },
 
@@ -99,19 +108,16 @@ Page({
       const page = isRefresh ? 1 : this.data.page + 1;
       const pageSize = this.data.pageSize;
 
+      // dishes 走双层缓存（内存 + storage，30min TTL），命中即同步返回
+      const dishes = await dishesCache.getDishes();
+
       const result = await request({
         url: `/orders?page=${page}&page_size=${pageSize}&exclude_draft=true`,
-        noLoading: !isRefresh
+        noLoading: true
       });
       const orders = result?.data || [];
       const store_name = result?.store_name;
       const store_avatar = result?.store_avatar;
-      // dishes 每次都拉全量较重，缓存到全局
-      let dishes = getApp().globalData.allDishes;
-      if (!dishes || dishes.length === 0) {
-        dishes = await request({ url: '/dishes', noLoading: true });
-        getApp().globalData.allDishes = dishes;
-      }
 
       const myNewOrders = orders
         .filter(o => o.user_id === userInfo.id && o.status !== 'draft')

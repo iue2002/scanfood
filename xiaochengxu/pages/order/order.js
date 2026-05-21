@@ -34,6 +34,7 @@ Page({
   _syncTimer: null,           // 同步购物车防抖定时器
   _lastSyncedSnapshot: null,  // 最近一次发起同步时的 cartCount 快照
   _lastSyncAt: 0,             // 最近一次本地同步发起时间，用于忽略 ws 回声
+  _lastActiveCheckAt: 0,      // 最近一次检查 my-active 时间，节流避免 onShow 反复请求
 
   async onLoad(options) {
     let tableNumber = null;
@@ -71,6 +72,12 @@ Page({
   },
 
   async checkActiveOrderAsync() {
+    // 30 秒内只查一次，避免 TabBar 来回切时反复请求
+    if (this._lastActiveCheckAt && Date.now() - this._lastActiveCheckAt < 30000) {
+      return;
+    }
+    this._lastActiveCheckAt = Date.now();
+
     try {
       const token = wx.getStorageSync('token');
       if (!token) {
@@ -78,14 +85,11 @@ Page({
         return;
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
-      console.log('checkActiveOrder 结果:', order);
       if (order && order.id) {
-        // 发现未付款订单后跳转
         wx.navigateTo({
           url: `/pages/order/detail?id=${order.id}`,
           fail: (err) => {
             console.error('跳转订单详情失败:', err);
-            wx.showToast({ title: '跳转失败', icon: 'none' });
           }
         });
       }
@@ -193,7 +197,13 @@ Page({
 
   updateTabBar() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0 });
+      const tabBar = this.getTabBar();
+      // 幂等：值没变就不 setData
+      if (tabBar.setSelected) {
+        tabBar.setSelected(0);
+      } else if (tabBar.data && tabBar.data.selected !== 0) {
+        tabBar.setData({ selected: 0 });
+      }
     }
   },
 

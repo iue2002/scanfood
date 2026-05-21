@@ -16,7 +16,9 @@ Page({
   },
 
   onShow() {
-    this.setData({ isLoading: false });
+    if (this.data.isLoading) {
+      this.setData({ isLoading: false });
+    }
     this.loadUserInfo();
     this.updateTabBar();
   },
@@ -34,7 +36,12 @@ Page({
 
   updateTabBar() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 1 });
+      const tabBar = this.getTabBar();
+      if (tabBar.setSelected) {
+        tabBar.setSelected(1);
+      } else if (tabBar.data && tabBar.data.selected !== 1) {
+        tabBar.setData({ selected: 1 });
+      }
     }
   },
 
@@ -52,11 +59,19 @@ Page({
         app.globalData.userInfo = backendUser;
       }
 
-      this.setData({
-        userInfo: backendUser,
-        avatarError: false,
-        avatarLetter: this.computeAvatarLetter(backendUser)
-      });
+      // 跟当前 data 一致就跳过 setData，避免无意义渲染
+      const cur = this.data.userInfo;
+      const same = cur
+        && cur.id === backendUser.id
+        && cur.nickname === backendUser.nickname
+        && cur.avatar_url === backendUser.avatar_url;
+      if (!same) {
+        this.setData({
+          userInfo: backendUser,
+          avatarError: false,
+          avatarLetter: this.computeAvatarLetter(backendUser)
+        });
+      }
       app.globalData.userInfo = backendUser;
       app.globalData.token = token;
     }

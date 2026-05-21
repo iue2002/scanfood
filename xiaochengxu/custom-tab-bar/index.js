@@ -27,11 +27,17 @@ Component({
     }
     const route = '/' + currentPage.route
     const index = this.data.list.findIndex(item => item.pagePath === route)
-    if (index !== -1) {
+    if (index !== -1 && this.data.selected !== index) {
       this.setData({ selected: index })
     }
   },
   methods: {
+    // 给页面调用，防止重复 setData
+    setSelected(index) {
+      if (this.data.selected !== index) {
+        this.setData({ selected: index })
+      }
+    },
     switchTab(e) {
       const data = e.currentTarget.dataset
       const url = data.path

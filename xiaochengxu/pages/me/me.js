@@ -41,9 +41,17 @@ Page({
   loadUserInfo() {
     const app = getApp();
     const token = wx.getStorageSync('token');
-    const backendUser = wx.getStorageSync('userInfo');
+    let backendUser = wx.getStorageSync('userInfo');
 
     if (token && backendUser && backendUser.id) {
+      // === 自愈：清掉旧的微信临时头像死链（127.0.0.1/__tmp__ 或 wxfile://） ===
+      if (this.isInvalidAvatarUrl(backendUser.avatar_url)) {
+        console.warn('检测到失效的本地头像 URL，已清空:', backendUser.avatar_url);
+        backendUser = { ...backendUser, avatar_url: '' };
+        wx.setStorageSync('userInfo', backendUser);
+        app.globalData.userInfo = backendUser;
+      }
+
       this.setData({
         userInfo: backendUser,
         avatarError: false,
@@ -52,6 +60,18 @@ Page({
       app.globalData.userInfo = backendUser;
       app.globalData.token = token;
     }
+  },
+
+  // 判断是否是会失效的本地/临时 URL
+  isInvalidAvatarUrl(url) {
+    if (!url) return false;
+    return (
+      url.indexOf('127.0.0.1') !== -1 ||
+      url.indexOf('localhost') !== -1 ||
+      url.indexOf('__tmp__') !== -1 ||
+      url.indexOf('wxfile://') === 0 ||
+      url.indexOf('http://tmp/') === 0
+    );
   },
 
   // === 仅 UI：从昵称取首字母（无昵称时为 'U'） ===

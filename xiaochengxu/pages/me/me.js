@@ -14,7 +14,9 @@ Page({
     // === 仅 UI：头像首字母占位 ===
     avatarLetter: 'U',
     // === 全屏订单弹窗开关 ===
-    showOrdersSheet: false
+    showOrdersSheet: false,
+    // === 自绘 navbar 状态栏高度 ===
+    statusBarHeight: 0
   },
 
   onShow() {
@@ -23,6 +25,16 @@ Page({
     }
     this.loadUserInfo();
     this.updateTabBar();
+
+    // 状态栏高度只算一次（自绘 navbar 占位）
+    if (!this.data.statusBarHeight) {
+      try {
+        const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+        this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 });
+      } catch (e) {
+        this.setData({ statusBarHeight: 20 });
+      }
+    }
   },
 
   async onPullDownRefresh() {

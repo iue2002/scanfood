@@ -1,6 +1,13 @@
 <!--pages/me/me.wxml — 商家端主题对齐版（无 emoji）-->
 <view class="om-page">
 
+  <!-- 自绘顶栏（与订单弹窗一致，全屏弹窗能完全覆盖） -->
+  <view class="om-navbar" style="padding-top: {{statusBarHeight || 44}}px;">
+    <view class="om-navbar-inner">
+      <text class="om-navbar-title">个人中心</text>
+    </view>
+  </view>
+
   <!-- 用户卡 -->
   <view class="om-userblock">
     <view class="om-user-card" wx:if="{{userInfo}}" bindtap="showAuthModal">

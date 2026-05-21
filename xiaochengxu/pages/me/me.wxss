@@ -3,12 +3,47 @@
 .om-page {
   min-height: 100vh;
   background: #F8FAFC;
-  padding: 24rpx 32rpx calc(120rpx + env(safe-area-inset-bottom));
+  padding: 0 0 calc(120rpx + env(safe-area-inset-bottom));
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 28rpx;
   line-height: 1.5;
   box-sizing: border-box;
+}
+
+/* ====== 自绘 navbar（与 orders-sheet 一致） ====== */
+.om-navbar {
+  background: #FFFFFF;
+  border-bottom: 2rpx solid #F1F5F9;
+}
+.om-navbar-inner {
+  height: 88rpx;
+  padding: 0 32rpx;
+  display: flex;
+  align-items: center;
+}
+.om-navbar-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.5rpx;
+  line-height: 1;
+}
+
+/* ====== 自绘 navbar 之下的内容容器：原 page 的 padding 转移到这 ====== */
+.om-userblock {
+  margin: 24rpx 32rpx 0;
+}
+.om-menu {
+  margin: 0 32rpx;
+}
+.om-empty {
+  padding-left: 32rpx;
+  padding-right: 32rpx;
+}
+.om-version {
+  padding-left: 32rpx;
+  padding-right: 32rpx;
 }
 
 /* ====== 用户卡 ====== */

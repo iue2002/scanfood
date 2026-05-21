@@ -87,12 +87,14 @@ Page({
   },
 
   async fetchOrders(isRefresh) {
-    // isRefresh=true 表示重置到第一页；false 表示加载下一页
+    // 用实例字段做请求锁，避免和 UI 状态 isLoading 互相干扰
     if (isRefresh) {
-      if (this.data.isLoading) return;
+      if (this._isFetching) return;
+      this._isFetching = true;
       this.setData({ isLoading: true });
     } else {
-      if (this.data.isLoadingMore || !this.data.hasMore) return;
+      if (this._isLoadingMore || !this.data.hasMore) return;
+      this._isLoadingMore = true;
       this.setData({ isLoadingMore: true });
     }
 
@@ -102,6 +104,8 @@ Page({
 
       if (!userInfo || !userInfo.id) {
         console.warn('用户信息未加载，无法获取订单');
+        this._isFetching = false;
+        this._isLoadingMore = false;
         this.setData({ isLoading: false, isLoadingMore: false });
         return;
       }
@@ -196,10 +200,14 @@ Page({
         storeName: store_name || '伊美轩',
         storeAvatar: store_avatar || '',
       });
+      this._isFetching = false;
+      this._isLoadingMore = false;
 
       this.filterOrders();
     } catch (err) {
       console.error('获取订单列表失败', err);
+      this._isFetching = false;
+      this._isLoadingMore = false;
       this.setData({ isLoading: false, isLoadingMore: false });
       wx.showToast({ title: '获取订单失败', icon: 'none' });
     }

@@ -3,7 +3,6 @@
     "pages/order/order",
     "pages/order/confirm",
     "pages/order/detail",
-    "pages/order/list",
     "pages/me/me",
     "pages/logs/logs"
   ],
@@ -13,10 +12,6 @@
       "packages": ["__APP__"]
     },
     "pages/order/order": {
-      "network": "all",
-      "packages": ["__APP__"]
-    },
-    "pages/order/list": {
       "network": "all",
       "packages": ["__APP__"]
     }

@@ -1,9 +1,13 @@
-<!--pages/order/list.wxml — 紧凑版：单行头 + 单行金额操作，节省垂直空间-->
-<view class="om-page">
-  <!-- 自绘顶栏（替代微信原生标题，对齐 admin-web Header） -->
+<!--components/orders-sheet/index.wxml — 全屏订单列表弹窗-->
+<view
+  wx:if="{{visible}}"
+  class="om-sheet-root {{sheetIn ? 'om-sheet-root-in' : ''}}"
+  catchtap="preventClose"
+>
+  <!-- 自绘顶栏：状态栏占位 + navbar，与原 list 页一字不差 -->
   <view class="om-navbar" style="padding-top: {{statusBarHeight || 44}}px;">
     <view class="om-navbar-inner">
-      <view class="om-navbar-back" bindtap="onNavBack" hover-class="om-navbar-back-hover">
+      <view class="om-navbar-back" bindtap="onClose" hover-class="om-navbar-back-hover">
         <text class="om-navbar-back-arrow">‹</text>
       </view>
       <text class="om-navbar-title">订单</text>
@@ -22,9 +26,19 @@
     </view>
   </scroll-view>
 
-  <!-- 列表 -->
-  <view class="om-list">
-    <!-- 骨架屏：首屏加载时立即显示 3 张骨架卡，提升感知速度 -->
+  <!-- 列表（用 scroll-view 实现下拉刷新 + 触底加载） -->
+  <scroll-view
+    class="om-list"
+    scroll-y
+    enhanced
+    show-scrollbar="{{false}}"
+    refresher-enabled
+    refresher-triggered="{{_refreshing}}"
+    bindrefresherrefresh="onScrollRefresh"
+    bindscrolltolower="onScrolltolower"
+    lower-threshold="200"
+  >
+    <!-- 骨架屏：首屏加载时立即显示 3 张骨架卡 -->
     <view wx:if="{{isLoading && filteredOrders.length === 0}}" class="om-skeleton-list">
       <view class="om-skeleton-card" wx:for="{{[0,1,2]}}" wx:key="*this">
         <view class="om-skeleton-row">
@@ -41,6 +55,7 @@
       </view>
     </view>
 
+    <!-- 空态 -->
     <view class="om-empty" wx:elif="{{filteredOrders.length === 0 && !isLoading}}">
       <view class="om-empty-icon">
         <view class="om-icon-list-empty">
@@ -53,9 +68,9 @@
       <view class="om-empty-desc">快去扫码点餐吧</view>
     </view>
 
+    <!-- 订单卡片 -->
     <block wx:for="{{filteredOrders}}" wx:key="id" wx:for-index="orderIndex">
       <view class="om-card">
-        <!-- 紧凑头部：左侧首张菜品图 + 右侧信息列 -->
         <view class="om-head">
           <image
             wx:if="{{item.firstDishImage}}"
@@ -78,7 +93,6 @@
           </view>
         </view>
 
-        <!-- 单行：菜品摘要 + 展开箭头（未展开时显示） -->
         <view
           class="om-summary"
           wx:if="{{!expandedMap[item.id] && item.order_items.length > 0}}"
@@ -92,7 +106,6 @@
           </view>
         </view>
 
-        <!-- 展开的明细 -->
         <view class="om-detail" wx:if="{{expandedMap[item.id]}}">
           <view
             class="om-detail-group"
@@ -125,7 +138,6 @@
           </view>
         </view>
 
-        <!-- 底栏：总金额 + 操作（一行） -->
         <view class="om-footer">
           <view class="om-total">
             <text class="om-total-label">合计</text>
@@ -150,11 +162,6 @@
       </view>
     </block>
 
-    <view class="om-loading" wx:if="{{isLoading && filteredOrders.length > 0}}">
-      <view class="om-spinner"></view>
-      <text>加载中</text>
-    </view>
-
     <view class="om-loading" wx:if="{{isLoadingMore}}">
       <view class="om-spinner"></view>
       <text>加载更多</text>
@@ -164,5 +171,5 @@
       class="om-end-tip"
       wx:if="{{!isLoading && !isLoadingMore && !hasMore && filteredOrders.length > 0}}"
     >— 没有更多订单了 —</view>
-  </view>
+  </scroll-view>
 </view>

@@ -126,3 +126,10 @@
     </view>
   </view>
 </view>
+
+
+<!-- 全屏订单弹窗（替代 navigateTo→pages/order/list 的页面跳转） -->
+<orders-sheet
+  visible="{{showOrdersSheet}}"
+  bind:close="onOrdersSheetClose"
+/>

@@ -1,26 +1,34 @@
-/* pages/order/list.wxss
- * 紧凑布局：单行头部 + 单行菜品摘要 + 单行底部，展开时再露明细
- * 颜色与 admin-web 一致：#2563EB / #0F172A / #334155 / #64748B / #94A3B8 / #F1F5F9 / #F8FAFC
+/* components/orders-sheet/index.wxss
+ * 全屏订单弹窗：完全覆盖屏幕，与原 pages/order/list 同款外观
+ * 入场动画：从右侧滑入（与 navigateTo 默认动画一致），看不出与原页面跳转的区别
  */
 
-/* ====== 页面容器 ====== */
-.om-page {
-  min-height: 100vh;
+/* ====== 弹窗根：全屏定位，叠在页面之上 ====== */
+.om-sheet-root {
+  position: fixed;
+  inset: 0;
   background: #F8FAFC;
-  padding-bottom: 32rpx;
+  z-index: 999;
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   line-height: 1.5;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* 入场动画：默认从右侧 100% 偏移 */
+  transform: translate3d(100%, 0, 0);
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+.om-sheet-root.om-sheet-root-in {
+  transform: translate3d(0, 0, 0);
 }
 
-/* ====== 自绘 navbar (admin-web Header h-14, bg-white, border-b border-gray-200) ====== */
+/* ====== 自绘 navbar (与 pages/order/list 完全一致) ====== */
 .om-navbar {
   background: #FFFFFF;
   border-bottom: 2rpx solid #F1F5F9;
-  position: sticky;
-  top: 0;
-  z-index: 30;
+  flex-shrink: 0;
 }
 .om-navbar-inner {
   height: 88rpx;
@@ -63,6 +71,7 @@
   background: #F8FAFC;
   padding: 20rpx 32rpx 12rpx;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .om-tabs-inner {
   display: inline-flex;
@@ -84,11 +93,12 @@
   color: #FFFFFF;
 }
 
-/* ====== 列表 ====== */
+/* ====== 列表（scroll-view 占满剩余高度） ====== */
 .om-list {
-  padding: 8rpx 32rpx 0;
-  display: flex;
-  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 8rpx 32rpx 32rpx;
+  box-sizing: border-box;
 }
 
 /* ====== 卡片 ====== */
@@ -104,7 +114,6 @@
   margin-top: 16rpx;
 }
 
-/* ----- 紧凑头部：左侧菜品缩略图 + 右侧信息列 ----- */
 .om-head {
   display: flex;
   align-items: stretch;
@@ -163,11 +172,8 @@
   line-height: 1.4;
   min-width: 0;
 }
-.om-time {
-  color: #94A3B8;
-}
+.om-time { color: #94A3B8; }
 
-/* 状态胶囊 */
 .om-status {
   display: inline-flex;
   align-items: center;
@@ -186,7 +192,6 @@
 .om-status-cancelled { color: #EF4444; background: #FEF2F2; }
 .om-status-refunded  { color: #94A3B8; background: #F1F5F9; }
 
-/* ----- 单行菜品摘要 ----- */
 .om-summary {
   display: flex;
   align-items: center;
@@ -212,16 +217,12 @@
   color: #94A3B8;
   font-size: 22rpx;
 }
-.om-summary-count {
-  color: #94A3B8;
-}
 .om-summary-arrow {
   font-size: 28rpx;
   line-height: 1;
   color: #CBD5E1;
 }
 
-/* ----- 展开明细 ----- */
 .om-detail {
   padding: 16rpx 28rpx 8rpx;
   border-top: 2rpx solid #F1F5F9;
@@ -276,7 +277,6 @@
   line-height: 1.5;
   color: #0F172A;
 }
-.om-item-name { color: #0F172A; }
 .om-item-spec {
   color: #94A3B8;
   font-size: 22rpx;
@@ -316,12 +316,7 @@
   font-size: 22rpx;
   color: #94A3B8;
 }
-.om-collapse-arrow {
-  font-size: 22rpx;
-  line-height: 1;
-}
 
-/* ----- 底栏：合计 + 操作（一行） ----- */
 .om-footer {
   display: flex;
   align-items: center;
@@ -375,7 +370,6 @@
 }
 .om-btn-success:active { background: #059669; }
 
-/* ====== 卡片间分隔点 ====== */
 .om-separator {
   display: flex;
   align-items: center;
@@ -395,7 +389,6 @@
   flex-shrink: 0;
 }
 
-/* ====== 空态 ====== */
 .om-empty {
   display: flex;
   flex-direction: column;
@@ -413,8 +406,6 @@
   justify-content: center;
   margin-bottom: 12rpx;
 }
-
-/* 列表线条图标 (lucide ClipboardList 简化版) */
 .om-icon-list-empty {
   width: 56rpx;
   height: 56rpx;
@@ -442,7 +433,6 @@
   color: #64748B;
 }
 
-/* ====== 加载 ====== */
 .om-loading {
   display: flex;
   align-items: center;
@@ -464,8 +454,6 @@
   to { transform: rotate(360deg); }
 }
 
-
-/* ====== 没有更多了 ====== */
 .om-end-tip {
   text-align: center;
   padding: 32rpx 0 16rpx;
@@ -474,10 +462,9 @@
   letter-spacing: 1rpx;
 }
 
-
-/* ====== 骨架屏 ====== */
+/* 骨架屏 */
 .om-skeleton-list {
-  padding: 8rpx 32rpx 0;
+  padding: 8rpx 0 0;
 }
 .om-skeleton-card {
   background: #FFFFFF;
@@ -534,8 +521,6 @@
   position: relative;
   overflow: hidden;
 }
-
-/* 闪烁动画（shimmer）*/
 .om-skeleton-thumb::after,
 .om-skeleton-line::after,
 .om-skeleton-line-foot::after {

@@ -12,7 +12,9 @@ Page({
     // === 仅 UI：头像加载失败标记 ===
     avatarError: false,
     // === 仅 UI：头像首字母占位 ===
-    avatarLetter: 'U'
+    avatarLetter: 'U',
+    // === 全屏订单弹窗开关 ===
+    showOrdersSheet: false
   },
 
   onShow() {
@@ -268,12 +270,14 @@ Page({
   },
 
   goToOrders() {
-    // 立即触发预拉取——等 list 页 onLoad 时数据已经在内存（秒开）
+    // 触发预拉取，让 orders-sheet 一打开就有数据
     const ordersPrefetch = require('../../utils/orders-prefetch');
     ordersPrefetch.prefetchFirstPage(20);
 
-    wx.navigateTo({
-      url: '/pages/order/list'
-    });
+    this.setData({ showOrdersSheet: true });
+  },
+
+  onOrdersSheetClose() {
+    this.setData({ showOrdersSheet: false });
   }
 })

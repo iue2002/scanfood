@@ -103,46 +103,70 @@ Page({
 
     try {
       const app = getApp();
-      
+      const config = require('../../config');
+
       console.log('=== 开始微信登录流程 ===');
       const loginRes = await wx.login();
       console.log('wx.login 结果:', loginRes);
-      
+
       if (!loginRes.code) {
         throw new Error('获取登录code失败: ' + loginRes.errMsg);
       }
 
-      console.log('准备发送请求到服务端, code:', loginRes.code.substring(0, 10) + '...');
-      const requestData = { 
-        code: loginRes.code,
-        nickname: nickname,
-        avatar_url: avatarUrl
-      };
-      console.log('请求数据:', requestData);
-
+      // === Step 1: 微信登录拿 token（先不带头像，避免临时 URL 入库） ===
       const loginData = await request({
         url: '/auth/wechat-login',
         method: 'POST',
-        data: requestData,
+        data: {
+          code: loginRes.code,
+          nickname: nickname,
+          avatar_url: '' // 临时 URL 不入库，下一步上传后再回填
+        },
         noLoading: true
       });
-
       console.log('微信登录成功', loginData);
-      
+
+      // === Step 2: 上传微信临时头像，换永久 URL（best-effort，失败不阻塞登录） ===
+      let permanentAvatarUrl = '';
+      if (avatarUrl) {
+        try {
+          permanentAvatarUrl = await this.uploadAvatar(avatarUrl, loginData.token);
+          console.log('头像上传成功:', permanentAvatarUrl);
+        } catch (uploadErr) {
+          console.warn('头像上传失败，使用昵称首字母占位', uploadErr);
+        }
+      }
+
+      // === Step 3: 把永久 URL 写回数据库（拿到才调，避免空写） ===
+      if (permanentAvatarUrl) {
+        try {
+          await request({
+            url: '/auth/update-profile',
+            method: 'POST',
+            data: { avatar_url: permanentAvatarUrl },
+            header: { Authorization: `Bearer ${loginData.token}` },
+            noLoading: true
+          });
+        } catch (updateErr) {
+          console.warn('更新头像入库失败', updateErr);
+        }
+      }
+
       const finalUser = {
         ...loginData.user,
         nickname: nickname || loginData.user.nickname,
-        avatar_url: avatarUrl || loginData.user.avatar_url
+        avatar_url: permanentAvatarUrl || loginData.user.avatar_url || ''
       };
-      
+
       wx.setStorageSync('token', loginData.token);
       wx.setStorageSync('userInfo', finalUser);
-      
+
       app.globalData.userInfo = finalUser;
       app.globalData.token = loginData.token;
 
-      this.setData({ 
+      this.setData({
         userInfo: finalUser,
+        avatarError: false,
         tempAvatarUrl: '',
         tempNickname: ''
       });
@@ -157,6 +181,41 @@ Page({
         icon: 'none'
       });
     }
+  },
+
+  // 把微信临时头像 URL（http://127.0.0.1/__tmp__ 或 wxfile://）上传到后端，返回永久绝对 URL
+  uploadAvatar(tempFilePath, token) {
+    const config = require('../../config');
+    return new Promise((resolve, reject) => {
+      wx.uploadFile({
+        url: `${config.baseURL}/upload/image`,
+        filePath: tempFilePath,
+        name: 'file',
+        header: {
+          Authorization: `Bearer ${token}`
+        },
+        success: (res) => {
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            return reject(res);
+          }
+          let data;
+          try {
+            data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+          } catch (e) {
+            return reject(e);
+          }
+          if (!data || !data.url) {
+            return reject(new Error('upload response missing url'));
+          }
+          // 后端返回 /uploads/xxx.jpg，拼成绝对 URL 才能在小程序 Image 渲染
+          const absoluteUrl = data.url.startsWith('http')
+            ? data.url
+            : config.SERVER_URL + (data.url.startsWith('/') ? '' : '/') + data.url;
+          resolve(absoluteUrl);
+        },
+        fail: reject
+      });
+    });
   },
 
   goToOrders() {

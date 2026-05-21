@@ -210,6 +210,17 @@ Page({
     this.setData({ expandedMap });
   },
 
+  // === 仅 UI：自绘 navbar 返回 ===
+  onNavBack() {
+    const pages = getCurrentPages();
+    if (pages.length > 1) {
+      wx.navigateBack({ delta: 1 });
+    } else {
+      // 兜底：栈里只剩自己，跳回 TabBar 首页
+      wx.switchTab({ url: '/pages/order/order' });
+    }
+  },
+
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
     this.setData({ currentTab: tab });

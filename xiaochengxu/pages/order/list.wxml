@@ -3,6 +3,9 @@
   <!-- 自绘顶栏（替代微信原生标题，对齐 admin-web Header） -->
   <view class="om-navbar" style="padding-top: {{statusBarHeight || 44}}px;">
     <view class="om-navbar-inner">
+      <view class="om-navbar-back" bindtap="onNavBack" hover-class="om-navbar-back-hover">
+        <text class="om-navbar-back-arrow">‹</text>
+      </view>
       <text class="om-navbar-title">订单</text>
     </view>
   </view>

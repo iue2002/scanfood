@@ -17,13 +17,13 @@
   border-bottom: 2rpx solid #F1F5F9;
 }
 .om-navbar-inner {
-  height: 88rpx;
-  padding: 0 32rpx;
+  height: 80rpx;
+  padding: 0 28rpx;
   display: flex;
   align-items: center;
 }
 .om-navbar-title {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #0F172A;
   letter-spacing: 0.5rpx;
@@ -53,16 +53,16 @@
 .om-user-card {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 28rpx;
+  gap: 20rpx;
+  padding: 24rpx;
   background: #FFFFFF;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
   border: 2rpx solid #F1F5F9;
   box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
 }
 .om-avatar {
-  width: 96rpx;
-  height: 96rpx;
+  width: 88rpx;
+  height: 88rpx;
   border-radius: 50%;
   background: #EFF6FF;
   flex-shrink: 0;
@@ -90,7 +90,7 @@
   gap: 6rpx;
 }
 .om-user-name {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #0F172A;
   letter-spacing: 0.3rpx;
@@ -103,7 +103,7 @@
   color: #94A3B8;
 }
 .om-user-arrow {
-  font-size: 32rpx;
+  font-size: 30rpx;
   color: #CBD5E1;
   flex-shrink: 0;
   line-height: 1;
@@ -121,8 +121,8 @@
 .om-menu-item {
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  padding: 24rpx 28rpx;
+  gap: 18rpx;
+  padding: 22rpx 24rpx;
   border-top: 2rpx solid #F1F5F9;
 }
 .om-menu-item:first-child {
@@ -132,9 +132,9 @@
   background: #F8FAFC;
 }
 .om-menu-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 14rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;

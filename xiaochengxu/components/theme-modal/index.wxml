@@ -1,0 +1,23 @@
+<view wx:if="{{visible}}" class="tm-mask {{show ? 'tm-mask-in' : ''}}" catchtap="onMaskTap">
+  <view class="tm-card {{show ? 'tm-card-in' : ''}}" catchtap="preventClose">
+    <view class="tm-head">
+      <text class="tm-title">{{title}}</text>
+    </view>
+    <view class="tm-body" wx:if="{{content}}">
+      <text class="tm-content">{{content}}</text>
+    </view>
+    <view class="tm-foot">
+      <view
+        wx:if="{{showCancel}}"
+        class="tm-btn tm-btn-cancel"
+        bindtap="onCancel"
+        hover-class="tm-btn-cancel-hover"
+      >{{cancelText}}</view>
+      <view
+        class="tm-btn tm-btn-confirm tm-btn-confirm-{{type}}"
+        bindtap="onConfirm"
+        hover-class="tm-btn-confirm-hover"
+      >{{confirmText}}</view>
+    </view>
+  </view>
+</view>

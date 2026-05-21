@@ -1,0 +1,90 @@
+/* components/theme-modal/index.wxss
+ * 主题样式 modal，与 admin-web 同款居中卡片弹窗
+ */
+
+.tm-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  box-sizing: border-box;
+  transition: background 0.18s ease;
+}
+.tm-mask.tm-mask-in {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.tm-card {
+  width: 100%;
+  max-width: 560rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  transform: scale(0.94);
+  opacity: 0;
+  transition: transform 0.18s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.18s ease;
+}
+.tm-card.tm-card-in {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.tm-head {
+  padding: 28rpx 32rpx 8rpx;
+}
+.tm-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.3rpx;
+  line-height: 1.4;
+}
+
+.tm-body {
+  padding: 8rpx 32rpx 24rpx;
+}
+.tm-content {
+  font-size: 26rpx;
+  color: #64748B;
+  line-height: 1.55;
+  display: block;
+  word-break: break-all;
+  white-space: pre-line;
+}
+
+.tm-foot {
+  display: flex;
+  border-top: 2rpx solid #F1F5F9;
+}
+.tm-btn {
+  flex: 1;
+  height: 92rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.tm-btn-cancel {
+  color: #64748B;
+  border-right: 2rpx solid #F1F5F9;
+}
+.tm-btn-cancel-hover {
+  background: #F8FAFC;
+}
+.tm-btn-confirm {
+  font-weight: 600;
+}
+.tm-btn-confirm-info { color: #2563EB; }
+.tm-btn-confirm-warning { color: #F59E0B; }
+.tm-btn-confirm-danger { color: #EF4444; }
+.tm-btn-confirm-hover {
+  background: #F8FAFC;
+}

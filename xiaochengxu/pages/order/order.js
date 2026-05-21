@@ -139,6 +139,10 @@ Page({
     }
   },
 
+  onReady() {
+    this.modal = this.selectComponent('#themeModal');
+  },
+
   async onShow() {
     // 先处理页面状态，让用户立即看到内容
     if (getApp().globalData.addMore) {
@@ -707,32 +711,46 @@ Page({
 
   updateCart(e) {
     if (!this.data.hasScannedTable) {
-      wx.showModal({
-        title: '提示',
-        content: '请先扫描桌码再点餐',
-        showCancel: false,
-        confirmText: '去扫码',
-        success: (res) => {
-          if (res.confirm) {
-            this.startScan();
-          }
-        }
-      });
+      if (this.modal) {
+        this.modal.show({
+          title: '请先扫码',
+          content: '扫描桌台上的二维码后即可开始点餐',
+          confirmText: '去扫码',
+          cancelText: '取消'
+        }).then(confirmed => {
+          if (confirmed) this.startScan();
+        });
+      } else {
+        wx.showModal({
+          title: '提示',
+          content: '请先扫描桌码再点餐',
+          showCancel: false,
+          confirmText: '去扫码',
+          success: (res) => { if (res.confirm) this.startScan(); }
+        });
+      }
       return;
     }
 
     if (!getApp().globalData.userInfo) {
-      wx.showModal({
-        title: '提示',
-        content: '请先登录后再点餐',
-        confirmText: '去登录',
-        cancelText: '取消',
-        success: (res) => {
-          if (res.confirm) {
-            wx.switchTab({ url: '/pages/me/me' });
-          }
-        }
-      });
+      if (this.modal) {
+        this.modal.show({
+          title: '请先登录',
+          content: '登录后即可点餐下单',
+          confirmText: '去登录',
+          cancelText: '取消'
+        }).then(confirmed => {
+          if (confirmed) wx.switchTab({ url: '/pages/me/me' });
+        });
+      } else {
+        wx.showModal({
+          title: '提示',
+          content: '请先登录后再点餐',
+          confirmText: '去登录',
+          cancelText: '取消',
+          success: (res) => { if (res.confirm) wx.switchTab({ url: '/pages/me/me' }); }
+        });
+      }
       return;
     }
 
@@ -975,33 +993,49 @@ Page({
   // 弹窗里的清空
   clearCart() {
     if (this.data.totalCount === 0) return;
-    wx.showModal({
-      title: '提示',
-      content: '确定要清空购物车吗？',
-      success: (res) => {
-        if (!res.confirm) return;
-        if (this.data.isAddMore) {
-          getApp().clearAddMoreCart(this.data.tableId);
-        } else {
-          getApp().clearCart(this.data.tableId);
-        }
-        this.setData({ cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00' });
-        this.syncCartToBackend();
+    const doClear = () => {
+      if (this.data.isAddMore) {
+        getApp().clearAddMoreCart(this.data.tableId);
+      } else {
+        getApp().clearCart(this.data.tableId);
       }
-    });
+      this.setData({ cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00' });
+      this.syncCartToBackend();
+    };
+    if (this.modal) {
+      this.modal.show({
+        title: '清空购物车',
+        content: '确定要清空购物车吗？',
+        confirmText: '清空',
+        cancelText: '取消',
+        type: 'danger'
+      }).then(confirmed => { if (confirmed) doClear(); });
+    } else {
+      wx.showModal({
+        title: '提示',
+        content: '确定要清空购物车吗？',
+        success: (res) => { if (res.confirm) doClear(); }
+      });
+    }
   },
 
   goToConfirm() {
     if (this.data.isAddMore) {
-      wx.showModal({
-        title: '确认提交加餐',
-        content: `共${this.data.totalCount}件菜品，合计¥${this.data.totalPrice}，确认提交？`,
-        success: (res) => {
-          if (res.confirm) {
-            this.submitAddMore();
-          }
-        }
-      });
+      const content = `共${this.data.totalCount}件菜品，合计¥${this.data.totalPrice}，确认提交？`;
+      if (this.modal) {
+        this.modal.show({
+          title: '确认提交加餐',
+          content,
+          confirmText: '提交',
+          cancelText: '再想想'
+        }).then(confirmed => { if (confirmed) this.submitAddMore(); });
+      } else {
+        wx.showModal({
+          title: '确认提交加餐',
+          content,
+          success: (res) => { if (res.confirm) this.submitAddMore(); }
+        });
+      }
     } else {
       wx.navigateTo({
         url: `/pages/order/confirm?tableId=${this.data.tableId}`,

@@ -218,3 +218,7 @@
     </view>
   </view>
 </view>
+
+
+<!-- 全局主题 modal（替代 wx.showModal） -->
+<theme-modal id="themeModal" />

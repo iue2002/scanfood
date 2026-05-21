@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
 import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
-import { useWebSocket } from '@/hooks/useWebSocket'
-import { requestNotificationPermission, showNotification } from '@/utils/notification'
+import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { requestNotificationPermission } from '@/utils/notification'
 
 interface OrderItem {
   id: number
@@ -123,47 +123,14 @@ export default function OrderManage() {
     requestNotificationPermission()
   }, [fetchOrders])
 
-  const handleWebSocketMessage = useCallback((event: string, data: any) => {
-    if (event === 'orderUpdated' || event === 'orderStatusChanged') {
-      fetchOrders()
-    } else if (event === 'orderDeleted') {
-      setOrders(prev => prev.filter(o => o.id !== data.id))
-    }
-
-    // Toast 通知
-    if (event === 'orderStatusChanged' && data) {
-      const tableNum = data.tables?.table_number || data.table_id
-      const orderNo = data.order_number || `#${data.id}`
-      if (data.status === 'submitted') {
-        showToast(`新订单 ${orderNo}（${tableNum}号桌）`, 'success')
-        showNotification(`${tableNum}号桌 新订单`, {
-          body: `订单 ${orderNo}，总额 ¥${data.total_amount || '-'}`,
-        })
-      } else if (data.status === 'settled') {
-        showToast(`${orderNo}（${tableNum}号桌）已结账`, 'info')
-      } else if (data.status === 'cancelled') {
-        showToast(`${orderNo}（${tableNum}号桌）已取消`, 'warning')
-      }
-    }
-
-    if (event === 'refundCreated' && data) {
-      showToast(`订单 #${data.order_id} 提交了退款申请 ¥${data.amount}`, 'warning')
-      showNotification('收到退款申请', {
-        body: `订单 #${data.order_id} 申请退款 ¥${data.amount}`,
-      })
-    }
-
-    if (event === 'refundUpdated' && data) {
-      const label = data.status === 'approved' ? '已通过' : '已拒绝'
-      showToast(`退款申请${label}`, 'info')
-    }
-  }, [fetchOrders, showToast])
-
-  useWebSocket({
-    onMessage: handleWebSocketMessage,
-    autoReconnect: true,
-    reconnectInterval: 5000
-  })
+  // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
+  useWebSocketEvent('orderUpdated', fetchOrders)
+  useWebSocketEvent('orderStatusChanged', fetchOrders)
+  useWebSocketEvent('orderDeleted', useCallback((data: any) => {
+    setOrders(prev => prev.filter(o => o.id !== data?.id))
+  }, []))
+  useWebSocketEvent('refundCreated', fetchOrders)
+  useWebSocketEvent('refundUpdated', fetchOrders)
 
   const handleSettle = async (id: number) => {
     showConfirm('确认结账', '确认标记该订单为已结账？', async () => {

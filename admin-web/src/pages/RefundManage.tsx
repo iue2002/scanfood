@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import request from '@/api/request'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
-import { useWebSocket } from '@/hooks/useWebSocket'
-import { requestNotificationPermission, showNotification } from '@/utils/notification'
+import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { requestNotificationPermission } from '@/utils/notification'
 
 interface Refund {
   id: number
@@ -33,26 +33,9 @@ export default function RefundManage() {
     requestNotificationPermission()
   }, [])
 
-  const handleWebSocketMessage = useCallback((event: string, data: any) => {
-    if (event === 'refundCreated' && data) {
-      fetchRefunds()
-      showToast(`收到退款申请 ¥${data.amount}（订单 #${data.order_id}）`, 'warning')
-      showNotification('收到退款申请', {
-        body: `订单 #${data.order_id} 申请退款 ¥${data.amount}，原因：${data.reason || '-'}`,
-      })
-    }
-    if (event === 'refundUpdated' && data) {
-      fetchRefunds()
-      const label = data.status === 'approved' ? '已通过' : '已拒绝'
-      showToast(`退款申请${label}`, 'info')
-    }
-  }, [showToast])
-
-  useWebSocket({
-    onMessage: handleWebSocketMessage,
-    autoReconnect: true,
-    reconnectInterval: 5000,
-  })
+  // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
+  useWebSocketEvent('refundCreated', fetchRefunds)
+  useWebSocketEvent('refundUpdated', fetchRefunds)
 
   const handleApprove = async (id: number) => {
     showConfirm('确认通过', '确认通过该退款申请？', async () => {

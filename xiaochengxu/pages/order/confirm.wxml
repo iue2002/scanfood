@@ -1,36 +1,72 @@
-<!--pages/order/confirm.wxml-->
-<view class="confirm-container">
-  <view class="section">
-    <view class="section-title">菜品明细</view>
-    <view wx:for="{{order.order_items}}" wx:key="id" class="item">
-      <view class="name">{{item.dish_name}}</view>
-      <view class="qty">x{{item.quantity}}</view>
-      <view class="price">￥{{item.subtotal}}</view>
+<!--pages/order/confirm.wxml — 商家端主题对齐版-->
+<view class="om-page">
+  <!-- 菜品明细卡 -->
+  <view class="om-card">
+    <view class="om-card-head">
+      <text class="om-card-title">菜品明细</text>
+      <text class="om-card-count">{{order.order_items.length}} 项</text>
     </view>
-    <view class="total-row">
-      <text>合计</text>
-      <text class="total-price">￥{{order.total_amount}}</text>
+    <view class="om-items">
+      <view class="om-item" wx:for="{{order.order_items}}" wx:key="id">
+        <view class="om-item-name-wrap">
+          <text class="om-item-name">{{item.dish_name}}</text>
+          <text class="om-item-qty">×{{item.quantity}}</text>
+        </view>
+        <text class="om-item-subtotal">¥{{item.subtotal}}</text>
+      </view>
+    </view>
+    <view class="om-total-row">
+      <text class="om-total-label">合计</text>
+      <view class="om-total-amount-wrap">
+        <text class="om-total-symbol">¥</text>
+        <text class="om-total-num">{{order.total_amount}}</text>
+      </view>
     </view>
   </view>
 
-  <view class="section">
-    <view class="section-title">用餐信息</view>
-    <view class="form-item">
-      <text class="label">用餐人数</text>
+  <!-- 用餐信息卡 -->
+  <view class="om-card">
+    <view class="om-card-head">
+      <text class="om-card-title">用餐信息</text>
+    </view>
+    <view class="om-form-row">
+      <text class="om-form-label">用餐人数</text>
       <picker bindchange="onPeopleChange" value="{{peopleIndex}}" range="{{peopleRange}}">
-        <view class="picker">{{peopleRange[peopleIndex]}}人</view>
+        <view class="om-form-picker">
+          <text>{{peopleRange[peopleIndex]}} 人</text>
+          <text class="om-form-arrow">›</text>
+        </view>
       </picker>
     </view>
-    <view class="form-item">
-      <text class="label">订单备注</text>
-      <input class="input" placeholder="请填写备注（如微辣、少放盐）" bindinput="onRemarkInput" value="{{remark}}" />
+    <view class="om-form-row om-form-row-textarea">
+      <text class="om-form-label">订单备注</text>
+      <view class="om-input-wrap">
+        <input
+          class="om-input"
+          placeholder="请填写备注（如微辣、少放盐）"
+          placeholder-class="om-input-placeholder"
+          bindinput="onRemarkInput"
+          value="{{remark}}"
+        />
+      </view>
     </view>
   </view>
 
-  <view class="footer">
-    <view class="total">共 {{order.order_items.length}} 项，￥{{order.total_amount}}</view>
-    <button type="primary" class="submit-btn" bindtap="submitOrder" disabled="{{isSubmitting}}">
-      {{isSubmitting ? '提交中...' : '提交订单'}}
-    </button>
+  <!-- 底部提交栏 -->
+  <view class="om-footer">
+    <view class="om-footer-info">
+      <text class="om-footer-count">共 {{order.order_items.length}} 项</text>
+      <view class="om-footer-amount">
+        <text class="om-footer-symbol">¥</text>
+        <text class="om-footer-num">{{order.total_amount}}</text>
+      </view>
+    </view>
+    <view
+      class="om-footer-submit {{isSubmitting ? 'om-footer-submit-disabled' : ''}}"
+      bindtap="submitOrder"
+      hover-class="om-footer-submit-hover"
+    >
+      {{isSubmitting ? '提交中…' : '提交订单'}}
+    </view>
   </view>
 </view>

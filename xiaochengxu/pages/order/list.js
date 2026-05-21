@@ -31,8 +31,9 @@ Page({
   onShow() {
     this.loadUserInfo();
 
-    // 立即触发骨架屏渲染（先于 fetch，避免白屏）
-    if (this.data.filteredOrders.length === 0 && !this.data.isLoading) {
+    // 只在首次进入（无任何数据）时才显示骨架屏
+    // 已经有数据时静默后台刷新，避免"已有数据被骨架屏遮挡"的违和感
+    if (this.data.orders.length === 0 && !this.data.isLoading) {
       this.setData({ isLoading: true });
     }
     this.resetAndFetch();

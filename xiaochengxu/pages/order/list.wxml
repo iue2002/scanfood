@@ -1,78 +1,126 @@
-<!--pages/order/list.wxml-->
-<view class="list-container">
-  <!-- 订单状态标签 -->
-  <view class="tabs">
-    <view class="tab-item {{currentTab === 'all' ? 'active' : ''}}" bindtap="switchTab" data-tab="all">
-      <text class="tab-text">全部</text>
-      <view class="tab-line" wx:if="{{currentTab === 'all'}}"></view>
-    </view>
-    <view class="tab-item {{currentTab === 'draft' ? 'active' : ''}}" bindtap="switchTab" data-tab="draft">
-      <text class="tab-text">待提交</text>
-      <view class="tab-line" wx:if="{{currentTab === 'draft'}}"></view>
-    </view>
-    <view class="tab-item {{currentTab === 'submitted' ? 'active' : ''}}" bindtap="switchTab" data-tab="submitted">
-      <text class="tab-text">已提交</text>
-      <view class="tab-line" wx:if="{{currentTab === 'submitted'}}"></view>
-    </view>
-    <view class="tab-item {{currentTab === 'settled' ? 'active' : ''}}" bindtap="switchTab" data-tab="settled">
-      <text class="tab-text">已结账</text>
-      <view class="tab-line" wx:if="{{currentTab === 'settled'}}"></view>
+<!--pages/order/list.wxml — 紧凑版：单行头 + 单行金额操作，节省垂直空间-->
+<view class="om-page">
+  <!-- 自绘顶栏（替代微信原生标题，对齐 admin-web Header） -->
+  <view class="om-navbar" style="padding-top: {{statusBarHeight || 44}}px;">
+    <view class="om-navbar-inner">
+      <text class="om-navbar-title">订单</text>
     </view>
   </view>
 
-  <!-- 订单列表 -->
-  <view class="order-section">
-    <view class="empty" wx:if="{{filteredOrders.length === 0 && !isLoading}}">
-      <view class="empty-icon">📋</view>
-      <view class="empty-text">暂无订单</view>
-      <view class="empty-desc">快去扫码点餐吧~</view>
+  <!-- 状态筛选 Tabs -->
+  <scroll-view class="om-tabs" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="om-tabs-inner">
+      <view class="om-tab {{currentTab === 'all' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="all">全部</view>
+      <view class="om-tab {{currentTab === 'submitted' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="submitted">已提交</view>
+      <view class="om-tab {{currentTab === 'printed' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="printed">已打印</view>
+      <view class="om-tab {{currentTab === 'settled' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="settled">已结账</view>
+      <view class="om-tab {{currentTab === 'cancelled' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="cancelled">已取消</view>
+      <view class="om-tab {{currentTab === 'refunded' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="refunded">已退款</view>
+    </view>
+  </scroll-view>
+
+  <!-- 列表 -->
+  <view class="om-list">
+    <view class="om-empty" wx:if="{{filteredOrders.length === 0 && !isLoading}}">
+      <view class="om-empty-icon">
+        <text class="om-empty-icon-emoji">📋</text>
+      </view>
+      <view class="om-empty-title">暂无订单</view>
+      <view class="om-empty-desc">快去扫码点餐吧</view>
     </view>
 
-    <view class="order-list" wx:if="{{filteredOrders.length > 0}}">
-      <view class="order-card" wx:for="{{filteredOrders}}" wx:key="id">
-        <!-- 订单头部：店铺名 + 状态 -->
-        <view class="order-header">
-          <view class="shop-info" bindtap="goToDetail" data-id="{{item.id}}">
-            <image wx:if="{{storeAvatar}}" class="shop-avatar" src="{{storeAvatar}}" mode="aspectFill"></image>
-            <view wx:else class="shop-icon">🐰</view>
-            <view class="shop-name">{{storeName || '伊美轩'}}</view>
-            <view class="arrow-icon">›</view>
-          </view>
-          <view class="order-status status-{{item.status}}">{{item.status === 'settled' ? '已完成' : statusMap[item.status]}}</view>
-        </view>
-
-        <!-- 订单主体：菜品列表 + 价格 -->
-        <view class="order-body" bindtap="goToDetail" data-id="{{item.id}}">
-          <view class="items-row">
-            <view class="item-cell" wx:for="{{item.itemImages}}" wx:for-item="img" wx:for-index="idx" wx:key="idx">
-              <image class="item-image" src="{{img || '/images/default-dish.png'}}" mode="aspectFill"></image>
-              <view class="item-name">{{item.itemNames[idx]}}</view>
-              <view class="item-qty">×{{item.itemQtys[idx]}}</view>
+    <block wx:for="{{filteredOrders}}" wx:key="id" wx:for-index="orderIndex">
+      <view class="om-card">
+        <!-- 紧凑头部：桌号 + 时间/用户 + 状态胶囊 一行 -->
+        <view class="om-head">
+          <view class="om-head-left">
+            <view class="om-table-wrap">
+              <text class="om-table-num">{{item.tableNumber || item.table_id || '-'}}</text>
+              <text class="om-table-suffix">桌</text>
+            </view>
+            <view class="om-meta">
+              <text class="om-time">{{item.created_at}}</text>
             </view>
           </view>
-          <view class="price-column">
-            <view class="total-price">¥{{item.total_amount}}</view>
-            <view class="total-count">共{{item.totalItems}}件</view>
+          <view class="om-status om-status-{{item.status}}">{{statusMap[item.status]}}</view>
+        </view>
+
+        <!-- 单行：菜品摘要 + 展开箭头（未展开时显示） -->
+        <view
+          class="om-summary"
+          wx:if="{{!expandedMap[item.id] && item.order_items.length > 0}}"
+          bindtap="toggleExpand"
+          data-id="{{item.id}}"
+        >
+          <text class="om-summary-text">{{item.summaryText}}</text>
+          <view class="om-summary-trail">
+            <text class="om-summary-count">共{{item.totalItems}}件</text>
+            <text class="om-summary-arrow">›</text>
           </view>
         </view>
 
-        <!-- 底部：时间 + 操作 -->
-        <view class="order-footer">
-          <view class="order-time">
-            <text class="time-label">下单1：</text>
-            <text class="time-value">{{item.created_at}}</text>
+        <!-- 展开的明细 -->
+        <view class="om-detail" wx:if="{{expandedMap[item.id]}}">
+          <view
+            class="om-detail-group"
+            wx:for="{{item.groupedItems}}"
+            wx:for-item="group"
+            wx:for-index="gi"
+            wx:key="label"
+          >
+            <view class="om-group-head">
+              <text class="om-group-label {{gi === 0 ? 'om-group-label-primary' : 'om-group-label-warn'}}">{{group.label}}</text>
+              <view class="om-group-line"></view>
+              <text class="om-group-time">{{group.time}}</text>
+            </view>
+            <view class="om-group-body">
+              <view class="om-item-row" wx:for="{{group.items}}" wx:for-item="dish" wx:key="id">
+                <view class="om-item-name-wrap">
+                  <text class="om-item-name">{{dish.dish_name}}</text>
+                  <text class="om-item-spec" wx:if="{{dish.spec_name}}">({{dish.spec_name}})</text>
+                  <text class="om-item-qty">×{{dish.quantity}}</text>
+                </view>
+                <text class="om-item-subtotal">¥{{dish.subtotal}}</text>
+              </view>
+            </view>
           </view>
-          <view class="footer-actions">
-            <view class="more-btn" bindtap="goToDetail" data-id="{{item.id}}">更多</view>
-            <view class="reorder-btn" catchtap="reorder" data-id="{{item.id}}" wx:if="{{item.status === 'settled'}}">再来一单</view>
+
+          <view class="om-remark" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
+
+          <view class="om-collapse" bindtap="toggleExpand" data-id="{{item.id}}">
+            <text>收起明细</text>
+            <text class="om-collapse-arrow">⌃</text>
+          </view>
+        </view>
+
+        <!-- 底栏：总金额 + 操作（一行） -->
+        <view class="om-footer">
+          <view class="om-total">
+            <text class="om-total-label">合计</text>
+            <text class="om-total-amount">¥{{item.total_amount}}</text>
+          </view>
+          <view class="om-actions">
+            <view class="om-btn om-btn-secondary" bindtap="goToDetail" data-id="{{item.id}}">详情</view>
+            <view
+              class="om-btn om-btn-success"
+              wx:if="{{item.status === 'settled'}}"
+              catchtap="reorder"
+              data-id="{{item.id}}"
+            >再来一单</view>
           </view>
         </view>
       </view>
-    </view>
-  </view>
 
-  <!-- 加载状态 -->
-  <view class="loading" wx:if="{{isLoading}}">
-    <text>加载中...</text>
+      <view class="om-separator" wx:if="{{orderIndex < filteredOrders.length - 1}}">
+        <view class="om-separator-line"></view>
+        <view class="om-separator-dot"></view>
+        <view class="om-separator-line"></view>
+      </view>
+    </block>
+
+    <view class="om-loading" wx:if="{{isLoading}}">
+      <view class="om-spinner"></view>
+      <text>加载中</text>
+    </view>
   </view>
 </view>

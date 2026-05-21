@@ -10,17 +10,30 @@ Page({
     statusMap: {
       'draft': '待提交',
       'submitted': '已提交',
-      'printed': '已下单',
+      'printed': '已打印',
       'settled': '已结账',
       'cancelled': '已取消',
       'refunded': '已退款'
     },
-    isLoading: false
+    isLoading: false,
+    // === 仅 UI：展开收起的 map（按订单 id 存布尔） ===
+    expandedMap: {},
+    // === 仅 UI：自绘 navbar 占位 ===
+    statusBarHeight: 0
   },
 
   onShow() {
     this.loadUserInfo();
     this.fetchOrders();
+    // === 仅 UI：自绘 navbar 需要状态栏高度 ===
+    if (!this.data.statusBarHeight) {
+      try {
+        const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+        this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 });
+      } catch (e) {
+        this.setData({ statusBarHeight: 20 });
+      }
+    }
   },
 
   async onPullDownRefresh() {
@@ -38,7 +51,7 @@ Page({
     const app = getApp();
     const token = wx.getStorageSync('token');
     const backendUser = wx.getStorageSync('userInfo');
-    
+
     if (token && backendUser && backendUser.id) {
       this.setData({ userInfo: backendUser });
       app.globalData.userInfo = backendUser;
@@ -49,30 +62,30 @@ Page({
   async fetchOrders() {
     if (this.data.isLoading) return;
     this.setData({ isLoading: true });
-    
+
     try {
       const userInfo = this.data.userInfo;
       const { SERVER_URL } = require('../../config');
-      
+
       if (!userInfo || !userInfo.id) {
         console.warn('用户信息未加载，无法获取订单');
         this.setData({ isLoading: false });
         return;
       }
-      
+
       const result = await request({ url: '/orders' });
       const orders = result?.data || [];
       const store_name = result?.store_name;
       const store_avatar = result?.store_avatar;
       const dishes = await request({ url: '/dishes', noLoading: true });
-      
+
       const myOrders = orders
         .filter(o => o.user_id === userInfo.id && o.status !== 'draft')
         .map(order => {
           if (order.created_at) {
             order.created_at = this.formatDate(order.created_at);
           }
-          
+
           if (order.order_items) {
             order.order_items = order.order_items.map(item => {
               const dish = dishes.find(d => d.id === item.dish_id);
@@ -87,7 +100,7 @@ Page({
               return { ...item, dish_image: dishImage };
             });
 
-            // 按菜品名称聚合数量，用于列表卡片展示
+            // 按菜品名称聚合数量，用于列表卡片展示（保留旧字段，兼容潜在依赖）
             const dishMap = new Map();
             for (const item of order.order_items) {
               const key = item.dish_name;
@@ -108,19 +121,35 @@ Page({
             order.itemQtys = aggregatedItems.slice(0, 2).map(item => item.quantity);
             order.totalItems = aggregatedItems.reduce((sum, item) => sum + item.quantity, 0);
 
-            console.log('Order itemQtys:', order.itemQtys, 'totalItems:', order.totalItems);
+            // === 仅 UI：按 add_more_round 分组，复刻 admin-web groupItemsByPhase ===
+            order.groupedItems = this.groupItemsByPhase(order.order_items);
           }
-          
+
+          // === 仅 UI：扁平字段映射，避免在 wxml 里写复杂 ?? 链 ===
+          order.tableNumber =
+            (order.tables && order.tables.table_number) ||
+            order.table_number ||
+            order.table_id || '';
+          order.userNickname =
+            (order.user && (order.user.nickname || order.user.username)) ||
+            (order.users && (order.users.nickname || order.users.username)) ||
+            '';
+
+          // === 仅 UI：菜品摘要文案（紧凑卡片用，逗号分隔）===
+          order.summaryText = (order.order_items && order.order_items.length > 0)
+            ? order.order_items.map(it => `${it.dish_name}×${it.quantity}`).join('，')
+            : '无菜品';
+
           return order;
         });
-      
-      this.setData({ 
-        orders: myOrders, 
+
+      this.setData({
+        orders: myOrders,
         isLoading: false,
         storeName: store_name || '伊美轩',
         storeAvatar: store_avatar || '',
       });
-      
+
       this.filterOrders();
     } catch (err) {
       console.error('获取订单列表失败', err);
@@ -132,6 +161,55 @@ Page({
     }
   },
 
+  // === 仅 UI：按 add_more_round 分组，逐字对齐 admin-web/OrderManage groupItemsByPhase ===
+  groupItemsByPhase(items) {
+    if (!items || items.length === 0) return [];
+    const sorted = [...items].sort(
+      (a, b) => (Number(a.add_more_round) || 0) - (Number(b.add_more_round) || 0)
+    );
+    const groups = [];
+    let currentGroup = [sorted[0]];
+    let currentRound = Number(sorted[0].add_more_round) || 0;
+    const fmt = (s) => this.formatGroupTime(s);
+
+    for (let i = 1; i < sorted.length; i++) {
+      const round = Number(sorted[i].add_more_round) || 0;
+      if (round === currentRound) {
+        currentGroup.push(sorted[i]);
+      } else {
+        groups.push({
+          time: fmt(currentGroup[0].created_at),
+          items: currentGroup,
+          label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`
+        });
+        currentGroup = [sorted[i]];
+        currentRound = round;
+      }
+    }
+    groups.push({
+      time: fmt(currentGroup[0].created_at),
+      items: currentGroup,
+      label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`
+    });
+    return groups;
+  },
+
+  // === 仅 UI：分组标题里的简短时间 5月21日 23:44 ===
+  formatGroupTime(dateStr) {
+    if (!dateStr) return '';
+    const m = String(dateStr).match(/^\d{4}-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+    if (m) return `${parseInt(m[1])}月${parseInt(m[2])}日 ${m[3]}:${m[4]}`;
+    return dateStr;
+  },
+
+  // === 仅 UI：展开收起 ===
+  toggleExpand(e) {
+    const id = e.currentTarget.dataset.id;
+    const expandedMap = { ...this.data.expandedMap };
+    expandedMap[id] = !expandedMap[id];
+    this.setData({ expandedMap });
+  },
+
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
     this.setData({ currentTab: tab });
@@ -140,12 +218,13 @@ Page({
 
   filterOrders() {
     const { orders, currentTab } = this.data;
-    
+
     if (currentTab === 'all') {
       this.setData({ filteredOrders: orders });
     } else {
       let filtered;
       if (currentTab === 'submitted') {
+        // 保留原行为：'已提交' Tab 同时包含 submitted 和 printed
         filtered = orders.filter(o => o.status === 'submitted' || o.status === 'printed');
       } else {
         filtered = orders.filter(o => o.status === currentTab);
@@ -173,7 +252,7 @@ Page({
 
   async submitOrder(e) {
     const orderId = e.currentTarget.dataset.id;
-    
+
     wx.showModal({
       title: '确认提交',
       content: '确定要提交此订单吗？',
@@ -186,12 +265,12 @@ Page({
               data: { status: 'submitted' },
               noLoading: true
             });
-            
+
             wx.showToast({
               title: '订单已提交',
               icon: 'success'
             });
-            
+
             this.fetchOrders();
           } catch (err) {
             console.error('提交订单失败', err);

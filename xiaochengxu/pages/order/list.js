@@ -1,6 +1,7 @@
 // pages/order/list.js
 const { request } = require('../../utils/request');
 const dishesCache = require('../../utils/dishes-cache');
+const ordersPrefetch = require('../../utils/orders-prefetch');
 
 Page({
   data: {
@@ -28,17 +29,32 @@ Page({
     isLoadingMore: false
   },
 
-  onShow() {
+  // 业务实例字段（不放 data，避免触发 setData）
+  _isFetching: false,
+  _isLoadingMore: false,
+
+  onLoad() {
+    // 立即从 storage 读 userInfo，避免 onShow 异步问题
     this.loadUserInfo();
-
-    // 只在首次进入（无任何数据）时才显示骨架屏
-    // 已经有数据时静默后台刷新，避免"已有数据被骨架屏遮挡"的违和感
-    if (this.data.orders.length === 0 && !this.data.isLoading) {
-      this.setData({ isLoading: true });
+    // 立即开始 fetch，不等 onShow 触发，缩短 navigateTo 后的白屏窗口
+    if (this.data.userInfo && this.data.userInfo.id) {
+      this.fetchOrders(true);
     }
-    this.resetAndFetch();
+  },
 
-    // === 仅 UI：自绘 navbar 需要状态栏高度 ===
+  onShow() {
+    // 没有用户信息（onLoad 时未登录）或还没拉过数据，触发一次
+    if (!this.data.userInfo) {
+      this.loadUserInfo();
+      if (this.data.userInfo && this.data.userInfo.id && this.data.orders.length === 0 && !this._isFetching) {
+        this.fetchOrders(true);
+      }
+    } else if (this.data.orders.length > 0 && !this._isFetching) {
+      // 已有数据，静默后台刷新
+      this.fetchOrders(true);
+    }
+
+    // 状态栏高度只算一次
     if (!this.data.statusBarHeight) {
       try {
         const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -91,7 +107,13 @@ Page({
     if (isRefresh) {
       if (this._isFetching) return;
       this._isFetching = true;
-      this.setData({ isLoading: true });
+
+      // 单次 setData：骨架屏 + 重置分页 + 锁 UI（合并 3 次 setData 为 1 次）
+      const patch = { page: 1, hasMore: true };
+      if (this.data.orders.length === 0 && !this.data.isLoading) {
+        patch.isLoading = true;
+      }
+      this.setData(patch);
     } else {
       if (this._isLoadingMore || !this.data.hasMore) return;
       this._isLoadingMore = true;
@@ -106,20 +128,34 @@ Page({
         console.warn('用户信息未加载，无法获取订单');
         this._isFetching = false;
         this._isLoadingMore = false;
-        this.setData({ isLoading: false, isLoadingMore: false });
+        if (this.data.isLoading || this.data.isLoadingMore) {
+          this.setData({ isLoading: false, isLoadingMore: false });
+        }
         return;
       }
 
       const page = isRefresh ? 1 : this.data.page + 1;
       const pageSize = this.data.pageSize;
 
-      // dishes 走双层缓存（内存 + storage，30min TTL），命中即同步返回
-      const dishes = await dishesCache.getDishes();
-
-      const result = await request({
-        url: `/orders?page=${page}&page_size=${pageSize}&exclude_draft=true`,
-        noLoading: true
-      });
+      // 优先消费 me 页点"我的订单"时的预拉取结果（5s 内有效），否则现拉
+      let dishes;
+      let result;
+      const prefetched = isRefresh && page === 1 ? await ordersPrefetch.consume() : null;
+      if (prefetched && prefetched.ordersResult) {
+        result = prefetched.ordersResult;
+        dishes = prefetched.dishes || [];
+      } else {
+        // 并行：dishes（缓存命中 0ms，未命中 200ms）+ orders（200-400ms）
+        const parallel = await Promise.all([
+          dishesCache.getDishes(),
+          request({
+            url: `/orders?page=${page}&page_size=${pageSize}&exclude_draft=true`,
+            noLoading: true
+          })
+        ]);
+        dishes = parallel[0];
+        result = parallel[1];
+      }
       const orders = result?.data || [];
       const store_name = result?.store_name;
       const store_avatar = result?.store_avatar;

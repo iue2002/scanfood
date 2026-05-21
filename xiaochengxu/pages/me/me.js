@@ -268,6 +268,10 @@ Page({
   },
 
   goToOrders() {
+    // 立即触发预拉取——等 list 页 onLoad 时数据已经在内存（秒开）
+    const ordersPrefetch = require('../../utils/orders-prefetch');
+    ordersPrefetch.prefetchFirstPage(20);
+
     wx.navigateTo({
       url: '/pages/order/list'
     });

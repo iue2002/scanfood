@@ -137,5 +137,15 @@
       <view class="om-spinner"></view>
       <text>加载中</text>
     </view>
+
+    <view class="om-loading" wx:if="{{isLoadingMore}}">
+      <view class="om-spinner"></view>
+      <text>加载更多</text>
+    </view>
+
+    <view
+      class="om-end-tip"
+      wx:if="{{!isLoading && !isLoadingMore && !hasMore && filteredOrders.length > 0}}"
+    >— 没有更多订单了 —</view>
   </view>
 </view>

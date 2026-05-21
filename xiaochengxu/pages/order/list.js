@@ -19,12 +19,18 @@ Page({
     // === 仅 UI：展开收起的 map（按订单 id 存布尔） ===
     expandedMap: {},
     // === 仅 UI：自绘 navbar 占位 ===
-    statusBarHeight: 0
+    statusBarHeight: 0,
+    // === 分页：每次拉 20 条，触底续拉 ===
+    page: 1,
+    pageSize: 20,
+    hasMore: true,
+    isLoadingMore: false
   },
 
   onShow() {
     this.loadUserInfo();
-    this.fetchOrders();
+    // 每次进入页面只重置一次后请求第一页
+    this.resetAndFetch();
     // === 仅 UI：自绘 navbar 需要状态栏高度 ===
     if (!this.data.statusBarHeight) {
       try {
@@ -37,14 +43,25 @@ Page({
   },
 
   async onPullDownRefresh() {
-    console.log('下拉刷新 - 重新加载订单列表');
     try {
-      await this.fetchOrders();
+      await this.resetAndFetch();
       wx.stopPullDownRefresh();
     } catch (err) {
       console.error('下拉刷新失败', err);
       wx.stopPullDownRefresh();
     }
+  },
+
+  // 重置到第一页
+  async resetAndFetch() {
+    this.setData({ page: 1, hasMore: true, orders: [], filteredOrders: [] });
+    await this.fetchOrders(true);
+  },
+
+  // 上拉触底
+  async onReachBottom() {
+    if (!this.data.hasMore || this.data.isLoadingMore || this.data.isLoading) return;
+    await this.fetchOrders(false);
   },
 
   loadUserInfo() {
@@ -59,9 +76,15 @@ Page({
     }
   },
 
-  async fetchOrders() {
-    if (this.data.isLoading) return;
-    this.setData({ isLoading: true });
+  async fetchOrders(isRefresh) {
+    // isRefresh=true 表示重置到第一页；false 表示加载下一页
+    if (isRefresh) {
+      if (this.data.isLoading) return;
+      this.setData({ isLoading: true });
+    } else {
+      if (this.data.isLoadingMore || !this.data.hasMore) return;
+      this.setData({ isLoadingMore: true });
+    }
 
     try {
       const userInfo = this.data.userInfo;
@@ -69,17 +92,28 @@ Page({
 
       if (!userInfo || !userInfo.id) {
         console.warn('用户信息未加载，无法获取订单');
-        this.setData({ isLoading: false });
+        this.setData({ isLoading: false, isLoadingMore: false });
         return;
       }
 
-      const result = await request({ url: '/orders' });
+      const page = isRefresh ? 1 : this.data.page + 1;
+      const pageSize = this.data.pageSize;
+
+      const result = await request({
+        url: `/orders?page=${page}&page_size=${pageSize}&exclude_draft=true`,
+        noLoading: !isRefresh
+      });
       const orders = result?.data || [];
       const store_name = result?.store_name;
       const store_avatar = result?.store_avatar;
-      const dishes = await request({ url: '/dishes', noLoading: true });
+      // dishes 每次都拉全量较重，缓存到全局
+      let dishes = getApp().globalData.allDishes;
+      if (!dishes || dishes.length === 0) {
+        dishes = await request({ url: '/dishes', noLoading: true });
+        getApp().globalData.allDishes = dishes;
+      }
 
-      const myOrders = orders
+      const myNewOrders = orders
         .filter(o => o.user_id === userInfo.id && o.status !== 'draft')
         .map(order => {
           if (order.created_at) {
@@ -100,7 +134,7 @@ Page({
               return { ...item, dish_image: dishImage };
             });
 
-            // 按菜品名称聚合数量，用于列表卡片展示（保留旧字段，兼容潜在依赖）
+            // 按菜品名称聚合（保留旧字段，兼容潜在依赖）
             const dishMap = new Map();
             for (const item of order.order_items) {
               const key = item.dish_name;
@@ -121,11 +155,9 @@ Page({
             order.itemQtys = aggregatedItems.slice(0, 2).map(item => item.quantity);
             order.totalItems = aggregatedItems.reduce((sum, item) => sum + item.quantity, 0);
 
-            // === 仅 UI：按 add_more_round 分组，复刻 admin-web groupItemsByPhase ===
             order.groupedItems = this.groupItemsByPhase(order.order_items);
           }
 
-          // === 仅 UI：扁平字段映射，避免在 wxml 里写复杂 ?? 链 ===
           order.tableNumber =
             (order.tables && order.tables.table_number) ||
             order.table_number ||
@@ -134,22 +166,26 @@ Page({
             (order.user && (order.user.nickname || order.user.username)) ||
             (order.users && (order.users.nickname || order.users.username)) ||
             '';
-
-          // === 仅 UI：菜品摘要文案（紧凑卡片用，逗号分隔）===
           order.summaryText = (order.order_items && order.order_items.length > 0)
             ? order.order_items.map(it => `${it.dish_name}×${it.quantity}`).join('，')
             : '无菜品';
-
-          // === 仅 UI：首张菜品图（卡片左侧缩略图用） ===
           const firstWithImage = (order.order_items || []).find(it => it.dish_image);
           order.firstDishImage = firstWithImage ? firstWithImage.dish_image : '';
 
           return order;
         });
 
+      // 拼接而不是覆盖（除非是 refresh）
+      const merged = isRefresh ? myNewOrders : [...this.data.orders, ...myNewOrders];
+      // 后端返回数量不足 pageSize 即没有更多
+      const hasMore = orders.length >= pageSize;
+
       this.setData({
-        orders: myOrders,
+        orders: merged,
+        page,
+        hasMore,
         isLoading: false,
+        isLoadingMore: false,
         storeName: store_name || '伊美轩',
         storeAvatar: store_avatar || '',
       });
@@ -157,11 +193,8 @@ Page({
       this.filterOrders();
     } catch (err) {
       console.error('获取订单列表失败', err);
-      this.setData({ isLoading: false });
-      wx.showToast({
-        title: '获取订单失败',
-        icon: 'none'
-      });
+      this.setData({ isLoading: false, isLoadingMore: false });
+      wx.showToast({ title: '获取订单失败', icon: 'none' });
     }
   },
 
@@ -227,7 +260,9 @@ Page({
 
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab;
+    if (this.data.currentTab === tab) return;
     this.setData({ currentTab: tab });
+    // 切 Tab 用本地数据筛选；服务端无需重拉，因为我们已经按 user_id 过滤过
     this.filterOrders();
   },
 

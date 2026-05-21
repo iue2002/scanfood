@@ -463,3 +463,13 @@
 @keyframes om-spin {
   to { transform: rotate(360deg); }
 }
+
+
+/* ====== 没有更多了 ====== */
+.om-end-tip {
+  text-align: center;
+  padding: 32rpx 0 16rpx;
+  font-size: 22rpx;
+  color: #94A3B8;
+  letter-spacing: 1rpx;
+}

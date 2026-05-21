@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import request from '@/api/request'
-import { Plus, QrCode, Trash2, Edit2 } from 'lucide-react'
+import { Plus, QrCode, Trash2, Edit2, Image as ImageIcon } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
+import TablePosterModal from '@/components/TablePosterModal'
 
 // 获取服务器基础地址
 const getServerBaseURL = () => {
@@ -27,7 +28,10 @@ export default function TableManage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Table | null>(null)
   const [form, setForm] = useState({ table_number: '', capacity: 4 })
+  const [posterTable, setPosterTable] = useState<Table | null>(null)
+  const [storeName, setStoreName] = useState('伊美轩')
   const { showToast, showConfirm } = useModal()
+  const qrBaseUrl = getServerBaseURL()
 
   const fetchTables = () => {
     request.get('/tables').then((res: any) => setTables(res || []))
@@ -35,6 +39,14 @@ export default function TableManage() {
 
   useEffect(() => {
     fetchTables()
+    // 拉店铺名（用于海报标题）
+    request.get('/store-settings').then((res: any) => {
+      if (res?.data?.store_name) {
+        setStoreName(res.data.store_name)
+      } else if (res?.store_name) {
+        setStoreName(res.store_name)
+      }
+    }).catch(() => { /* 静默 */ })
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,6 +129,14 @@ export default function TableManage() {
                 <button onClick={() => handleGenerateQr(table.id)} className="p-3 text-[#2563EB] hover:bg-[#EFF6FF] rounded-lg transition-colors cursor-pointer active:bg-[#DBEAFE]" title="生成二维码">
                   <QrCode size={18} />
                 </button>
+                <button
+                  onClick={() => setPosterTable(table)}
+                  disabled={!table.qr_code_url}
+                  className="p-3 text-[#10B981] hover:bg-[#D1FAE5] rounded-lg transition-colors cursor-pointer active:bg-[#A7F3D0] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  title={table.qr_code_url ? '保存桌台海报' : '请先生成二维码'}
+                >
+                  <ImageIcon size={18} />
+                </button>
                 <button onClick={() => handleSetStatus(table.id, 'idle')} className="px-3 py-2 text-sm text-[#10B981] hover:bg-[#D1FAE5] rounded-lg transition-colors cursor-pointer active:bg-[#A7F3D0]">置为空闲</button>
                 <button onClick={() => handleSetStatus(table.id, 'occupied')} className="px-3 py-2 text-sm text-[#F59E0B] hover:bg-[#FEF3C7] rounded-lg transition-colors cursor-pointer active:bg-[#FDE68A]">置为占用</button>
                 <button onClick={() => { setEditing(table); setForm({ table_number: table.table_number, capacity: table.capacity }); setShowModal(true) }} className="p-3 text-[#6366F1] hover:bg-[#EEF2FF] rounded-lg transition-colors cursor-pointer active:bg-[#E0E7FF]">
@@ -165,6 +185,14 @@ export default function TableManage() {
           </div>
         </div>
       )}
+
+      <TablePosterModal
+        open={!!posterTable}
+        table={posterTable}
+        qrBaseUrl={qrBaseUrl}
+        storeName={storeName}
+        onClose={() => setPosterTable(null)}
+      />
     </div>
   )
 }

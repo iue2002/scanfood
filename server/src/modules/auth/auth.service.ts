@@ -17,34 +17,62 @@ export class AuthService {
   // 同一账号连续失败 MAX_FAILED_ATTEMPTS 次 → 锁定 LOCK_DURATION_MS
   private static readonly MAX_FAILED_ATTEMPTS = 5;
   private static readonly LOCK_DURATION_MS = 30 * 60 * 1000; // 30 分钟
-  private accountLockMap = new Map<string, { failedCount: number; lockedUntil: number }>();
+  private static readonly FAIL_RESET_MS = 10 * 60 * 1000; // 10 分钟内连续失败才累计
+  private accountLockMap = new Map<
+    string,
+    { failedCount: number; lockedUntil: number; lastFailAt: number }
+  >();
 
   private isAccountLocked(username: string): { locked: boolean; remainingMinutes?: number } {
     const entry = this.accountLockMap.get(username);
     if (!entry) return { locked: false };
 
-    if (entry.lockedUntil > 0) {
-      if (Date.now() < entry.lockedUntil) {
-        const remainingMinutes = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
-        return { locked: true, remainingMinutes };
-      }
-      this.accountLockMap.delete(username);
+    // 正在锁定期内
+    if (entry.lockedUntil > Date.now()) {
+      const remainingMinutes = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
+      return { locked: true, remainingMinutes };
     }
+
+    // 锁定已过期，但不清除 entry（保留 lastFailAt 用于判断"连续"）
+    if (entry.lockedUntil > 0) {
+      entry.lockedUntil = 0;
+    }
+
+    // 距离上次失败超过 FAIL_RESET_MS → 重置计数（不再连续）
+    if (Date.now() - entry.lastFailAt > AuthService.FAIL_RESET_MS) {
+      entry.failedCount = 0;
+    }
+
     return { locked: false };
   }
 
   private recordFailedAttempt(username: string): void {
-    const entry = this.accountLockMap.get(username) || { failedCount: 0, lockedUntil: 0 };
+    const now = Date.now();
+    let entry = this.accountLockMap.get(username);
+
+    if (!entry) {
+      entry = { failedCount: 0, lockedUntil: 0, lastFailAt: 0 };
+    }
+
+    // 距离上次失败超过 FAIL_RESET_MS → 重置计数（不连续）
+    if (now - entry.lastFailAt > AuthService.FAIL_RESET_MS) {
+      entry.failedCount = 0;
+    }
+
     entry.failedCount++;
+    entry.lastFailAt = now;
+
     if (entry.failedCount >= AuthService.MAX_FAILED_ATTEMPTS) {
-      entry.lockedUntil = Date.now() + AuthService.LOCK_DURATION_MS;
+      entry.lockedUntil = now + AuthService.LOCK_DURATION_MS;
       this.logger.warn(`账户已锁定: ${username}，持续 30 分钟`);
     }
+
     this.accountLockMap.set(username, entry);
   }
 
   private clearLockEntry(username: string): void {
     this.accountLockMap.delete(username);
+    this.logger.log(`登录成功，已重置失败计数: ${username}`);
   }
 
   // ===== 审计日志（写入 DB，失败不影响主流程） =====

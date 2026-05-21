@@ -10,6 +10,24 @@
     <meta name="apple-mobile-web-app-title" content="点餐管理" />
     <link rel="apple-touch-icon" href="/icon-192.svg" />
     <title>扫码点餐管理系统</title>
+    <script>
+      // 检测 PWA 安装状态
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // 如果已经安装过，阻止默认提示
+        if (window.matchMedia('(display-mode: standalone)').matches || 
+            window.navigator.standalone === true) {
+          e.preventDefault();
+          return;
+        }
+        // 保存事件供后续使用
+        window.deferredPrompt = e;
+      });
+      
+      // 检测是否从桌面启动
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.documentElement.classList.add('pwa-standalone');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

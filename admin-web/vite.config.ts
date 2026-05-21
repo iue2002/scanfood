@@ -1,13 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import basicSsl from '@vitejs/plugin-basic-ssl'
+import fs from 'fs'
 import path from 'path'
+
+const certPath = path.resolve(__dirname, 'localhost.pem')
+const keyPath = path.resolve(__dirname, 'localhost-key.pem')
 
 export default defineConfig({
   plugins: [
     react(),
-    basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.svg', 'icon-512.svg', 'icon-192.png', 'icon-512.png'],
@@ -80,6 +82,7 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
     port: 5173,
+    https: fs.existsSync(certPath) ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) } : false,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

@@ -1,5 +1,6 @@
 // app.js
 const { request } = require('./utils/request');
+const dishesCache = require('./utils/dishes-cache');
 
 App({
   onLaunch() {
@@ -16,6 +17,10 @@ App({
     this.checkLoginStatusSync();
     // 异步刷新用户信息，不阻塞页面渲染
     setTimeout(() => this.refreshUserInfoAsync(), 100);
+    // 启动时预热 dishes 缓存（后台静默拉取，不阻塞首屏）
+    setTimeout(() => {
+      dishesCache.getDishes().catch(() => { /* noop */ });
+    }, 200);
   },
 
   checkLoginStatusSync() {

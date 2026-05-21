@@ -7,6 +7,20 @@
     "pages/me/me",
     "pages/logs/logs"
   ],
+  "preloadRule": {
+    "pages/me/me": {
+      "network": "all",
+      "packages": ["__APP__"]
+    },
+    "pages/order/order": {
+      "network": "all",
+      "packages": ["__APP__"]
+    },
+    "pages/order/list": {
+      "network": "all",
+      "packages": ["__APP__"]
+    }
+  },
   "window": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "扫码点餐",
@@ -33,7 +47,6 @@
   "style": "v2",
   "componentFramework": "glass-easel",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents",
   "resizable": false,
   "darkmode": false
 }

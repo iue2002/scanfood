@@ -18,11 +18,10 @@
   <scroll-view class="om-tabs" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="om-tabs-inner">
       <view class="om-tab {{currentTab === 'all' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="all">全部</view>
+      <view class="om-tab {{currentTab === 'draft' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="draft">待提交</view>
       <view class="om-tab {{currentTab === 'submitted' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="submitted">已提交</view>
-      <view class="om-tab {{currentTab === 'printed' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="printed">已打印</view>
-      <view class="om-tab {{currentTab === 'settled' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="settled">已结账</view>
+      <view class="om-tab {{currentTab === 'settled' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="settled">已完成</view>
       <view class="om-tab {{currentTab === 'cancelled' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="cancelled">已取消</view>
-      <view class="om-tab {{currentTab === 'refunded' ? 'om-tab-active' : ''}}" bindtap="switchTab" data-tab="refunded">已退款</view>
     </view>
   </scroll-view>
 

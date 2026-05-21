@@ -28,10 +28,10 @@ Component({
     statusMap: {
       'draft': '待提交',
       'submitted': '已提交',
-      'printed': '已打印',
-      'settled': '已结账',
+      'printed': '已提交',
+      'settled': '已完成',
       'cancelled': '已取消',
-      'refunded': '已退款'
+      'refunded': '已取消'
     },
     isLoading: false,
     expandedMap: {},
@@ -259,15 +259,19 @@ Component({
       const { orders, currentTab } = this.data;
       if (currentTab === 'all') {
         this.setData({ filteredOrders: orders });
-      } else {
-        let filtered;
-        if (currentTab === 'submitted') {
-          filtered = orders.filter(o => o.status === 'submitted' || o.status === 'printed');
-        } else {
-          filtered = orders.filter(o => o.status === currentTab);
-        }
-        this.setData({ filteredOrders: filtered });
+        return;
       }
+      let filtered;
+      if (currentTab === 'submitted') {
+        // 已提交：包含 submitted 和 printed
+        filtered = orders.filter(o => o.status === 'submitted' || o.status === 'printed');
+      } else if (currentTab === 'settled') {
+        // 已完成：包含 settled 和 refunded
+        filtered = orders.filter(o => o.status === 'settled' || o.status === 'refunded');
+      } else {
+        filtered = orders.filter(o => o.status === currentTab);
+      }
+      this.setData({ filteredOrders: filtered });
     },
 
     formatDate(dateStr) {

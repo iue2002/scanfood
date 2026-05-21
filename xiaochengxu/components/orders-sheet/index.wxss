@@ -187,10 +187,10 @@
 }
 .om-status-draft     { color: #94A3B8; background: #F1F5F9; }
 .om-status-submitted { color: #F59E0B; background: #FEF3C7; }
-.om-status-printed   { color: #2563EB; background: #EFF6FF; }
+.om-status-printed   { color: #F59E0B; background: #FEF3C7; }
 .om-status-settled   { color: #10B981; background: #D1FAE5; }
 .om-status-cancelled { color: #EF4444; background: #FEF2F2; }
-.om-status-refunded  { color: #94A3B8; background: #F1F5F9; }
+.om-status-refunded  { color: #EF4444; background: #FEF2F2; }
 
 .om-summary {
   display: flex;

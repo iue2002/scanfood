@@ -63,14 +63,13 @@ Page({
   },
 
   // 判断是否是会失效的本地/临时 URL
+  // 注意：只匹配真正的临时头像特征，避免误伤本地后端 URL（http://localhost:3000/uploads/...）
   isInvalidAvatarUrl(url) {
     if (!url) return false;
     return (
-      url.indexOf('127.0.0.1') !== -1 ||
-      url.indexOf('localhost') !== -1 ||
-      url.indexOf('__tmp__') !== -1 ||
-      url.indexOf('wxfile://') === 0 ||
-      url.indexOf('http://tmp/') === 0
+      url.indexOf('__tmp__') !== -1 ||      // 微信开发者工具内部代理临时文件
+      url.indexOf('wxfile://') === 0 ||     // 微信原生临时文件协议
+      url.indexOf('http://tmp/') === 0      // 真机上的临时文件协议
     );
   },
 

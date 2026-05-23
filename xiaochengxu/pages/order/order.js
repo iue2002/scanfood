@@ -254,6 +254,7 @@ Page({
     
     this.ws = wx.connectSocket({
       url: wsUrl,
+      multiple: true, // 允许多 socket 共存，避免与 detail-sheet 的订单 ws 互相覆盖
     });
 
     this.ws.onOpen(() => {

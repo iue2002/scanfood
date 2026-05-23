@@ -21,12 +21,17 @@ Component({
     orderId: {
       type: String,
       value: '',
-      observer(newVal) {
-        if (newVal && this.data.visible) {
-          this.orderId = newVal;
-          this.fetchOrderDetail(newVal);
-          this.initWebSocket(newVal);
-        }
+      observer(newVal, oldVal) {
+        // 仅当 sheet 已经打开 + orderId 真的变化时才刷新
+        // 首次打开由 visible observer 的 handleOpen 处理，避免双重调用 initWebSocket
+        if (!newVal) return;
+        if (!this.data.visible) return;
+        if (!this._inited) return;
+        if (newVal === oldVal) return;
+        this.orderId = newVal;
+        this.disconnect(); // 切换订单，先断旧的 ws
+        this.fetchOrderDetail(newVal);
+        this.initWebSocket(newVal);
       }
     },
     // 锁定模式：用于强制拦截未完成订单（自动检测 / ws 推送进来时为 true）
@@ -96,6 +101,7 @@ Component({
       const id = this.data.orderId || this.orderId;
       if (!id) return;
       this.orderId = id;
+      this._inited = true; // 标记：visible observer 已完成初始化，后续 orderId 变化才走刷新逻辑
 
       // 重置每次打开的 UI 状态
       this.setData({
@@ -118,6 +124,7 @@ Component({
 
     handleClose() {
       // visible=false 时由父级触发：断开 WS / 停止轮询
+      this._inited = false;
       this.disconnect();
     },
 
@@ -179,7 +186,9 @@ Component({
 
       console.log(`[WS-detail] 正在连接: ${wsUrl}`);
 
-      this.ws = wx.connectSocket({ url: wsUrl });
+      // multiple: true 让 detail-sheet 拥有独立的 socketTask，
+      // 不与 order 页的桌台 ws 冲突（小程序默认 connectSocket 只允许一个实例）
+      this.ws = wx.connectSocket({ url: wsUrl, multiple: true });
 
       this.ws.onOpen(() => {
         console.log('[WS-detail] 连接成功');
@@ -310,12 +319,19 @@ Component({
         // 通知父级状态变化（用于关 sheet 后释放桌号）
         this.triggerEvent('statuschange', { status: order.status, orderId: id });
 
-        // 如果订单已结账/取消，立即释放桌号资源；锁定模式下也要解锁让用户离开
+        // 如果订单已结账/取消：
+        // 1. 锁定模式（当前活跃订单）：释放桌号资源 + 解锁让用户离开
+        // 2. 非锁定模式（用户在看历史订单）：什么都不做，绝不能清桌号/购物车，
+        //    避免破坏同桌共享购物车 + 实时通讯机制
         if (order.status === 'settled' || order.status === 'cancelled') {
-          this.releaseTableResources();
-          // 通知父级解锁（订单已完成，允许关闭）
           if (this.data.locked) {
+            this.releaseTableResources();
+            // 通知父级解锁（订单已完成，允许关闭）
             this.triggerEvent('unlock', { orderId: id });
+          } else {
+            // 非锁定模式下看到的订单已经到终态，断开 ws + 停轮询，不再监听变化
+            // （也不释放桌号，避免破坏同桌共享购物车）
+            this.disconnect();
           }
         }
       } catch (err) {

@@ -173,15 +173,18 @@ export class AuthService {
       );
     }
 
-    // 2. 验证码：失败 1 次后必须验证（业界主流策略：失败一次就上 captcha）
+    // 2. 验证码：失败 1 次后必须验证
     const failed = this.getFailedCount(username);
     if (failed >= 1) {
       const passed = this.captchaService.verify(dto.captchaToken || '', dto.captchaInput || '');
       if (!passed) {
-        // captcha 错误不计入密码失败次数，但要返回标志让前端刷新验证码
-        const err: any = new UnauthorizedException('验证码错误或已过期，请重新获取');
-        err.response = { ...err.response, captchaRequired: true };
-        throw err;
+        await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '验证码错误');
+        // 用对象作为 UnauthorizedException 的 response，NestJS 会原样序列化输出 captchaRequired 字段
+        throw new UnauthorizedException({
+          statusCode: 401,
+          message: '验证码错误或已过期，请重新获取',
+          captchaRequired: true,
+        });
       }
     }
 
@@ -192,9 +195,11 @@ export class AuthService {
     if (!user) {
       this.recordFailedAttempt(username);
       await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
-      const err: any = new UnauthorizedException('用户名或密码错误');
-      err.response = { ...err.response, captchaRequired: true };
-      throw err;
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: '用户名或密码错误',
+        captchaRequired: this.getFailedCount(username) >= 1,
+      });
     }
 
     // 4. 验证密码
@@ -202,9 +207,11 @@ export class AuthService {
     if (!isValid) {
       this.recordFailedAttempt(username);
       await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
-      const err: any = new UnauthorizedException('用户名或密码错误');
-      err.response = { ...err.response, captchaRequired: true };
-      throw err;
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: '用户名或密码错误',
+        captchaRequired: this.getFailedCount(username) >= 1,
+      });
     }
 
     // 5. 登录成功：清除锁定 + 记录审计

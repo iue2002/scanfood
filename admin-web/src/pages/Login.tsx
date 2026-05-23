@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/api/request'
@@ -14,11 +14,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [lastLoginInfo, setLastLoginInfo] = useState<{ at: string; ip: string } | null>(null)
 
-  // 验证码状态
+  // 验证码状态：captchaRequired 由后端响应决定，captcha 是当前图形 token+svg
   const [captchaRequired, setCaptchaRequired] = useState(false)
   const [captcha, setCaptcha] = useState<CaptchaResp | null>(null)
   const [captchaInput, setCaptchaInput] = useState('')
   const [captchaLoading, setCaptchaLoading] = useState(false)
+
+  // 用 ref 避免并发请求互相覆盖（refresh in-flight 时第二次调用直接跳过）
+  const captchaInflight = useRef(false)
 
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -31,41 +34,61 @@ export default function Login() {
   }
 
   const refreshCaptcha = useCallback(async () => {
+    if (captchaInflight.current) return
+    captchaInflight.current = true
     setCaptchaLoading(true)
     try {
       const res: any = await request.get('/auth/captcha')
-      setCaptcha(res)
-      setCaptchaInput('')
+      // 防御：res 必须是 { token, svg } 结构
+      if (res && typeof res.token === 'string' && typeof res.svg === 'string') {
+        setCaptcha(res)
+        setCaptchaInput('')
+      } else {
+        console.error('验证码格式异常', res)
+      }
     } catch (e) {
-      // 拉验证码失败，不打断登录流程
       console.error('获取验证码失败', e)
     } finally {
+      captchaInflight.current = false
       setCaptchaLoading(false)
     }
   }, [])
 
-  // 一旦需要验证码，立即拉一张
+  // 当 captchaRequired 从 false 变 true 时拉一张
   useEffect(() => {
-    if (captchaRequired && !captcha) {
+    if (captchaRequired && !captcha && !captchaInflight.current) {
       refreshCaptcha()
     }
   }, [captchaRequired, captcha, refreshCaptcha])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username || !password) return
-    if (captchaRequired && !captchaInput) {
-      showToast('请输入验证码', 'warning')
+    if (loading) return
+    if (!username.trim() || !password) {
+      showToast('请输入账号和密码', 'warning')
       return
     }
+    if (captchaRequired) {
+      if (!captcha) {
+        showToast('验证码加载中，请稍候', 'warning')
+        return
+      }
+      if (!captchaInput.trim()) {
+        showToast('请输入验证码', 'warning')
+        return
+      }
+    }
+
     setLoading(true)
-    setLastLoginInfo(null)
 
     try {
-      const payload: any = { username, password }
+      const payload: any = {
+        username: username.trim(),
+        password,
+      }
       if (captchaRequired && captcha) {
         payload.captchaToken = captcha.token
-        payload.captchaInput = captchaInput
+        payload.captchaInput = captchaInput.trim()
       }
       const res: any = await request.post('/auth/login', payload)
       if (res?.token) {
@@ -78,20 +101,30 @@ export default function Login() {
         } else {
           navigate('/')
         }
+      } else {
+        // 服务端返回 200 但没 token：异常情况
+        showToast('登录响应异常', 'error')
       }
     } catch (err: any) {
       const msg = err?.message || '登录失败'
       showToast(msg, 'error')
-      // 后端要求验证码 → 显示输入框，刷新一张新验证码
+      // 后端要求验证码 → 显示验证码 + 刷新一张
       if (err?.captchaRequired) {
+        // 先把验证码状态清空，触发 useEffect 重新拉一张（避免并发）
+        setCaptcha(null)
+        setCaptchaInput('')
         setCaptchaRequired(true)
+        // 显式触发一次（双保险，避免 useEffect 在 captcha 已经为 null 时不触发）
         refreshCaptcha()
+      } else {
+        // 非 captcha 相关错误（如网络）：保留输入，不清空
       }
     } finally {
       setLoading(false)
     }
   }
 
+  // 已登录态：展示上次登录信息后跳转
   if (lastLoginInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#EFF6FF] to-[#F1F5F9] p-4">
@@ -172,20 +205,21 @@ export default function Login() {
                   maxLength={8}
                   autoComplete="off"
                   spellCheck={false}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all uppercase tracking-wider"
+                  className="flex-1 min-w-0 px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all uppercase tracking-wider"
                 />
                 <button
                   type="button"
                   onClick={refreshCaptcha}
-                  className="shrink-0 h-[42px] w-[140px] flex items-center justify-center bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-[#2563EB] transition-colors cursor-pointer relative"
+                  className="shrink-0 h-[42px] w-[140px] flex items-center justify-center bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-[#2563EB] transition-colors cursor-pointer"
                   title="点击换一张"
+                  aria-label="刷新验证码"
                 >
                   {captchaLoading || !captcha ? (
                     <Loader size={18} className="animate-spin text-[#94A3B8]" />
                   ) : (
                     <span
-                      className="block w-full h-full"
-                      // 后端返回的 svg 字符串直接渲染
+                      className="block w-full h-full flex items-center justify-center"
+                      // 验证码 SVG 来自后端可信 API
                       dangerouslySetInnerHTML={{ __html: captcha.svg }}
                     />
                   )}

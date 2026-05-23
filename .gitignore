@@ -39,3 +39,8 @@ pnpm-debug.log*
 
 # Key
 # key/
+
+
+# 后端运行时上传的图片（用户头像、二维码等）
+server/uploads/
+admin-web/dev-dist/

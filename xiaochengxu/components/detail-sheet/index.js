@@ -34,8 +34,8 @@ Component({
         this._lastInitedOrderId = newVal;
         this.orderId = newVal;
         this.disconnect(); // 切换订单，先断旧的 ws
+        // 走 fetch-then-ws：fetch 后根据状态决定是否启动 ws，避免连接竞态
         this.fetchOrderDetail(newVal);
-        this.initWebSocket(newVal);
       }
     },
     // 锁定模式：用于强制拦截未完成订单（自动检测 / ws 推送进来时为 true）
@@ -123,8 +123,9 @@ Component({
         this.setData({ sheetIn: true });
       });
 
+      // 关键：先 fetch 拿到状态，再决定要不要建 ws
+      // 避免 ws 还在 connecting 时被 fetch 完成后的 disconnect 中断（"未完成的操作"）
       this.fetchOrderDetail(id);
-      this.initWebSocket(id);
     },
 
     handleClose() {
@@ -347,6 +348,11 @@ Component({
             // 非锁定模式下看到的订单已经到终态，断开 ws + 停轮询，不再监听变化
             // （也不释放桌号，避免破坏同桌共享购物车）
             this.disconnect();
+          }
+        } else {
+          // 活跃订单：建立 ws 订阅状态变化（仅当尚未连接）
+          if (this.wsStatus !== 'connecting' && this.wsStatus !== 'connected') {
+            this.initWebSocket(id);
           }
         }
       } catch (err) {

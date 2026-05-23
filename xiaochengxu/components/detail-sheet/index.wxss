@@ -143,6 +143,17 @@
   font-size: 22rpx;
   color: #94A3B8;
 }
+/* 外带订单标识：替代桌号位置 */
+.om-meta-takeaway {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #7C3AED;
+  background: #F3E8FF;
+  padding: 8rpx 20rpx;
+  border-radius: 12rpx;
+  letter-spacing: 1rpx;
+  display: inline-block;
+}
 .om-meta-value {
   font-size: 36rpx;
   font-weight: 700;

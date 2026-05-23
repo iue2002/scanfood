@@ -164,6 +164,17 @@
   font-size: 20rpx;
   color: #94A3B8;
 }
+/* 外带订单标签 */
+.om-takeaway-tag {
+  display: inline-block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #7C3AED;
+  background: #F3E8FF;
+  padding: 6rpx 18rpx;
+  border-radius: 10rpx;
+  letter-spacing: 0.5rpx;
+}
 .om-meta {
   display: inline-flex;
   align-items: center;

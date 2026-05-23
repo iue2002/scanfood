@@ -52,9 +52,14 @@
       <view class="om-status-tip" wx:if="{{order.status === 'settled'}}">已结账，感谢您的光临，欢迎下次再来</view>
       <view class="om-status-meta">
         <view class="om-meta-item">
-          <text class="om-meta-label">桌号</text>
-          <text class="om-meta-value">{{order.tables ? order.tables.table_number : '-'}}</text>
-          <text class="om-meta-suffix">桌</text>
+          <block wx:if="{{order.order_type === 'takeaway'}}">
+            <text class="om-meta-takeaway">🛍 外带打包</text>
+          </block>
+          <block wx:else>
+            <text class="om-meta-label">桌号</text>
+            <text class="om-meta-value">{{order.tables ? order.tables.table_number : '-'}}</text>
+            <text class="om-meta-suffix">桌</text>
+          </block>
         </view>
         <view class="om-meta-divider"></view>
         <view class="om-meta-item om-meta-item-amount">

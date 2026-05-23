@@ -510,8 +510,8 @@ export default function OrderManage() {
                 <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     {isTakeawayOrder(order) ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                        <ShoppingBag size={12} /> 外带
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 text-sm font-bold border border-purple-300">
+                        <ShoppingBag size={16} /> 外带
                       </span>
                     ) : (
                       <div className="text-xl font-bold text-[#2563EB]">{order.tables?.table_number || '-'}</div>
@@ -609,8 +609,8 @@ export default function OrderManage() {
                     <div className="text-center">
                       {isTakeawayOrder(order) ? (
                         <>
-                          <div className="text-2xl font-bold text-emerald-600 flex items-center justify-center gap-1"><ShoppingBag size={20} /></div>
-                          <div className="text-xs text-emerald-600 font-medium">外带</div>
+                          <div className="text-3xl font-bold text-purple-600 flex items-center justify-center"><ShoppingBag size={28} /></div>
+                          <div className="text-sm text-purple-600 font-bold mt-1">外带</div>
                         </>
                       ) : (
                         <>
@@ -749,8 +749,8 @@ export default function OrderManage() {
                   <div className="flex-1 min-w-0 flex items-baseline flex-wrap gap-x-3 gap-y-0.5">
                     <div className="flex items-baseline gap-1 shrink-0">
                       {isTakeawayOrder(order) ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200 leading-none">
-                          <ShoppingBag size={12} /> 外带
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 text-sm font-bold border border-purple-300 leading-none">
+                          <ShoppingBag size={14} /> 外带
                         </span>
                       ) : (
                         <>
@@ -913,8 +913,8 @@ export default function OrderManage() {
               {/* 桌号和状态 */}
               <div className="bg-[#F8FAFC] rounded-lg p-3 mb-3 text-center">
                 {isTakeawayOrder(detail) ? (
-                  <div className="text-2xl font-bold text-emerald-600 flex items-center justify-center gap-2">
-                    <ShoppingBag size={24} /> 外带订单
+                  <div className="text-3xl font-bold text-purple-600 flex items-center justify-center gap-2 py-1">
+                    <ShoppingBag size={28} /> 外带打包
                   </div>
                 ) : (
                   <div className="text-2xl font-bold text-[#0F172A]">{detail.tables?.table_number || '-'}桌</div>

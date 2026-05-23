@@ -81,8 +81,13 @@
           <view class="om-head-main">
             <view class="om-head-row1">
               <view class="om-table-wrap">
-                <text class="om-table-num">{{item.tableNumber || item.table_id || '-'}}</text>
-                <text class="om-table-suffix">桌</text>
+                <block wx:if="{{item.order_type === 'takeaway'}}">
+                  <text class="om-takeaway-tag">🛍 外带</text>
+                </block>
+                <block wx:else>
+                  <text class="om-table-num">{{item.tableNumber || item.table_id || '-'}}</text>
+                  <text class="om-table-suffix">桌</text>
+                </block>
               </view>
               <view class="om-status om-status-{{item.status}}">{{statusMap[item.status]}}</view>
             </view>

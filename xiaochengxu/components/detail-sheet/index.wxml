@@ -19,7 +19,12 @@
   </view>
 
   <!-- 滚动主体 -->
-  <scroll-view class="om-page-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+  <scroll-view
+    class="om-page-scroll {{(order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid') ? 'om-page-scroll-with-action' : ''}}"
+    scroll-y
+    enhanced
+    show-scrollbar="{{false}}"
+  >
     <!-- 加载骨架屏：未拿到 order 时显示，提升感知速度 -->
     <view wx:if="{{isLoading && !order}}" class="om-skeleton">
       <view class="om-skel-card">

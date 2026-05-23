@@ -69,12 +69,15 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 action-bar 高度 + 安全区（sheet 已隐藏 TabBar） */
+/* 滚动主体：默认无 action-bar 时只留安全区；有 action-bar 时再为它让位 */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
-  padding: 24rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
+}
+.om-page-scroll-with-action {
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
 /* ====== 状态卡 ====== */

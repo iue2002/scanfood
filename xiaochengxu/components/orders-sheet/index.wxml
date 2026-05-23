@@ -70,6 +70,20 @@
     <!-- 订单卡片：整张卡片可点击查看详情；内部按钮用 catchtap 拦截冒泡 -->
     <block wx:for="{{filteredOrders}}" wx:key="id" wx:for-index="orderIndex">
       <view class="om-card" bindtap="goToDetail" data-id="{{item.id}}" hover-class="om-card-hover" hover-stay-time="80">
+        <!-- 店铺信息条：店头像 + 店名 -->
+        <view class="om-store" wx:if="{{storeInfo && storeInfo.store_name}}">
+          <image
+            wx:if="{{storeInfo.store_avatar}}"
+            class="om-store-avatar"
+            src="{{storeInfo.store_avatar}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="om-store-avatar om-store-avatar-empty">
+            <text class="om-store-avatar-letter">{{storeInfo.store_name_letter}}</text>
+          </view>
+          <text class="om-store-name">{{storeInfo.store_name}}</text>
+        </view>
+
         <view class="om-head">
           <image
             wx:if="{{item.firstDishImage}}"

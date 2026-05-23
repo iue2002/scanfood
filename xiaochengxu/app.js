@@ -21,6 +21,37 @@ App({
     setTimeout(() => {
       dishesCache.getDishes().catch(() => { /* noop */ });
     }, 200);
+    // 启动时拉店铺信息（店名 + 头像），缓存到 globalData 给所有页面用
+    setTimeout(() => {
+      this.loadStoreInfo().catch(() => { /* noop */ });
+    }, 300);
+  },
+
+  // 拉取店铺信息：优先用本地缓存即时返回，再异步刷新一份新的
+  async loadStoreInfo() {
+    // 同步从 storage 拿（启动瞬间就能用）
+    const cached = wx.getStorageSync('storeInfo');
+    if (cached && cached.store_name) {
+      this.globalData.storeInfo = cached;
+    }
+    // 后台异步刷新
+    try {
+      const res = await request({ url: '/store-settings', noLoading: true });
+      // 后端返回 { success: true, data: { store_name, store_avatar } }，统一摊平
+      const info = res?.data || res;
+      if (info && info.store_name) {
+        const { SERVER_URL } = require('./config');
+        let avatar = info.store_avatar || '';
+        if (avatar && !avatar.startsWith('http')) {
+          avatar = SERVER_URL + (avatar.startsWith('/') ? '' : '/') + avatar;
+        }
+        const normalized = { store_name: info.store_name, store_avatar: avatar };
+        this.globalData.storeInfo = normalized;
+        wx.setStorageSync('storeInfo', normalized);
+      }
+    } catch (err) {
+      console.warn('拉店铺信息失败，使用本地缓存', err);
+    }
   },
 
   checkLoginStatusSync() {
@@ -121,7 +152,8 @@ App({
     carts: {},
     addMoreCarts: {},
     allDishes: [],
-    addMore: false
+    addMore: false,
+    storeInfo: null
   },
 
   getCart(tableId) {

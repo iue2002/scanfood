@@ -41,7 +41,9 @@ Component({
     hasMore: true,
     isLoadingMore: false,
     // 入场动画状态：visible→true 后下一帧设为 true 触发动画
-    sheetIn: false
+    sheetIn: false,
+    // 店铺信息（从 globalData 读，启动时已加载）
+    storeInfo: null
   },
 
   // 实例字段（不参与渲染）
@@ -67,6 +69,17 @@ Component({
       wx.nextTick(() => {
         this.setData({ sheetIn: true });
       });
+
+      // 同步店铺信息（启动时 app.js 已经预加载到 globalData）
+      const app = getApp();
+      const storeInfo = app && app.globalData && app.globalData.storeInfo;
+      if (storeInfo && storeInfo.store_name) {
+        // 预算首字母（wxml 不支持 [0] 取字符）
+        const letter = (storeInfo.store_name || '').charAt(0).toUpperCase();
+        this.setData({
+          storeInfo: { ...storeInfo, store_name_letter: letter }
+        });
+      }
 
       this.loadUserInfo();
       const userInfo = this.data.userInfo;

@@ -47,6 +47,20 @@
       </view>
     </view>
 
+    <!-- 店铺信息条 -->
+    <view wx:if="{{order && storeInfo && storeInfo.store_name}}" class="om-store">
+      <image
+        wx:if="{{storeInfo.store_avatar}}"
+        class="om-store-avatar"
+        src="{{storeInfo.store_avatar}}"
+        mode="aspectFill"
+      />
+      <view wx:else class="om-store-avatar om-store-avatar-empty">
+        <text class="om-store-avatar-letter">{{storeInfo.store_name_letter}}</text>
+      </view>
+      <text class="om-store-name">{{storeInfo.store_name}}</text>
+    </view>
+
     <!-- 状态卡 -->
     <view wx:if="{{order}}" class="om-status-card om-status-{{order.status}}">
       <view class="om-status-row">

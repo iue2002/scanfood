@@ -80,6 +80,50 @@
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
+/* ====== 店铺信息条 ====== */
+.om-store {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
+  margin-bottom: 20rpx;
+}
+.om-store-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #EFF6FF;
+  flex-shrink: 0;
+  display: block;
+}
+.om-store-avatar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #DBEAFE 0%, #93C5FD 100%);
+}
+.om-store-avatar-letter {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1;
+}
+.om-store-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.3rpx;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ====== 状态卡 ====== */
 .om-status-card {
   background: #FFFFFF;

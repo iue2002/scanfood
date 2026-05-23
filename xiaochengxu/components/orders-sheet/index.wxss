@@ -120,6 +120,47 @@
   transition: all 0.12s ease;
 }
 
+/* 店铺信息条（订单卡顶部） */
+.om-store {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx;
+  background: #F8FAFC;
+  border-bottom: 2rpx solid #F1F5F9;
+}
+.om-store-avatar {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: #EFF6FF;
+  flex-shrink: 0;
+  display: block;
+}
+.om-store-avatar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #DBEAFE 0%, #93C5FD 100%);
+}
+.om-store-avatar-letter {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1;
+}
+.om-store-name {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: 0.3rpx;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .om-head {
   display: flex;
   align-items: stretch;

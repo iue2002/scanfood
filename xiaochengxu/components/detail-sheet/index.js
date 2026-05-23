@@ -74,7 +74,9 @@ Component({
     editDishCount: 0,
     // sheet 入场动画
     sheetIn: false,
-    statusBarHeight: 0
+    statusBarHeight: 0,
+    // 店铺信息（启动时 app.js 预加载）
+    storeInfo: null
   },
 
   // WebSocket 状态管理（实例字段，不放 data）
@@ -119,6 +121,13 @@ Component({
         cartItemCount: 0,
         addMoreTotalStr: '0.00'
       });
+      // 同步店铺信息（启动时 app.js 已经预加载到 globalData）
+      const app = getApp();
+      const storeInfo = app && app.globalData && app.globalData.storeInfo;
+      if (storeInfo && storeInfo.store_name) {
+        const letter = (storeInfo.store_name || '').charAt(0).toUpperCase();
+        this.setData({ storeInfo: { ...storeInfo, store_name_letter: letter } });
+      }
       wx.nextTick(() => {
         this.setData({ sheetIn: true });
       });

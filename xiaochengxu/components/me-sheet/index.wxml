@@ -141,5 +141,6 @@
   <orders-sheet
     visible="{{showOrdersSheet}}"
     bind:close="onOrdersSheetClose"
+    bind:reorder="onOrdersReorder"
   />
 </view>

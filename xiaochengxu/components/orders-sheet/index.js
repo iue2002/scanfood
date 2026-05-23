@@ -411,9 +411,9 @@ Component({
             cart.cartCount = cartCount;
             cart.currentCartId = cartResult?.id || null;
             wx.hideLoading();
-            wx.navigateTo({
-              url: `/pages/order/confirm?tableId=${tableId}`
-            });
+            // confirm 页已改为弹窗，关掉本 sheet 后由父级（me-sheet → order 页）打开 confirm-sheet
+            this.triggerEvent('reorder', { tableId });
+            this.onClose();
           } catch (err) {
             wx.hideLoading();
             console.error('再来一单处理失败', err);

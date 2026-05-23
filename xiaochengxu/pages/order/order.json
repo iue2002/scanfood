@@ -4,6 +4,7 @@
   "backgroundTextStyle": "dark",
   "usingComponents": {
     "theme-modal": "/components/theme-modal/index",
-    "me-sheet": "/components/me-sheet/index"
+    "me-sheet": "/components/me-sheet/index",
+    "confirm-sheet": "/components/confirm-sheet/index"
   }
 }

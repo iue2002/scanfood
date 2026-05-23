@@ -27,7 +27,9 @@ Page({
     showCartPanel: false,
     cartItems: [],
     // "我的"全屏弹窗（替代 wx.switchTab → me 页）
-    showMeSheet: false
+    showMeSheet: false,
+    // "确认订单"全屏弹窗（替代 wx.navigateTo → confirm 页）
+    showConfirmSheet: false
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -1046,9 +1048,24 @@ Page({
         });
       }
     } else {
-      wx.navigateTo({
-        url: `/pages/order/confirm?tableId=${this.data.tableId}`,
-      });
+      this.setData({ showConfirmSheet: true });
+    }
+  },
+
+  onConfirmSheetClose() {
+    this.setData({ showConfirmSheet: false });
+  },
+
+  onConfirmSubmitted(e) {
+    const orderId = e.detail && e.detail.orderId;
+    // 关 sheet 在子组件已触发 close 事件；这里只负责跳详情页
+    if (orderId) {
+      // 用 navigateTo（detail 仍是 page）；后续会改为 detail-sheet
+      setTimeout(() => {
+        wx.navigateTo({
+          url: `/pages/order/detail?id=${orderId}`,
+        });
+      }, 220);
     }
   },
 
@@ -1167,8 +1184,24 @@ Page({
     }
   },
 
-  // 拦截系统返回键 / 手势：关闭 me-sheet 而不是退出 order 页
+  // me-sheet → orders-sheet 的"再来一单"已写入购物车，回到 order 页打开 confirm-sheet
+  onMeReorder(e) {
+    const tableId = (e.detail && e.detail.tableId) || this.data.tableId;
+    if (tableId && this.data.tableId !== String(tableId)) {
+      this.setData({ tableId: String(tableId) });
+    }
+    // me-sheet 已自行关闭，等动画结束再开 confirm-sheet（避免叠层冲突）
+    setTimeout(() => {
+      this.setData({ showConfirmSheet: true });
+    }, 50);
+  },
+
+  // 拦截系统返回键 / 手势：关闭 me-sheet / confirm-sheet 而不是退出 order 页
   onBackPress() {
+    if (this.data.showConfirmSheet) {
+      this.onConfirmSheetClose();
+      return true;
+    }
     if (this.data.showMeSheet) {
       this.onMeSheetClose();
       return true; // 阻止默认返回

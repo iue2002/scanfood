@@ -228,4 +228,13 @@
 <me-sheet
   visible="{{showMeSheet}}"
   bind:close="onMeSheetClose"
+  bind:reorder="onMeReorder"
+/>
+
+<!-- "确认订单"全屏弹窗（替代 wx.navigateTo → pages/order/confirm） -->
+<confirm-sheet
+  visible="{{showConfirmSheet}}"
+  tableId="{{tableId}}"
+  bind:close="onConfirmSheetClose"
+  bind:submitted="onConfirmSubmitted"
 />

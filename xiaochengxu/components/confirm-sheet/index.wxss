@@ -1,17 +1,76 @@
-/* pages/order/confirm.wxss — admin-web 主题对齐 */
+/* components/confirm-sheet/index.wxss */
 
-.om-page {
-  min-height: 100vh;
+.om-sheet-root {
+  position: fixed;
+  inset: 0;
   background: #F8FAFC;
-  padding: 24rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
+  z-index: 999;
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
-  font-size: 28rpx;
+  font-size: 26rpx;
   line-height: 1.5;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  transform: translate3d(100%, 0, 0);
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+.om-sheet-root.om-sheet-root-in {
+  transform: translate3d(0, 0, 0);
+}
+
+/* navbar 与 orders-sheet / me-sheet 同款 */
+.om-navbar {
+  background: #FFFFFF;
+  border-bottom: 2rpx solid #F1F5F9;
+  flex-shrink: 0;
+}
+.om-navbar-inner {
+  height: 80rpx;
+  padding: 0 28rpx;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.om-navbar-back {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8rpx;
+  margin-right: 10rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.om-navbar-back-hover {
+  background: #F1F5F9;
+}
+.om-navbar-back-arrow {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #0F172A;
+  font-weight: 500;
+  margin-top: -4rpx;
+}
+.om-navbar-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.5rpx;
+  line-height: 1;
+}
+
+/* 滚动主体：底部留出 footer 高度 */
+.om-page-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 24rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
-/* ====== 卡片 ====== */
+/* 卡片 */
 .om-card {
   background: #FFFFFF;
   border-radius: 24rpx;
@@ -36,7 +95,6 @@
   color: #94A3B8;
 }
 
-/* ====== 菜品明细 ====== */
 .om-items {
   padding: 0 28rpx;
 }
@@ -107,7 +165,6 @@
   line-height: 1.1;
 }
 
-/* ====== 表单 ====== */
 .om-form-row {
   display: flex;
   align-items: center;
@@ -159,9 +216,8 @@
   color: #94A3B8;
 }
 
-/* ====== 底部 ====== */
 .om-footer {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   bottom: 0;

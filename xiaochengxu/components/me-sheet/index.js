@@ -277,6 +277,17 @@ Component({
 
     onOrdersSheetClose() {
       this.setData({ showOrdersSheet: false });
+    },
+
+    // 订单列表中"再来一单"完成 → 通知父级（order 页）打开 confirm-sheet
+    onOrdersReorder(e) {
+      const tableId = e.detail && e.detail.tableId;
+      // me-sheet 也关掉，避免遮挡 confirm-sheet
+      this.setData({ showOrdersSheet: false, sheetIn: false });
+      setTimeout(() => {
+        this.triggerEvent('close');
+        this.triggerEvent('reorder', { tableId });
+      }, 220);
     }
   }
 });

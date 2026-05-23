@@ -205,6 +205,12 @@ Page({
     }
     this.updateTabBar();
 
+    // onShow 时若有桌号但 ws 已关（挂机/onHide 关掉的）→ 重连
+    // initWebSocket 内部有"已连/连中跳过"保护，多次调用安全
+    if (this.data.tableId && !this._wsConnected && !this._wsConnecting) {
+      this.initWebSocket();
+    }
+
     // 异步检查未付款订单（已节流），不阻塞页面显示
     if (!isSecondShow) {
       this.checkActiveOrderAsync();
@@ -245,6 +251,16 @@ Page({
     this.closeWebSocket();
   },
 
+  // 页面隐藏（切到其他小程序 / 锁屏）：暂停 ws 避免后台重连风暴
+  // 不动 cart 状态，下次 onShow 时会自动恢复
+  onHide() {
+    this.closeWebSocket();
+    if (this._syncTimer) {
+      clearTimeout(this._syncTimer);
+      this._syncTimer = null;
+    }
+  },
+
   initWebSocket() {
     if (!this.data.tableId) return;
     if (this._wsConnecting || this._wsConnected) return;
@@ -266,6 +282,7 @@ Page({
       this._wsConnected = true;
       this._wsConnecting = false;
       this._reconnectDelay = 1000;
+      this._wsReconnectCount = 0; // 连接成功 → 重置失败计数
       this.ws.send({
         data: JSON.stringify({
           event: 'subscribeTable',
@@ -304,11 +321,21 @@ Page({
       // 已结账或取消的订单不再重连
       const orderStatus = (getApp().getCart(this.data.tableId) || {}).orderStatus;
       if (orderStatus === 'settled' || orderStatus === 'cancelled') return;
+      // 没桌号了也不重连（用户已离开桌台）
+      if (!this.data.tableId) return;
 
-      // 指数退避重连
-      const delay = this._reconnectDelay || 1000;
+      // 重连次数上限：避免挂机后无限重连消耗资源、阻塞主线程
+      this._wsReconnectCount = (this._wsReconnectCount || 0) + 1;
+      const MAX_RECONNECT = 5;
+      if (this._wsReconnectCount > MAX_RECONNECT) {
+        console.log(`[WS] 已达最大重连次数 ${MAX_RECONNECT}，停止重连，等待用户操作`);
+        return;
+      }
+
+      // 指数退避 + 抖动（避免多客户端同步重连）
+      const delay = (this._reconnectDelay || 1000) + Math.floor(Math.random() * 500);
       this._reconnectDelay = Math.min((this._reconnectDelay || 1000) * 2, 30000);
-      console.log(`[WS] ${delay}ms 后尝试重连`);
+      console.log(`[WS] ${delay}ms 后尝试重连 (${this._wsReconnectCount}/${MAX_RECONNECT})`);
       this._reconnectTimer = setTimeout(() => {
         this._reconnectTimer = null;
         this.initWebSocket();
@@ -319,6 +346,8 @@ Page({
   closeWebSocket() {
     this._wsConnected = false;
     this._wsConnecting = false;
+    this._wsReconnectCount = 0;
+    this._reconnectDelay = 1000;
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;

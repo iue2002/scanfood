@@ -54,6 +54,12 @@ Component({
       this.loadUserInfo();
     },
 
+    // 父级幂等调用：sheet 已经显示时强制重置动画 + 重载用户信息
+    // 防止小程序待机后状态残留导致点"我的"无反应
+    reopen() {
+      this.handleOpen();
+    },
+
     onClose() {
       this.setData({ sheetIn: false });
       // 等动画结束再触发关闭事件（与 CSS transition 220ms 对齐）

@@ -26,6 +26,10 @@ Page({
     if (app && app.globalData) {
       app.globalData.openMeOnNextShow = true;
     }
+    // 防抖：避免短时间内重复 switchTab 导致小程序卡住
+    if (this._redirecting) return;
+    this._redirecting = true;
+    setTimeout(() => { this._redirecting = false; }, 500);
     wx.switchTab({ url: '/pages/order/order' });
   },
 

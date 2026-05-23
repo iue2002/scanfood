@@ -1215,11 +1215,18 @@ Page({
 
   // ====== "我的"弹窗（替代 wx.switchTab → me 页）======
   openMeSheet() {
-    if (this.data.showMeSheet) return;
     // 不隐藏 TabBar：sheet 给底部 TabBar 留空间，用户能直接点"浏览"切回
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
     if (tabBar && tabBar.setSelected) {
       tabBar.setSelected(1); // "我的"高亮
+    }
+    // 已经打开了：直接调子组件 reopen 强制重新加载/动画（防止某次状态残留导致点不开）
+    if (this.data.showMeSheet) {
+      const meSheet = this.selectComponent('#meSheet');
+      if (meSheet && typeof meSheet.reopen === 'function') {
+        meSheet.reopen();
+      }
+      return;
     }
     this.setData({ showMeSheet: true });
   },

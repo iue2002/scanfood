@@ -50,7 +50,13 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
     const now = Date.now()
-    const key = `${type}::${message}`
+    // 防御：万一传入非 string，强制转字符串避免 React 渲染崩溃
+    const safeMessage = typeof message === 'string'
+      ? message
+      : (message == null ? '' : (() => {
+          try { return JSON.stringify(message) } catch { return String(message) }
+        })())
+    const key = `${type}::${safeMessage}`
     const last = recentMessagesRef.current.get(key)
     if (last && now - last < TOAST_DEDUPE_WINDOW_MS) {
       // 同 type+message 在 dedupe 窗口内已弹过，忽略（防御 React 严格模式 / ws 重复发）
@@ -67,7 +73,7 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
     }
 
     const id = now + Math.random()
-    setToasts(prev => [...prev, { id, message, type }])
+    setToasts(prev => [...prev, { id, message: safeMessage, type }])
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, 3000)

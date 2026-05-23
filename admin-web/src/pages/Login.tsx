@@ -107,17 +107,17 @@ export default function Login() {
       }
     } catch (err: any) {
       const msg = err?.message || '登录失败'
-      showToast(msg, 'error')
+      showToast(typeof msg === 'string' ? msg : '登录失败', 'error')
+
+      // 清空密码：避免浏览器密码管理器把错误密码当成新密码弹出"更新"提示
+      setPassword('')
+
       // 后端要求验证码 → 显示验证码 + 刷新一张
       if (err?.captchaRequired) {
-        // 先把验证码状态清空，触发 useEffect 重新拉一张（避免并发）
         setCaptcha(null)
         setCaptchaInput('')
         setCaptchaRequired(true)
-        // 显式触发一次（双保险，避免 useEffect 在 captcha 已经为 null 时不触发）
         refreshCaptcha()
-      } else {
-        // 非 captcha 相关错误（如网络）：保留输入，不清空
       }
     } finally {
       setLoading(false)

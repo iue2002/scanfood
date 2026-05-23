@@ -590,8 +590,8 @@ export default function OrderManage() {
           const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
           return (
-            <>
-              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={order.id}>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* 主信息栏 */}
                 <div className="p-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-4">
@@ -704,7 +704,7 @@ export default function OrderManage() {
                 </div>
               </div>
               {index < orders.length - 1 ? renderCardSeparator(`tablet-separator-${order.id}`) : null}
-            </>
+            </div>
           )
         })}
       </div>

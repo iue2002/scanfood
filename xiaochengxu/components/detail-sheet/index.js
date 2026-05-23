@@ -123,8 +123,15 @@ Component({
         this.setData({ sheetIn: true });
       });
 
-      this.fetchOrderDetail(id);
-      this.initWebSocket(id);
+      // 先拿订单数据，再决定要不要建 ws：
+      // 已结账/取消的订单不需要 ws 监听（避免无意义的连接和"未完成的操作"错误）
+      this.fetchOrderDetail(id).then(() => {
+        const order = this.data.order;
+        const isTerminal = order && (order.status === 'settled' || order.status === 'cancelled');
+        if (!isTerminal) {
+          this.initWebSocket(id);
+        }
+      });
     },
 
     handleClose() {
@@ -182,6 +189,7 @@ Component({
       if (!SERVER_URL) return;
       // 已经在连接中或已连接：直接复用，不要重新建连接
       if (this.wsStatus === 'connecting' || this.wsStatus === 'connected') {
+        console.log('[WS-detail] 跳过：已存在连接，状态=', this.wsStatus);
         return;
       }
       // 任何残留的 ws 实例先彻底清掉，避免 connectSocket "未完成的操作"

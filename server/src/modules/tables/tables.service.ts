@@ -2,8 +2,10 @@ import { Injectable, BadRequestException, NotFoundException, Inject } from '@nes
 import { db } from '@/storage/database/mysql-client';
 import { tables, orders, order_items, table_validations } from '@/storage/database/shared/schema';
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
-import { eq, asc, and, inArray, desc } from 'drizzle-orm';
+import { eq, asc, and, inArray, desc, ne } from 'drizzle-orm';
 import { WechatService } from '@/modules/wechat/wechat.service';
+
+const TAKEAWAY_TABLE_NUMBER = '__TAKEAWAY__';
 
 @Injectable()
 export class TablesService {
@@ -13,11 +15,16 @@ export class TablesService {
   ) {}
 
   async getTables() {
-    return await db.select().from(tables).orderBy(asc(tables.table_number));
+    // 隐藏虚拟外带桌，避免管理后台桌台列表里出现
+    return await db.select().from(tables)
+      .where(ne(tables.table_number, TAKEAWAY_TABLE_NUMBER))
+      .orderBy(asc(tables.table_number));
   }
 
   async getTableBoard() {
-    const tableList = await db.select().from(tables).orderBy(asc(tables.table_number));
+    const tableList = await db.select().from(tables)
+      .where(ne(tables.table_number, TAKEAWAY_TABLE_NUMBER))
+      .orderBy(asc(tables.table_number));
 
     const activeOrders = await db.select().from(orders)
       .where(inArray(orders.status, ['submitted', 'printed', 'unpaid']))

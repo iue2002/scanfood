@@ -97,6 +97,53 @@
   flex-shrink: 0;
 }
 
+/* 桌号旁边的小重扫按钮 */
+.om-rescan-inline {
+  display: inline-flex;
+  align-items: center;
+  height: 40rpx;
+  padding: 0 16rpx;
+  margin-left: 12rpx;
+  background: #F1F5F9;
+  color: #64748B;
+  border-radius: 10rpx;
+  font-size: 20rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+  align-self: center;
+}
+.om-rescan-inline-hover { background: #E2E8F0; }
+
+/* 右上角"打包带走"按钮（外带订单入口） */
+.om-takeaway-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  height: 56rpx;
+  padding: 0 22rpx;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #FFFFFF;
+  border-radius: 14rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+  box-shadow: 0 2rpx 8rpx rgba(16, 185, 129, 0.25);
+}
+.om-takeaway-btn-hover {
+  opacity: 0.85;
+}
+.om-takeaway-btn-active {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 4rpx 16rpx rgba(5, 150, 105, 0.4);
+}
+.om-takeaway-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+.om-takeaway-text {
+  letter-spacing: 0.5rpx;
+}
+
 /* ====== 主体：左分类 + 右菜品 ====== */
 .om-main {
   flex: 1;

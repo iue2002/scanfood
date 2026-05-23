@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
-import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart, ShoppingBag } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent } from '@/components/WebSocketProvider'
 import { requestNotificationPermission } from '@/utils/notification'
+
+// 外带订单标识
+const isTakeawayOrder = (order: { order_type?: string }) => order.order_type === 'takeaway'
 
 interface OrderItem {
   id: number
@@ -28,6 +31,7 @@ interface Order {
   tables?: { table_number: string }
   total_amount: string
   status: string
+  order_type?: string  // dine_in 堂食 / takeaway 外带
   created_at: string
   remark?: string
   order_items?: OrderItem[]
@@ -505,7 +509,13 @@ export default function OrderManage() {
               return (
                 <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
-                    <div className="text-xl font-bold text-[#2563EB]">{order.tables?.table_number || '-'}</div>
+                    {isTakeawayOrder(order) ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                        <ShoppingBag size={12} /> 外带
+                      </span>
+                    ) : (
+                      <div className="text-xl font-bold text-[#2563EB]">{order.tables?.table_number || '-'}</div>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {!isExpanded ? (
@@ -595,10 +605,19 @@ export default function OrderManage() {
                 {/* 主信息栏 */}
                 <div className="p-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-4">
-                    {/* 桌号 */}
+                    {/* 桌号 / 外带 */}
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</div>
-                      <div className="text-xs text-[#94A3B8]">桌</div>
+                      {isTakeawayOrder(order) ? (
+                        <>
+                          <div className="text-2xl font-bold text-emerald-600 flex items-center justify-center gap-1"><ShoppingBag size={20} /></div>
+                          <div className="text-xs text-emerald-600 font-medium">外带</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</div>
+                          <div className="text-xs text-[#94A3B8]">桌</div>
+                        </>
+                      )}
                     </div>
                     
                     {/* 订单信息 */}
@@ -729,8 +748,16 @@ export default function OrderManage() {
                 <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0 flex items-baseline flex-wrap gap-x-3 gap-y-0.5">
                     <div className="flex items-baseline gap-1 shrink-0">
-                      <span className="text-xl font-bold text-[#0F172A] leading-none">{order.tables?.table_number || '-'}</span>
-                      <span className="text-xs text-[#94A3B8]">桌</span>
+                      {isTakeawayOrder(order) ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200 leading-none">
+                          <ShoppingBag size={12} /> 外带
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-xl font-bold text-[#0F172A] leading-none">{order.tables?.table_number || '-'}</span>
+                          <span className="text-xs text-[#94A3B8]">桌</span>
+                        </>
+                      )}
                     </div>
                     <span className="text-[11px] text-[#94A3B8] leading-tight">{formatFullDateTime(order.created_at)}</span>
                     {(order.user || order.users) && (
@@ -885,7 +912,13 @@ export default function OrderManage() {
             <div className="flex-1 overflow-auto p-4 pb-0">
               {/* 桌号和状态 */}
               <div className="bg-[#F8FAFC] rounded-lg p-3 mb-3 text-center">
-                <div className="text-2xl font-bold text-[#0F172A]">{detail.tables?.table_number || '-'}桌</div>
+                {isTakeawayOrder(detail) ? (
+                  <div className="text-2xl font-bold text-emerald-600 flex items-center justify-center gap-2">
+                    <ShoppingBag size={24} /> 外带订单
+                  </div>
+                ) : (
+                  <div className="text-2xl font-bold text-[#0F172A]">{detail.tables?.table_number || '-'}桌</div>
+                )}
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full mt-1 inline-block ${statusMap[detail.status]?.color}`}>{statusMap[detail.status]?.label}</span>
               </div>
 

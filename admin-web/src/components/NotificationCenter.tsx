@@ -21,7 +21,9 @@ export default function NotificationCenter() {
     useCallback(
       (data: any) => {
         if (!data) return
+        const isTakeaway = data.order_type === 'takeaway'
         const tableNum = data.tables?.table_number || data.table_id
+        const tableLabel = isTakeaway ? '🛍️ 外带' : `${tableNum}号桌`
         const orderNo = data.order_number || `#${data.id}`
 
         // 自触发的状态变化（同窗口内点击产生）静默，避免与本地同步反馈重复
@@ -31,14 +33,14 @@ export default function NotificationCenter() {
         }
 
         if (data.status === 'submitted') {
-          showToast(`新订单 ${orderNo}（${tableNum}号桌）`, 'success')
-          showNotification(`${tableNum}号桌 新订单`, {
+          showToast(`新订单 ${orderNo}（${tableLabel}）`, 'success')
+          showNotification(`${tableLabel} 新订单`, {
             body: `订单 ${orderNo}，总额 ¥${data.total_amount || '-'}`,
           })
         } else if (data.status === 'settled') {
-          showToast(`${orderNo}（${tableNum}号桌）已结账`, 'info')
+          showToast(`${orderNo}（${tableLabel}）已结账`, 'info')
         } else if (data.status === 'cancelled') {
-          showToast(`${orderNo}（${tableNum}号桌）已取消`, 'warning')
+          showToast(`${orderNo}（${tableLabel}）已取消`, 'warning')
         }
       },
       [showToast, hasRecentLocalAction]

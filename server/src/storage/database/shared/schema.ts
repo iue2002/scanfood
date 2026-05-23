@@ -107,6 +107,7 @@ export const orders = mysqlTable(
     order_number: varchar("order_number", { length: 50 }).notNull().unique(), // 订单号
     total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default('0'),
     status: varchar("status", { length: 20 }).notNull().default('submitted'), // submitted/printed/settled/cancelled/refunded
+    order_type: varchar("order_type", { length: 20 }).notNull().default('dine_in'), // dine_in=堂食, takeaway=外带打包
     user_id: int("user_id").references(() => users.id), // 下单用户（可为空，支持游客点餐）
     remark: varchar("remark", { length: 500 }), // 备注
     printed_at: timestamp("printed_at"), // 打印时间

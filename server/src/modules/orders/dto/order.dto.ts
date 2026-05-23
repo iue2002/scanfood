@@ -45,8 +45,10 @@ export class OrderItemDto {
 }
 
 export class CreateOrderDto {
+  // 堂食必传；外带可不传（后端自动填虚拟打包桌）
   @IsNumber()
-  table_id: number;
+  @IsOptional()
+  table_id?: number;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -61,6 +63,11 @@ export class CreateOrderDto {
   @IsOptional()
   @MaxLength(500)
   remark?: string;
+
+  // dine_in=堂食, takeaway=外带打包；外带订单 table_id 由后端自动指向虚拟"打包"桌
+  @IsString()
+  @IsOptional()
+  order_type?: string;
 }
 
 // sync-add-more 请求体

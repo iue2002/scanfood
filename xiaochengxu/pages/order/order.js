@@ -18,6 +18,8 @@ Page({
     orderStatus: null,
     hasScannedTable: false,
     isAddMore: false,
+    // 外带模式：用户从右上角"打包带走"进入；不需扫码 / 不走共享桌台 cart / 不调 ws 同步
+    isTakeaway: false,
     // 数量输入弹窗
     showQtyModal: false,
     editDishId: null,
@@ -629,6 +631,10 @@ Page({
   },
 
   startScan() {
+    // 进入扫码：自动退出外带模式（因为扫码意味着用户回到了堂食流程）
+    if (this.data.isTakeaway) {
+      this.setData({ isTakeaway: false, cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00' });
+    }
     wx.scanCode({
       onlyFromCamera: false,
       scanType: ['qrCode', 'barCode', 'wxCode'],
@@ -715,7 +721,8 @@ Page({
   },
 
   updateCart(e) {
-    if (!this.data.hasScannedTable) {
+    // 外带模式：跳过扫码桌号检查（外带不依赖桌号）
+    if (!this.data.hasScannedTable && !this.data.isTakeaway) {
       if (this.modal) {
         this.modal.show({
           title: '请先扫码',
@@ -815,6 +822,11 @@ Page({
 
     // ④ 一次 setData 完成所有 UI 更新
     this.setData(patch);
+
+    // 外带模式：不写桌台共享 cart、不调 ws 同步（外带是独立订单）
+    if (this.data.isTakeaway) {
+      return;
+    }
 
     // ⑤ 写入全局 cart（同步内存，不触发渲染）
     const cart = isAddMore ? getApp().getAddMoreCart(tableId) : getApp().getCart(tableId);
@@ -1024,7 +1036,158 @@ Page({
     }
   },
 
+  // ====== 外带（打包带走）入口 ======
+  // 进入外带模式：清掉当前桌台 cart 数据（避免堂食 cart 残留），切换到本地独立 cart
+  goTakeaway() {
+    if (this.data.isTakeaway) {
+      // 已在外带模式：直接走提交
+      this.submitTakeawayOrder();
+      return;
+    }
+
+    const enterTakeaway = () => {
+      // 切换到外带模式：清空当前菜品计数、清掉桌号显示，但不动 globalData 的桌台 cart（堂食用户回来还能用）
+      this.setData({
+        isTakeaway: true,
+        cartCount: {},
+        cartItems: [],
+        totalCount: 0,
+        totalPrice: '0.00'
+      });
+      wx.showToast({ title: '已进入外带模式，请选菜后提交', icon: 'none' });
+    };
+
+    if (this.data.totalCount > 0 && !this.data.isAddMore) {
+      // 当前桌台有未结账菜品：提示用户切换
+      if (this.modal) {
+        this.modal.show({
+          title: '切换到外带',
+          content: '将清空当前桌台购物车进入外带模式，已下的订单不受影响。继续？',
+          confirmText: '继续',
+          cancelText: '取消'
+        }).then(confirmed => { if (confirmed) enterTakeaway(); });
+      } else {
+        wx.showModal({
+          title: '切换到外带',
+          content: '将清空当前桌台购物车进入外带模式，已下的订单不受影响。继续？',
+          success: (res) => { if (res.confirm) enterTakeaway(); }
+        });
+      }
+      return;
+    }
+    enterTakeaway();
+  },
+
+  // 退出外带模式（提交后或用户重新扫码时）
+  exitTakeaway() {
+    this.setData({
+      isTakeaway: false,
+      cartCount: {},
+      cartItems: [],
+      totalCount: 0,
+      totalPrice: '0.00'
+    });
+  },
+
+  async submitTakeawayOrder() {
+    if (this._submittingTakeaway) return;
+    if (!this.data.totalCount || this.data.totalCount === 0) {
+      wx.showToast({ title: '请先选择菜品', icon: 'none' });
+      return;
+    }
+    const userInfo = getApp().globalData.userInfo;
+    if (!userInfo) {
+      if (this.modal) {
+        this.modal.show({
+          title: '请先登录',
+          content: '登录后即可下单外带',
+          confirmText: '去登录',
+          cancelText: '取消'
+        }).then(confirmed => { if (confirmed) this.openMeSheet(); });
+      } else {
+        wx.showModal({
+          title: '请先登录',
+          content: '登录后即可下单外带',
+          success: (res) => { if (res.confirm) this.openMeSheet(); }
+        });
+      }
+      return;
+    }
+
+    const content = `共${this.data.totalCount}件菜品，合计¥${this.data.totalPrice}，确认提交外带订单？`;
+    const proceed = () => this._doSubmitTakeaway();
+    if (this.modal) {
+      this.modal.show({
+        title: '确认外带订单',
+        content,
+        confirmText: '提交',
+        cancelText: '再看看'
+      }).then(confirmed => { if (confirmed) proceed(); });
+    } else {
+      wx.showModal({
+        title: '确认外带订单',
+        content,
+        success: (res) => { if (res.confirm) proceed(); }
+      });
+    }
+  },
+
+  async _doSubmitTakeaway() {
+    this._submittingTakeaway = true;
+    wx.showLoading({ title: '提交中...' });
+    try {
+      const { cartCount, allDishes } = this.data;
+      const userInfo = getApp().globalData.userInfo;
+      const items = [];
+      for (const id in cartCount) {
+        const count = cartCount[id];
+        if (count > 0) {
+          const dish = allDishes.find(d => d.id == id);
+          if (dish) {
+            items.push({
+              dish_id: dish.id,
+              dish_name: dish.name,
+              price: parseFloat(dish.price),
+              quantity: count,
+              added_by_user_id: userInfo?.id,
+              added_by_nickname: userInfo?.nickname || '未知用户'
+            });
+          }
+        }
+      }
+
+      const result = await request({
+        url: '/orders',
+        method: 'POST',
+        data: {
+          order_type: 'takeaway',
+          items,
+          user_id: userInfo?.id
+        }
+      });
+
+      wx.hideLoading();
+      wx.showToast({ title: '外带订单已提交', icon: 'success' });
+      // 退出外带模式 + 打开详情（锁定模式直到付款 / 取消）
+      this.exitTakeaway();
+      setTimeout(() => {
+        this.openDetailSheet(result.id, true);
+      }, 600);
+    } catch (err) {
+      wx.hideLoading();
+      console.error('提交外带订单失败', err);
+      wx.showToast({ title: '提交失败', icon: 'none' });
+    } finally {
+      this._submittingTakeaway = false;
+    }
+  },
+
   goToConfirm() {
+    // 外带模式：走外带提交流程
+    if (this.data.isTakeaway) {
+      this.submitTakeawayOrder();
+      return;
+    }
     if (this.data.isAddMore) {
       const content = `共${this.data.totalCount}件菜品，合计¥${this.data.totalPrice}，确认提交？`;
       if (this.modal) {

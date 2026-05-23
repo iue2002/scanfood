@@ -15,6 +15,20 @@ export class OrdersService {
     return `ORD${dateStr}${timeStr}`;
   }
 
+  // 外带订单虚拟桌：所有外带订单共享，永远 idle，前端看板里隐藏
+  // 用 table_number='__TAKEAWAY__' 作为唯一标识，避免和真实桌号冲突
+  private async getOrCreateTakeawayTable(): Promise<number> {
+    const TAKEAWAY_NUMBER = '__TAKEAWAY__';
+    const exist = await db.select().from(tables).where(eq(tables.table_number, TAKEAWAY_NUMBER)).limit(1);
+    if (exist[0]) return exist[0].id;
+    const insertResult = await db.insert(tables).values({
+      table_number: TAKEAWAY_NUMBER,
+      capacity: 0,
+      status: 'idle',
+    });
+    return (insertResult as any)[0].insertId;
+  }
+
   async getTableCurrentOrder(tableId: number) {
     const result = await db.select().from(orders)
       .where(and(
@@ -279,14 +293,25 @@ export class OrdersService {
     });
 
     const orderNumber = this.generateOrderNumber();
+    const isTakeaway = dto.order_type === 'takeaway';
+
+    // 外带：自动指向虚拟"打包"桌，避免外键约束失败
+    let tableId = dto.table_id;
+    if (isTakeaway) {
+      tableId = await this.getOrCreateTakeawayTable();
+    }
+    if (!tableId) {
+      throw new BadRequestException('堂食订单缺少 table_id');
+    }
 
     const insertResult = await db.insert(orders).values({
-      table_id: dto.table_id,
+      table_id: tableId,
       order_number: orderNumber,
       total_amount: totalAmount.toFixed(2),
       user_id: dto.user_id,
       remark: dto.remark,
       status: 'submitted',
+      order_type: isTakeaway ? 'takeaway' : 'dine_in',
     });
 
     const orderId = (insertResult as any)[0].insertId;
@@ -305,17 +330,23 @@ export class OrdersService {
     }));
 
     await db.insert(order_items).values(itemsToInsert);
-    await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, dto.table_id));
+    // 外带不占桌；堂食才把桌台标记为 occupied
+    if (!isTakeaway) {
+      await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, tableId));
+    }
 
     this.printReceipt(orderId).catch(err => {
       console.error('打印小票失败:', err);
     });
 
     const order = await this.getOrderById(orderId);
-    this.ordersGateway.notifyOrderStatusChange(dto.table_id, order);
+    this.ordersGateway.notifyOrderStatusChange(tableId, order);
     this.ordersGateway.notifyAllAdmins('orderStatusChanged', order);
-    await this.clearTableCart(dto.table_id);
-    this.ordersGateway.notifyTableCartUpdate(dto.table_id, null);
+    // 外带不依赖桌台共享购物车，跳过 cart 清理 / 推送
+    if (!isTakeaway) {
+      await this.clearTableCart(tableId);
+      this.ordersGateway.notifyTableCartUpdate(tableId, null);
+    }
     return order;
   }
 

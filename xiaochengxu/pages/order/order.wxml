@@ -6,6 +6,9 @@
       <block wx:if="{{tableNumber}}">
         <text class="om-table-num">{{tableNumber}}</text>
         <text class="om-table-suffix">桌</text>
+        <view class="om-rescan-inline" bindtap="startScan" hover-class="om-rescan-inline-hover">
+          <text>重扫</text>
+        </view>
       </block>
       <view class="om-scan-hint" wx:else bindtap="startScan">
         <view class="om-scan-icon">
@@ -17,8 +20,9 @@
         <text class="om-scan-hint-arrow">›</text>
       </view>
     </view>
-    <view class="om-rescan" bindtap="startScan">
-      <text>重扫</text>
+    <view class="om-takeaway-btn {{isTakeaway ? 'om-takeaway-btn-active' : ''}}" bindtap="goTakeaway" hover-class="om-takeaway-btn-hover">
+      <text class="om-takeaway-icon">🛍</text>
+      <text class="om-takeaway-text">{{isTakeaway ? '外带中' : '打包带走'}}</text>
     </view>
   </view>
 
@@ -108,7 +112,7 @@
       </view>
     </view>
     <view class="om-cart-bar-submit" bindtap="goToConfirm" hover-class="om-cart-bar-submit-hover">
-      {{isAddMore ? '提交加餐' : '去结算'}}
+      {{isTakeaway ? '提交外带' : (isAddMore ? '提交加餐' : '去结算')}}
     </view>
   </view>
 </view>
@@ -214,7 +218,7 @@
         class="om-cart-foot-submit"
         bindtap="goToConfirm"
         hover-class="om-cart-foot-submit-hover"
-      >{{isAddMore ? '提交加餐' : '去下单'}}</view>
+      >{{isTakeaway ? '提交外带' : (isAddMore ? '提交加餐' : '去下单')}}</view>
     </view>
   </view>
 </view>

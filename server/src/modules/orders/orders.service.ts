@@ -77,8 +77,11 @@ export class OrdersService {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('购物车不能为空');
     }
+    if (!dto.table_id) {
+      throw new BadRequestException('草稿购物车必须绑定桌号');
+    }
 
-    const tableId = dto.table_id;
+    const tableId: number = dto.table_id;
     // 查找该桌台是否已有活跃订单（draft, submitted, printed）
     const activeOrder = await this.getTableCurrentOrder(tableId);
 

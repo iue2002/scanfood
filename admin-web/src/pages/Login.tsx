@@ -214,12 +214,12 @@ export default function Login() {
                   title="点击换一张"
                   aria-label="刷新验证码"
                 >
-                  {captchaLoading || !captcha ? (
+                  {captchaLoading || !captcha || typeof captcha.svg !== 'string' ? (
                     <Loader size={18} className="animate-spin text-[#94A3B8]" />
                   ) : (
                     <span
                       className="block w-full h-full flex items-center justify-center"
-                      // 验证码 SVG 来自后端可信 API
+                      // 验证码 SVG 来自后端可信 API；上面的 typeof 检查防止 undefined 注入
                       dangerouslySetInnerHTML={{ __html: captcha.svg }}
                     />
                   )}

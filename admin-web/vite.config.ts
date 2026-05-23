@@ -69,7 +69,9 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true,
+        // 开发环境关闭 Service Worker：避免 SW 缓存 API 响应（如登录失败的 401）
+        // 导致页面状态错乱、白屏等开发期不可复现的诡异问题
+        enabled: false,
       },
     }),
   ],

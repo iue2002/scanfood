@@ -3,6 +3,7 @@ import request from '@/api/request'
 import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart, ShoppingBag } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 
 // 外带订单标识
@@ -86,6 +87,7 @@ export default function OrderManage() {
   const [addDishOrder, setAddDishOrder] = useState<Order | null>(null)
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
   const { showToast, showConfirm, markLocalAction } = useModal()
+  const { markAllRead } = useUnread()
   const [loading, setLoading] = useState(false)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -125,7 +127,9 @@ export default function OrderManage() {
   useEffect(() => {
     fetchOrders()
     requestNotificationPermission()
-  }, [fetchOrders])
+    // 进入订单页：清零订单未读徽标
+    markAllRead('orders')
+  }, [fetchOrders, markAllRead])
 
   // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
   useWebSocketEvent('orderUpdated', fetchOrders)

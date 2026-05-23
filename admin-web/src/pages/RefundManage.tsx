@@ -3,6 +3,7 @@ import request from '@/api/request'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 
 interface Refund {
@@ -23,6 +24,7 @@ const statusMap: Record<string, { label: string; color: string }> = {
 export default function RefundManage() {
   const [refunds, setRefunds] = useState<Refund[]>([])
   const { showToast, showConfirm, markLocalAction } = useModal()
+  const { markAllRead } = useUnread()
 
   const fetchRefunds = () => {
     request.get('/refunds').then((res: any) => setRefunds(res || []))
@@ -31,7 +33,9 @@ export default function RefundManage() {
   useEffect(() => {
     fetchRefunds()
     requestNotificationPermission()
-  }, [])
+    // 进入退款页：清零退款未读徽标
+    markAllRead('refunds')
+  }, [markAllRead])
 
   // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
   useWebSocketEvent('refundCreated', fetchRefunds)

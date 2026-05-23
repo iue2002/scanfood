@@ -10,16 +10,18 @@ import {
   Settings,
   X,
 } from 'lucide-react'
+import { useUnread } from './UnreadProvider'
+import Badge from './Badge'
 
 const menuItems = [
-  { path: '/', label: '桌台看板', icon: LayoutGrid },
-  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard },
-  { path: '/tables', label: '桌台管理', icon: Armchair },
-  { path: '/orders', label: '订单管理', icon: ClipboardList },
-  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed },
-  { path: '/refunds', label: '退款售后', icon: RotateCcw },
-  { path: '/statistics', label: '数据统计', icon: BarChart3 },
-  { path: '/store-settings', label: '店铺设置', icon: Settings },
+  { path: '/', label: '桌台看板', icon: LayoutGrid, badgeKey: null as null | 'orders' | 'refunds' },
+  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null },
+  { path: '/tables', label: '桌台管理', icon: Armchair, badgeKey: null },
+  { path: '/orders', label: '订单管理', icon: ClipboardList, badgeKey: 'orders' as const },
+  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null },
+  { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds' as const },
+  { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null },
+  { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null },
 ]
 
 interface SidebarProps {
@@ -28,6 +30,13 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
+  const { ordersUnread, refundsUnread } = useUnread()
+  const getBadgeCount = (key: null | 'orders' | 'refunds') => {
+    if (key === 'orders') return ordersUnread
+    if (key === 'refunds') return refundsUnread
+    return 0
+  }
+
   return (
     <aside
       className={`fixed left-0 top-0 h-full w-56 lg:w-64 bg-white border-r border-gray-200 z-50 flex flex-col transition-transform lg:translate-x-0 ${
@@ -49,6 +58,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       <nav className="flex-1 py-3 lg:py-4 px-2 lg:px-3 space-y-0.5 lg:space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon
+          const count = getBadgeCount(item.badgeKey)
           return (
             <NavLink
               key={item.path}
@@ -63,7 +73,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               }
             >
               <Icon size={16} />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {count > 0 && <Badge count={count} />}
             </NavLink>
           )
         })}

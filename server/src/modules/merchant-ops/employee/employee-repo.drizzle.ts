@@ -62,6 +62,11 @@ export class DrizzleEmployeeRepo implements EmployeeRepoPort {
     return rows[0] ? this.mapRow(rows[0]) : null;
   }
 
+  async getPasswordHashById(id: number): Promise<string | null> {
+    const rows = await db.select({ password: users.password }).from(users).where(eq(users.id, id)).limit(1);
+    return rows[0]?.password ?? null;
+  }
+
   async insert(dto: NewEmployee): Promise<EmployeeRow> {
     const insertResult = await db.insert(users).values({
       username: dto.username,

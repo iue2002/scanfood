@@ -286,7 +286,11 @@ export class EmployeeCore {
       throw new BadRequestException({ code: 'PASSWORD_POLICY_FAILED', msg: policy.reason });
     }
     // 验证旧密码
-    const ok = await bcrypt.compare(oldPassword, await this.lookupHashedPassword(actor.userId));
+    const currentHash = await this.repo.getPasswordHashById(actor.userId);
+    if (!currentHash) {
+      throw new NotFoundException({ code: 'EMPLOYEE_NOT_FOUND', msg: '账号不存在' });
+    }
+    const ok = await bcrypt.compare(oldPassword, currentHash);
     if (!ok) {
       throw new ForbiddenException({ code: 'OLD_PASSWORD_INVALID', msg: '旧密码错误' });
     }
@@ -301,15 +305,7 @@ export class EmployeeCore {
       bumpTokenVersion: true, // 改密 → 强制其他设备下线
     });
   }
-
-  /** 仅在 changeOwnPassword 内部用：直接读 password 字段 */
-  private async lookupHashedPassword(id: number): Promise<string> {
-    const { db } = await import('@/storage/database/mysql-client');
-    const { users } = await import('@/storage/database/shared/schema');
-    const { eq } = await import('drizzle-orm');
-    const rows = await db.select({ password: users.password }).from(users).where(eq(users.id, id)).limit(1);
-    return rows[0]?.password ?? '';
-  }
+}
 
   async list(filter: EmployeeListFilter, page: PageOptions): Promise<Page<EmployeeRow>> {
     return await this.repo.list(filter, page);

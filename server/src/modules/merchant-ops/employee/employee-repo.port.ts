@@ -65,6 +65,8 @@ export interface EmployeeRepoPort {
   countActiveOwners(): Promise<number>;
   findByUsername(username: string): Promise<EmployeeRow | null>;
   findById(id: number): Promise<EmployeeRow | null>;
+  /** 仅用于改密时校验旧密码（明文 hash 不放进 EmployeeRow） */
+  getPasswordHashById(id: number): Promise<string | null>;
   insert(dto: NewEmployee): Promise<EmployeeRow>;
   update(id: number, patch: EmployeePatch): Promise<EmployeeRow>;
   /** 软删除：status='deleted', deleted_at=now(), token_version+=1 */

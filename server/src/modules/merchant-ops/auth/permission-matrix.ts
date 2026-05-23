@@ -3,19 +3,20 @@ import type { AuditAction, Role } from './rbac.types';
 /**
  * 服务端权限矩阵
  *
- * 设计原则（来自 design.md 与 requirements.md R1）：
- * - key = AuditAction（与挂在 controller 上的 @Permissions(action) 一致）
- * - value = 允许执行该动作的角色集合
- * - admin 角色作为 owner 的超集（既有兼容），凡是 owner 能做的，admin 都能做
+ * 角色分级（user 决策版）：
+ * - waiter   服务员：仅能看订单 + 桌台看板（看不到菜品/退款/数据/员工/打印等管理项）
+ * - cashier  收银员：waiter 全部 + 结账/加菜
+ * - manager  店长（经理）：除"营业数据 + 员工/打印/导出/系统级"外，几乎全能
+ * - owner    店主：全权限（含数据总览、数据统计、员工管理）
+ * - admin    保留兼容：视为 owner 超集
  *
  * R1.3 启动期校验：所有挂 @Permissions 的路由必须在矩阵里有 entry。
- * 见 auth-core 的 validateMatrixCoverage。
  */
 
-// 复用一个角色集合常量，减少重复
+// 复用一个角色集合常量
 const OWNER_ONLY: ReadonlySet<Role> = new Set<Role>(['owner', 'admin']);
 const OWNER_AND_MANAGER: ReadonlySet<Role> = new Set<Role>(['owner', 'manager', 'admin']);
-const STAFF_WITH_CASHIER: ReadonlySet<Role> = new Set<Role>(['owner', 'manager', 'cashier', 'admin']);
+const OWNER_MANAGER_CASHIER: ReadonlySet<Role> = new Set<Role>(['owner', 'manager', 'cashier', 'admin']);
 const ALL_STAFF: ReadonlySet<Role> = new Set<Role>(['owner', 'manager', 'cashier', 'waiter', 'admin']);
 
 export type PermissionMatrix = Readonly<Record<AuditAction, ReadonlySet<Role>>>;
@@ -30,25 +31,27 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   // 改自己的密码任何登录员工都允许（不含 customer）
   PASSWORD_CHANGE: ALL_STAFF,
 
-  // ====== 订单业务（M1 不强制） ======
-  ORDER_CHECKOUT: STAFF_WITH_CASHIER,
-  ORDER_ADD_ITEM: STAFF_WITH_CASHIER,
+  // ====== 订单业务 ======
+  // 结账/加菜：收银员及以上
+  ORDER_CHECKOUT: OWNER_MANAGER_CASHIER,
+  ORDER_ADD_ITEM: OWNER_MANAGER_CASHIER,
+  // 退款：经理及以上（涉及钱）
   ORDER_REFUND: OWNER_AND_MANAGER,
 
-  // ====== 菜品 ======
+  // ====== 菜品（经理及以上） ======
   MENU_ITEM_UPDATE: OWNER_AND_MANAGER,
 
-  // ====== 打印（M5） ======
+  // ====== 打印（经理及以上） ======
   PRINTER_CONFIG_UPDATE: OWNER_AND_MANAGER,
   PRINTER_AUTO_PRINT_TOGGLE: OWNER_AND_MANAGER,
   PRINTER_TEST: OWNER_AND_MANAGER,
   PRINT_TEMPLATE_UPDATE: OWNER_AND_MANAGER,
 
-  // ====== 导出（M4） ======
-  EXPORT_ORDERS: OWNER_AND_MANAGER,
-  EXPORT_REPORT: OWNER_AND_MANAGER,
+  // ====== 导出（owner 专属：营业数据敏感） ======
+  EXPORT_ORDERS: OWNER_ONLY,
+  EXPORT_REPORT: OWNER_ONLY,
 
-  // ====== 通知偏好（M3） ======
+  // ====== 通知偏好（每个员工管自己的） ======
   NOTIF_PREF_UPDATE: ALL_STAFF,
 };
 

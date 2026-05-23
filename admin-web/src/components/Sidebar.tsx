@@ -17,16 +17,18 @@ import { useAuthStore } from '@/stores/auth'
 import type { Role } from '@/rbac/types'
 
 const menuItems = [
+  // 全员可见
   { path: '/', label: '桌台看板', icon: LayoutGrid, badgeKey: null as null | 'orders' | 'refunds', visibleFor: null as null | ReadonlyArray<Role> },
-  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: null },
-  { path: '/tables', label: '桌台管理', icon: Armchair, badgeKey: null, visibleFor: null },
   { path: '/orders', label: '订单管理', icon: ClipboardList, badgeKey: 'orders' as const, visibleFor: null },
-  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null, visibleFor: null },
-  { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds' as const, visibleFor: null },
-  { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: null },
-  // 员工管理：仅 owner / admin（admin 兼容）可见
+  // 经理及以上
+  { path: '/tables', label: '桌台管理', icon: Armchair, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
+  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
+  { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds' as const, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
+  { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
+  // 仅店主 / 管理员
+  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
+  { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
   { path: '/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
-  { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null, visibleFor: null },
 ]
 
 interface SidebarProps {

@@ -118,15 +118,39 @@ export default function App() {
               }
             >
               <Route index element={<TableBoard />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="tables" element={<TableManage />} />
               <Route path="orders" element={<OrderManage />} />
-              <Route path="dishes" element={<DishManage />} />
-              <Route path="refunds" element={<RefundManage />} />
-              <Route path="statistics" element={<Statistics />} />
-              <Route path="store-settings" element={<StoreSettings />} />
+              <Route path="dashboard" element={
+                <RoleGuard requiredRoles={['owner', 'admin']}>
+                  <Dashboard />
+                </RoleGuard>
+              } />
+              <Route path="statistics" element={
+                <RoleGuard requiredRoles={['owner', 'admin']}>
+                  <Statistics />
+                </RoleGuard>
+              } />
+              <Route path="tables" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <TableManage />
+                </RoleGuard>
+              } />
+              <Route path="dishes" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <DishManage />
+                </RoleGuard>
+              } />
+              <Route path="refunds" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <RefundManage />
+                </RoleGuard>
+              } />
+              <Route path="store-settings" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <StoreSettings />
+                </RoleGuard>
+              } />
               <Route path="employees" element={
-                <RoleGuard requiredRoles={['owner']}>
+                <RoleGuard requiredRoles={['owner', 'admin']}>
                   <EmployeeManage />
                 </RoleGuard>
               } />

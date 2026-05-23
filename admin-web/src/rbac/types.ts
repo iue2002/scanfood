@@ -31,10 +31,10 @@ export type AuditAction =
   // 通知
   | 'NOTIF_PREF_UPDATE';
 
-const OWNER_ONLY: ReadonlyArray<Role> = ['owner', 'admin'];
-const OWNER_AND_MANAGER: ReadonlyArray<Role> = ['owner', 'manager', 'admin'];
-const STAFF_WITH_CASHIER: ReadonlyArray<Role> = ['owner', 'manager', 'cashier', 'admin'];
-const ALL_STAFF: ReadonlyArray<Role> = ['owner', 'manager', 'cashier', 'waiter', 'admin'];
+const OWNER_ONLY: ReadonlyArray<Role> = ['owner', 'admin']
+const OWNER_AND_MANAGER: ReadonlyArray<Role> = ['owner', 'manager', 'admin']
+const OWNER_MANAGER_CASHIER: ReadonlyArray<Role> = ['owner', 'manager', 'cashier', 'admin']
+const ALL_STAFF: ReadonlyArray<Role> = ['owner', 'manager', 'cashier', 'waiter', 'admin']
 
 export const PERMISSION_MATRIX: Readonly<Record<AuditAction, ReadonlyArray<Role>>> = {
   EMPLOYEE_CREATE: OWNER_ONLY,
@@ -43,16 +43,16 @@ export const PERMISSION_MATRIX: Readonly<Record<AuditAction, ReadonlyArray<Role>
   EMPLOYEE_UPDATE_ROLE: OWNER_ONLY,
   PASSWORD_RESET: OWNER_ONLY,
   PASSWORD_CHANGE: ALL_STAFF,
-  ORDER_CHECKOUT: STAFF_WITH_CASHIER,
-  ORDER_ADD_ITEM: STAFF_WITH_CASHIER,
+  ORDER_CHECKOUT: OWNER_MANAGER_CASHIER,
+  ORDER_ADD_ITEM: OWNER_MANAGER_CASHIER,
   ORDER_REFUND: OWNER_AND_MANAGER,
   MENU_ITEM_UPDATE: OWNER_AND_MANAGER,
   PRINTER_CONFIG_UPDATE: OWNER_AND_MANAGER,
   PRINTER_AUTO_PRINT_TOGGLE: OWNER_AND_MANAGER,
   PRINTER_TEST: OWNER_AND_MANAGER,
   PRINT_TEMPLATE_UPDATE: OWNER_AND_MANAGER,
-  EXPORT_ORDERS: OWNER_AND_MANAGER,
-  EXPORT_REPORT: OWNER_AND_MANAGER,
+  EXPORT_ORDERS: OWNER_ONLY,
+  EXPORT_REPORT: OWNER_ONLY,
   NOTIF_PREF_UPDATE: ALL_STAFF,
 }
 
@@ -64,7 +64,7 @@ export function isAllowed(role: Role | null | undefined, action: AuditAction): b
 
 export const ROLE_LABEL: Record<Role, string> = {
   owner: '店主',
-  manager: '经理',
+  manager: '店长',
   cashier: '收银员',
   waiter: '服务员',
   admin: '管理员',

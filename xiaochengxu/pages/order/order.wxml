@@ -235,6 +235,7 @@
   bind:close="onMeSheetClose"
   bind:reorder="onMeReorder"
   bind:detail="onMeDetail"
+  bind:orderssheet="onMeOrdersSheet"
 />
 
 <!-- "确认订单"全屏弹窗（替代 wx.navigateTo → pages/order/confirm） -->

@@ -36,7 +36,9 @@ Page({
     showDetailSheet: false,
     detailOrderId: '',
     // 锁定模式：检测到未付款订单时强制完成（隐藏返回 + 盖住 TabBar）
-    detailLocked: false
+    detailLocked: false,
+    // me-sheet 内部叠开了订单列表（订单列表是非"我的/浏览"sheet，要隐藏 TabBar）
+    _meOrdersOpen: false
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -1206,11 +1208,13 @@ Page({
       }
     } else {
       this.setData({ showConfirmSheet: true });
+      this._updateTabBarVisibility();
     }
   },
 
   onConfirmSheetClose() {
     this.setData({ showConfirmSheet: false });
+    this._updateTabBarVisibility();
   },
 
   onConfirmSubmitted(e) {
@@ -1249,12 +1253,14 @@ Page({
       patch.showConfirmSheet = false;
     }
     this.setData(patch);
+    this._updateTabBarVisibility();
   },
 
   onDetailSheetClose() {
     // detail-sheet 关闭：detail-sheet z-index=900，关闭后下层 orders-sheet (z=800) / me-sheet (z=800)
     // / confirm-sheet (z=850) 会自动显露（栈式渲染，保留滚动位置和状态）
     this.setData({ showDetailSheet: false, detailOrderId: '', detailLocked: false });
+    this._updateTabBarVisibility();
   },
 
   // 订单结账/取消，detail-sheet 通知解锁（即使在锁定模式也允许关闭了）
@@ -1377,6 +1383,19 @@ Page({
   },
 
   // ====== "我的"弹窗（替代 wx.switchTab → me 页）======
+  // 统一管理 TabBar 显隐：除了"我的"和"浏览"两个 sheet，其他 sheet 都隐藏 TabBar
+  // - showMeSheet 单独打开：显示 TabBar（"我的"是 TabBar 页）
+  // - 任何叠加层（confirm / detail / me 内嵌的订单列表）：隐藏 TabBar
+  _updateTabBarVisibility() {
+    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+    if (!tabBar || !tabBar.setHidden) return;
+    const shouldHide =
+      this.data.showConfirmSheet ||
+      this.data.showDetailSheet ||
+      this.data._meOrdersOpen;
+    tabBar.setHidden(!!shouldHide);
+  },
+
   openMeSheet() {
     // 不隐藏 TabBar：sheet 给底部 TabBar 留空间，用户能直接点"浏览"切回
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
@@ -1392,10 +1411,12 @@ Page({
       return;
     }
     this.setData({ showMeSheet: true });
+    this._updateTabBarVisibility();
   },
 
   onMeSheetClose() {
-    this.setData({ showMeSheet: false });
+    this.setData({ showMeSheet: false, _meOrdersOpen: false });
+    this._updateTabBarVisibility();
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
     if (tabBar && tabBar.setSelected) {
       tabBar.setSelected(0); // 恢复"浏览"高亮
@@ -1420,6 +1441,13 @@ Page({
     if (orderId) {
       this.openDetailSheet(orderId);
     }
+  },
+
+  // me-sheet 内的订单列表开关变更：用于 TabBar 显隐联动
+  onMeOrdersSheet(e) {
+    const open = !!(e.detail && e.detail.open);
+    this.setData({ _meOrdersOpen: open });
+    this._updateTabBarVisibility();
   },
 
   // 拦截系统返回键 / 手势：关闭 detail-sheet / confirm-sheet / me-sheet 而不是退出 order 页

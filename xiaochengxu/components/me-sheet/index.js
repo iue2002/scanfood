@@ -279,10 +279,12 @@ Component({
       ordersPrefetch.prefetchFirstPage(20);
       // 在 me-sheet 内部叠开 orders-sheet（栈式：me 之上叠订单）
       this.setData({ showOrdersSheet: true });
+      this.triggerEvent('orderssheet', { open: true });
     },
 
     onOrdersSheetClose() {
       this.setData({ showOrdersSheet: false });
+      this.triggerEvent('orderssheet', { open: false });
     },
 
     // 订单列表中"再来一单"完成 → 通知父级（order 页）打开 confirm-sheet
@@ -290,6 +292,7 @@ Component({
       const tableId = e.detail && e.detail.tableId;
       // me-sheet 也关掉，避免遮挡 confirm-sheet
       this.setData({ showOrdersSheet: false, sheetIn: false });
+      this.triggerEvent('orderssheet', { open: false });
       setTimeout(() => {
         this.triggerEvent('close');
         this.triggerEvent('reorder', { tableId });

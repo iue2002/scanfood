@@ -504,7 +504,12 @@ export default function TableBoard() {
                                   <CheckCircle size={10} />
                                 </span>
                                 <div className="min-w-0">
-                                  <div className="text-sm font-medium text-[#0F172A] truncate">{item.dish_name}</div>
+                                  <div className="flex items-baseline gap-1.5">
+                                    <span className="text-sm font-medium text-[#0F172A] truncate">{item.dish_name}</span>
+                                    <span className={`text-sm font-bold flex-shrink-0 bidi-iso ${item.served_at ? 'text-green-600' : 'text-blue-600'}`}>
+                                      ×{item.quantity}
+                                    </span>
+                                  </div>
                                   <div className="flex items-center gap-1.5 mt-0.5">
                                     {item.spec_name && (
                                       <span className="text-xs text-[#64748B]">{item.spec_name}</span>
@@ -517,9 +522,6 @@ export default function TableBoard() {
                                   </div>
                                 </div>
                               </div>
-                              <span className={`text-xs font-medium flex-shrink-0 bidi-iso ${item.served_at ? 'text-green-600' : 'text-blue-600'}`}>
-                                ×{item.quantity}
-                              </span>
                             </div>
                           </button>
                         ))}

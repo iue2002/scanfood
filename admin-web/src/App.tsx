@@ -13,6 +13,7 @@ import RefundManage from './pages/RefundManage'
 import Statistics from './pages/Statistics'
 import StoreSettings from './pages/StoreSettings'
 import EmployeeManage from './pages/EmployeeManage'
+import AuditLogs from './pages/AuditLogs'
 import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import { ModalProvider } from './components/ModalProvider'
@@ -152,6 +153,11 @@ export default function App() {
               <Route path="employees" element={
                 <RoleGuard requiredRoles={['owner', 'admin']}>
                   <EmployeeManage />
+                </RoleGuard>
+              } />
+              <Route path="audit-logs" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <AuditLogs />
                 </RoleGuard>
               } />
               <Route path="forbidden" element={<Forbidden />} />

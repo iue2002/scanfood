@@ -1,24 +1,41 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { OrdersModule } from '@/modules/orders/orders.module';
 import { OrdersGateway } from '@/modules/orders/orders.gateway';
 import { EmployeeController } from './employee/employee.controller';
 import { EmployeeCore } from './employee/employee.core';
 import { DrizzleEmployeeRepo } from './employee/employee-repo.drizzle';
+import { AuditController } from './audit/audit.controller';
+import { AuditCore } from './audit/audit.core';
+import { DrizzleAuditRepo } from './audit/audit-repo.drizzle';
+import { AuditInterceptor } from './audit/audit.interceptor';
+import { AuditArchiveScheduler } from './audit/audit-archive.scheduler';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { PERMISSION_MATRIX } from './auth/permission-matrix';
 import { ALL_AUDIT_ACTIONS } from './auth/rbac.types';
 
 const EMPLOYEE_REPO_TOKEN = 'EmployeeRepoPort';
+const AUDIT_REPO_TOKEN = 'AuditRepoPort';
 
 @Module({
-  imports: [AuthModule, OrdersModule],
-  controllers: [EmployeeController],
+  imports: [AuthModule, OrdersModule, ScheduleModule.forRoot()],
+  controllers: [EmployeeController, AuditController],
   providers: [
     PermissionsGuard,
     {
       provide: EMPLOYEE_REPO_TOKEN,
       useClass: DrizzleEmployeeRepo,
+    },
+    {
+      provide: AUDIT_REPO_TOKEN,
+      useClass: DrizzleAuditRepo,
+    },
+    {
+      provide: AuditCore,
+      useFactory: (repo) => new AuditCore(repo),
+      inject: [AUDIT_REPO_TOKEN],
     },
     {
       provide: EmployeeCore,
@@ -30,8 +47,14 @@ const EMPLOYEE_REPO_TOKEN = 'EmployeeRepoPort';
       }),
       inject: [EMPLOYEE_REPO_TOKEN, OrdersGateway],
     },
+    AuditArchiveScheduler,
+    // 全局应用 AuditInterceptor：所有挂 @Audit 装饰器的 controller 自动写日志
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
-  exports: [EmployeeCore],
+  exports: [EmployeeCore, AuditCore],
 })
 export class MerchantOpsModule implements OnModuleInit {
   private readonly logger = new Logger(MerchantOpsModule.name);

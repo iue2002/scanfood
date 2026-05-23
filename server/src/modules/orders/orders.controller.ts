@@ -3,6 +3,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto, SyncAddMoreDto, AddOrderItemDto, UpdateOrderStatusDto, UpdateOrderItemServedDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
+import { Audit } from '../merchant-ops/auth/decorators';
 
 @Controller('orders')
 export class OrdersController {
@@ -95,6 +96,7 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/items')
+  @Audit('ORDER_ADD_ITEM', { targetType: 'order' })
   async addOrderItem(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddOrderItemDto,
@@ -139,6 +141,7 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/status')
+  @Audit('ORDER_CHECKOUT', { targetType: 'order' })
   async updateOrderStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,

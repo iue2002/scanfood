@@ -316,3 +316,26 @@ export const audit_logs = mysqlTable(
     index("audit_logs_created_at_idx").on(t.created_at),
   ]
 );
+
+
+// 审计日志归档表（180 天前的记录从主表迁移到这里）
+export const audit_logs_archive = mysqlTable(
+  "audit_logs_archive",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey(),
+    actor_user_id: int("actor_user_id"),
+    actor_role: varchar("actor_role", { length: 20 }).notNull(),
+    action: varchar("action", { length: 64 }).notNull(),
+    target_type: varchar("target_type", { length: 32 }).notNull(),
+    target_id: varchar("target_id", { length: 64 }),
+    payload_json: json("payload_json").notNull(),
+    ip_address: varchar("ip_address", { length: 45 }).notNull(),
+    user_agent: varchar("user_agent", { length: 500 }).notNull(),
+    created_at: timestamp("created_at").notNull(),
+    archived_at: timestamp("archived_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("audit_archive_created_idx").on(t.created_at),
+    index("audit_archive_action_idx").on(t.action),
+  ]
+);

@@ -9,6 +9,7 @@ import {
   BarChart3,
   Settings,
   Users,
+  ScrollText,
   X,
 } from 'lucide-react'
 import { useUnread } from './UnreadProvider'
@@ -29,6 +30,8 @@ const menuItems = [
   { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
   { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
   { path: '/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
+  // 店主 + 店长（owner / manager / admin）
+  { path: '/audit-logs', label: '审计日志', icon: ScrollText, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
 ]
 
 interface SidebarProps {

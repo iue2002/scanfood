@@ -287,8 +287,10 @@ Component({
     goToDetail(e) {
       const id = e.currentTarget.dataset.id;
       // detail 页已改为弹窗：通知父级（me-sheet → order 页）打开 detail-sheet
+      // 关键：不关闭 orders-sheet 自身。detail-sheet z-index=900 直接叠在 orders-sheet (z=800) 上方，
+      // 实现栈式叠加。detail-sheet 关闭后，orders-sheet 自动显露，保留滚动位置和 tab 状态，
+      // 真正的"返回上一级"体验，且不会闪现下层的"我的"内容。
       this.triggerEvent('detail', { orderId: id });
-      this.onClose();
     },
 
     // 触底加载更多（scroll-view 内部触发）

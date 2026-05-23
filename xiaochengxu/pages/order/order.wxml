@@ -226,6 +226,7 @@
 
 <!-- "我的"全屏弹窗（替代 wx.switchTab → pages/me/me） -->
 <me-sheet
+  id="meSheet"
   visible="{{showMeSheet}}"
   bind:close="onMeSheetClose"
   bind:reorder="onMeReorder"

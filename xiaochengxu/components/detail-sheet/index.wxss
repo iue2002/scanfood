@@ -357,7 +357,7 @@
   letter-spacing: 0.5rpx;
 }
 
-/* ====== 底部操作栏（固定在 sheet 底部，不再加 safe-area，因为 sheet 已避让 TabBar） ====== */
+/* ====== 底部操作栏（固定在 sheet 底部） ====== */
 .om-action-bar {
   position: absolute;
   left: 0;
@@ -369,6 +369,13 @@
   display: flex;
   gap: 16rpx;
   z-index: 50;
+}
+/* 锁定模式：sheet 已盖住 TabBar，底部需要补回安全区 */
+.om-sheet-root-locked .om-action-bar {
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+}
+.om-sheet-root-locked .om-page-scroll {
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 .om-action-btn {
   flex: 1;

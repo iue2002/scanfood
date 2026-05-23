@@ -374,22 +374,7 @@
 .om-btn-success:active { background: #059669; }
 
 .om-separator {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  padding: 18rpx 16rpx;
-}
-.om-separator-line {
-  flex: 1;
-  height: 2rpx;
-  background: linear-gradient(to right, transparent, #BFDBFE, transparent);
-}
-.om-separator-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: #60A5FA;
-  flex-shrink: 0;
+  height: 24rpx;
 }
 
 .om-empty {

@@ -1087,6 +1087,11 @@ Page({
   onDetailSheetClose() {
     // detail-sheet 通过 unlock 事件触发的关闭，或非锁定模式的用户主动关闭
     this.setData({ showDetailSheet: false, detailOrderId: '', detailLocked: false });
+    // 如果是从"我的→订单列表→详情"路径进来的，detail 关闭后恢复订单列表
+    const meSheet = this.selectComponent('#meSheet');
+    if (meSheet && typeof meSheet.reopenOrders === 'function') {
+      meSheet.reopenOrders();
+    }
   },
 
   // 订单结账/取消，detail-sheet 通知解锁（即使在锁定模式也允许关闭了）

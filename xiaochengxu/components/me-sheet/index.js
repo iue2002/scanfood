@@ -29,7 +29,9 @@ Component({
     // 入场动画 class
     sheetIn: false,
     // 内部 sheet：订单列表（保持 me 页原有"点我的订单"行为）
-    showOrdersSheet: false
+    showOrdersSheet: false,
+    // 标记：detail 是从订单列表点击进来的，detail 关闭后要重新打开订单列表
+    pendingRestoreOrders: false
   },
 
   lifetimes: {
@@ -290,12 +292,19 @@ Component({
       }, 220);
     },
 
-    // 订单列表中"查看详情" → 关掉 orders-sheet，再透传给 order 页打开 detail-sheet
-    // 不关 me-sheet：detail-sheet 关闭后，用户应仍处在"我的"页
+    // 订单列表中"查看详情" → 暂存订单列表，由 order 页打开 detail-sheet
+    // detail 关闭后通过 reopenOrders 方法恢复订单列表，回到"我的→订单列表→详情"的栈式体验
     onOrdersDetail(e) {
       const orderId = e.detail && e.detail.orderId;
-      this.setData({ showOrdersSheet: false });
+      this.setData({ showOrdersSheet: false, pendingRestoreOrders: true });
       this.triggerEvent('detail', { orderId });
+    },
+
+    // 由父级（order 页）调用：detail-sheet 关闭后恢复订单列表
+    reopenOrders() {
+      if (this.data.pendingRestoreOrders) {
+        this.setData({ pendingRestoreOrders: false, showOrdersSheet: true });
+      }
     }
   }
 });

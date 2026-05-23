@@ -95,7 +95,11 @@ export default function Login() {
         const ll = res.last_login
         const loginInfo = ll ? { at: ll.at, ip: ll.ip } : null
         setAuth(res.token, res.user, loginInfo)
-        if (loginInfo) {
+        // merchant-ops M1：临时密码登录后强制改密
+        if (res?.requirePasswordChange) {
+          showToast('您的密码已被重置，请先设置新密码', 'info')
+          navigate('/force-password-change', { replace: true })
+        } else if (loginInfo) {
           setLastLoginInfo(loginInfo)
           setTimeout(() => navigate('/'), 2500)
         } else {

@@ -8,20 +8,25 @@ import {
   RotateCcw,
   BarChart3,
   Settings,
+  Users,
   X,
 } from 'lucide-react'
 import { useUnread } from './UnreadProvider'
 import Badge from './Badge'
+import { useAuthStore } from '@/stores/auth'
+import type { Role } from '@/rbac/types'
 
 const menuItems = [
-  { path: '/', label: '桌台看板', icon: LayoutGrid, badgeKey: null as null | 'orders' | 'refunds' },
-  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null },
-  { path: '/tables', label: '桌台管理', icon: Armchair, badgeKey: null },
-  { path: '/orders', label: '订单管理', icon: ClipboardList, badgeKey: 'orders' as const },
-  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null },
-  { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds' as const },
-  { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null },
-  { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null },
+  { path: '/', label: '桌台看板', icon: LayoutGrid, badgeKey: null as null | 'orders' | 'refunds', visibleFor: null as null | ReadonlyArray<Role> },
+  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: null },
+  { path: '/tables', label: '桌台管理', icon: Armchair, badgeKey: null, visibleFor: null },
+  { path: '/orders', label: '订单管理', icon: ClipboardList, badgeKey: 'orders' as const, visibleFor: null },
+  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null, visibleFor: null },
+  { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds' as const, visibleFor: null },
+  { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: null },
+  // 员工管理：仅 owner / admin（admin 兼容）可见
+  { path: '/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
+  { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null, visibleFor: null },
 ]
 
 interface SidebarProps {
@@ -31,11 +36,20 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { ordersUnread, refundsUnread } = useUnread()
+  const role = useAuthStore((s) => s.user?.role) as Role | undefined
+
   const getBadgeCount = (key: null | 'orders' | 'refunds') => {
     if (key === 'orders') return ordersUnread
     if (key === 'refunds') return refundsUnread
     return 0
   }
+
+  // 按当前角色过滤菜单（visibleFor=null 表示所有员工可见）
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (!item.visibleFor) return true
+    if (!role) return false
+    return item.visibleFor.includes(role)
+  })
 
   return (
     <aside
@@ -56,7 +70,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       </div>
 
       <nav className="flex-1 py-3 lg:py-4 px-2 lg:px-3 space-y-0.5 lg:space-y-1">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon
           const count = getBadgeCount(item.badgeKey)
           return (

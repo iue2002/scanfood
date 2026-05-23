@@ -12,10 +12,14 @@ import DishManage from './pages/DishManage'
 import RefundManage from './pages/RefundManage'
 import Statistics from './pages/Statistics'
 import StoreSettings from './pages/StoreSettings'
+import EmployeeManage from './pages/EmployeeManage'
+import Forbidden from './pages/Forbidden'
+import ForcePasswordChange from './pages/ForcePasswordChange'
 import { ModalProvider } from './components/ModalProvider'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { UnreadProvider } from './components/UnreadProvider'
 import NotificationCenter from './components/NotificationCenter'
+import { RoleGuard } from './rbac/RoleGuard'
 import { useAuthStore } from './stores/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -102,6 +106,9 @@ export default function App() {
           <NotificationCenter />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/force-password-change" element={
+              <PrivateRoute><ForcePasswordChange /></PrivateRoute>
+            } />
             <Route
               path="/"
               element={
@@ -118,6 +125,12 @@ export default function App() {
               <Route path="refunds" element={<RefundManage />} />
               <Route path="statistics" element={<Statistics />} />
               <Route path="store-settings" element={<StoreSettings />} />
+              <Route path="employees" element={
+                <RoleGuard requiredRoles={['owner']}>
+                  <EmployeeManage />
+                </RoleGuard>
+              } />
+              <Route path="forbidden" element={<Forbidden />} />
             </Route>
           </Routes>
         </UnreadProvider>

@@ -12,16 +12,21 @@ import { AuditCore } from './audit/audit.core';
 import { DrizzleAuditRepo } from './audit/audit-repo.drizzle';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { AuditArchiveScheduler } from './audit/audit-archive.scheduler';
+import { NotifPrefController } from './notif-pref/notif-pref.controller';
+import { NotifPrefCore } from './notif-pref/notif-pref.core';
+import { DrizzleNotifPrefRepo } from './notif-pref/notif-pref-repo.drizzle';
+import { BUILTIN_SOUND_CATALOG } from './notif-pref/sound-catalog';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { PERMISSION_MATRIX } from './auth/permission-matrix';
 import { ALL_AUDIT_ACTIONS } from './auth/rbac.types';
 
 const EMPLOYEE_REPO_TOKEN = 'EmployeeRepoPort';
 const AUDIT_REPO_TOKEN = 'AuditRepoPort';
+const NOTIF_PREF_REPO_TOKEN = 'NotifPrefRepoPort';
 
 @Module({
   imports: [AuthModule, OrdersModule, ScheduleModule.forRoot()],
-  controllers: [EmployeeController, AuditController],
+  controllers: [EmployeeController, AuditController, NotifPrefController],
   providers: [
     PermissionsGuard,
     {
@@ -33,9 +38,18 @@ const AUDIT_REPO_TOKEN = 'AuditRepoPort';
       useClass: DrizzleAuditRepo,
     },
     {
+      provide: NOTIF_PREF_REPO_TOKEN,
+      useClass: DrizzleNotifPrefRepo,
+    },
+    {
       provide: AuditCore,
       useFactory: (repo) => new AuditCore(repo),
       inject: [AUDIT_REPO_TOKEN],
+    },
+    {
+      provide: NotifPrefCore,
+      useFactory: (repo) => new NotifPrefCore(repo, BUILTIN_SOUND_CATALOG),
+      inject: [NOTIF_PREF_REPO_TOKEN],
     },
     {
       provide: EmployeeCore,
@@ -54,7 +68,7 @@ const AUDIT_REPO_TOKEN = 'AuditRepoPort';
       useClass: AuditInterceptor,
     },
   ],
-  exports: [EmployeeCore, AuditCore],
+  exports: [EmployeeCore, AuditCore, NotifPrefCore],
 })
 export class MerchantOpsModule implements OnModuleInit {
   private readonly logger = new Logger(MerchantOpsModule.name);

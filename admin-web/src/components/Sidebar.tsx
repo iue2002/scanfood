@@ -10,6 +10,7 @@ import {
   Settings,
   Users,
   ScrollText,
+  Bell,
   X,
 } from 'lucide-react'
 import { useUnread } from './UnreadProvider'
@@ -32,6 +33,8 @@ const menuItems = [
   { path: '/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
   // 店主 + 店长（owner / manager / admin）
   { path: '/audit-logs', label: '审计日志', icon: ScrollText, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
+  // 全员可见（个人级）
+  { path: '/notif-settings', label: '通知偏好', icon: Bell, badgeKey: null, visibleFor: null as null | ReadonlyArray<Role> },
 ]
 
 interface SidebarProps {

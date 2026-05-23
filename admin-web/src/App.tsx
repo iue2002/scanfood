@@ -14,6 +14,7 @@ import Statistics from './pages/Statistics'
 import StoreSettings from './pages/StoreSettings'
 import EmployeeManage from './pages/EmployeeManage'
 import AuditLogs from './pages/AuditLogs'
+import NotifSettings from './pages/NotifSettings'
 import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import { ModalProvider } from './components/ModalProvider'
@@ -160,6 +161,7 @@ export default function App() {
                   <AuditLogs />
                 </RoleGuard>
               } />
+              <Route path="notif-settings" element={<NotifSettings />} />
               <Route path="forbidden" element={<Forbidden />} />
             </Route>
           </Routes>

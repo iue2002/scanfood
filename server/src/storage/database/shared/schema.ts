@@ -339,3 +339,18 @@ export const audit_logs_archive = mysqlTable(
     index("audit_archive_action_idx").on(t.action),
   ]
 );
+
+
+// merchant-ops-center M3：用户通知偏好（声音 + 桌面通知事件）
+// 与 users 1:1，外键 cascade
+export const user_preferences = mysqlTable(
+  "user_preferences",
+  {
+    user_id: int("user_id").primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+    sound_enabled: boolean("sound_enabled").notNull().default(true),
+    sound_id: varchar("sound_id", { length: 64 }).notNull().default('default'),
+    // 元素 ⊆ {NEW_ORDER, ADD_ITEM, REFUND}（I12 由应用层校验）
+    desktop_events: json("desktop_events").notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  }
+);

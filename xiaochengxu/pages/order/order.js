@@ -1453,15 +1453,17 @@ Page({
   },
 
   // me-sheet → orders-sheet 的"再来一单"已写入购物车，回到 order 页打开 confirm-sheet
+  // 注意触发顺序：父级先收到 'close'（已把 showMeSheet 置 false），再收到 'reorder'。
+  // 我们这里立刻开 confirm-sheet，让 TabBar 直接从"被 me-sheet 内嵌 orders 隐藏"
+  // 平滑过渡到"被 confirm-sheet 隐藏"，避免中间一帧 TabBar 闪现。
   onMeReorder(e) {
     const tableId = (e.detail && e.detail.tableId) || this.data.tableId;
     if (tableId && this.data.tableId !== String(tableId)) {
       this.setData({ tableId: String(tableId) });
     }
-    // me-sheet 已自行关闭，等动画结束再开 confirm-sheet（避免叠层冲突）
-    setTimeout(() => {
-      this.setData({ showConfirmSheet: true });
-    }, 50);
+    // 立刻开（不等动画），_updateTabBarVisibility 会发现 showConfirmSheet=true 直接隐藏 TabBar
+    this.setData({ showConfirmSheet: true });
+    this._updateTabBarVisibility();
   },
 
   // me-sheet → orders-sheet 的"查看详情"，me-sheet 仍保留，detail-sheet 叠在最上层

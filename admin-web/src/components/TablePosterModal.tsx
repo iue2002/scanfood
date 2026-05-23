@@ -48,11 +48,11 @@ export default function TablePosterModal({
     setLoading(true)
     setError('')
 
-    // 1. 背景：渐变蓝
+    // 1. 背景：微信品牌绿渐变
     const gradient = ctx.createLinearGradient(0, 0, 0, POSTER_H)
-    gradient.addColorStop(0, '#2563EB')
-    gradient.addColorStop(0.5, '#3B82F6')
-    gradient.addColorStop(1, '#1D4ED8')
+    gradient.addColorStop(0, '#07C160')   // 微信品牌色
+    gradient.addColorStop(0.5, '#10AD51') // 渐深
+    gradient.addColorStop(1, '#048A45')   // 底部更深
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, POSTER_W, POSTER_H)
 
@@ -114,8 +114,8 @@ export default function TablePosterModal({
     ctx.moveTo(dotX + 16, lineY)
     ctx.lineTo(lineEndX, lineY)
     ctx.stroke()
-    // 中点
-    ctx.fillStyle = '#2563EB'
+    // 中点（微信品牌绿）
+    ctx.fillStyle = '#07C160'
     ctx.beginPath()
     ctx.arc(dotX, lineY, 8, 0, Math.PI * 2)
     ctx.fill()

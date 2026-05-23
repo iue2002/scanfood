@@ -13,11 +13,13 @@ import RefundManage from './pages/RefundManage'
 import Statistics from './pages/Statistics'
 import StoreSettings from './pages/StoreSettings'
 import EmployeeManage from './pages/EmployeeManage'
+import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import { ModalProvider } from './components/ModalProvider'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { UnreadProvider } from './components/UnreadProvider'
 import NotificationCenter from './components/NotificationCenter'
+import { RoleGuard } from './rbac/RoleGuard'
 import { useAuthStore } from './stores/auth'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -117,13 +119,42 @@ export default function App() {
             >
               <Route index element={<TableBoard />} />
               <Route path="orders" element={<OrderManage />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="statistics" element={<Statistics />} />
-              <Route path="tables" element={<TableManage />} />
-              <Route path="dishes" element={<DishManage />} />
-              <Route path="refunds" element={<RefundManage />} />
-              <Route path="store-settings" element={<StoreSettings />} />
-              <Route path="employees" element={<EmployeeManage />} />
+              <Route path="dashboard" element={
+                <RoleGuard requiredRoles={['owner', 'admin']}>
+                  <Dashboard />
+                </RoleGuard>
+              } />
+              <Route path="statistics" element={
+                <RoleGuard requiredRoles={['owner', 'admin']}>
+                  <Statistics />
+                </RoleGuard>
+              } />
+              <Route path="tables" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <TableManage />
+                </RoleGuard>
+              } />
+              <Route path="dishes" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <DishManage />
+                </RoleGuard>
+              } />
+              <Route path="refunds" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <RefundManage />
+                </RoleGuard>
+              } />
+              <Route path="store-settings" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <StoreSettings />
+                </RoleGuard>
+              } />
+              <Route path="employees" element={
+                <RoleGuard requiredRoles={['owner', 'admin']}>
+                  <EmployeeManage />
+                </RoleGuard>
+              } />
+              <Route path="forbidden" element={<Forbidden />} />
             </Route>
           </Routes>
         </UnreadProvider>

@@ -218,14 +218,29 @@ export class AuthService {
     this.clearLockEntry(username);
     await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', true);
 
-    // 6. 获取上次登录信息
+    // 6. 检查账号状态（merchant-ops M1）
+    if ((user as any).status === 'deleted' || (user as any).status === 'disabled') {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: '账号已被禁用或删除',
+      });
+    }
+
+    // 7. 获取上次登录信息
     const lastLogin = await this.getLastLogin(user.id);
 
     const { password, ...userInfo } = user;
     return {
       user: userInfo,
-      token: this.jwtService.sign({ userId: user.id, role: user.role }),
+      // 带上 token_version 用于强制下线（merchant-ops M1）
+      token: this.jwtService.sign({
+        userId: user.id,
+        role: user.role,
+        token_version: (user as any).token_version ?? 0,
+      }),
       last_login: lastLogin || undefined,
+      // 临时密码后必须改密（M1）
+      requirePasswordChange: !!(user as any).must_change_password,
     };
   }
 

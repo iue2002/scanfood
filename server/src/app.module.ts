@@ -11,6 +11,7 @@ import { StatisticsModule } from '@/modules/statistics/statistics.module';
 import { RefundsModule } from '@/modules/refunds/refunds.module';
 import { PrintModule } from '@/modules/print/print.module';
 import { UploadModule } from '@/modules/upload/upload.module';
+import { MerchantOpsModule } from '@/modules/merchant-ops/merchant-ops.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { UploadModule } from '@/modules/upload/upload.module';
     RefundsModule,
     PrintModule,
     UploadModule,
+    MerchantOpsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

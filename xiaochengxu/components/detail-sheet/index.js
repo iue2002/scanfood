@@ -28,6 +28,10 @@ Component({
         if (!this.data.visible) return;
         if (!this._inited) return;
         if (newVal === oldVal) return;
+        // 防双重调用：父级同时 setData(visible, orderId) 时两个 observer 都会触发，
+        // visible 已经走过完整的 handleOpen + initWebSocket，这里看到同一个 id 就跳过
+        if (newVal === this._lastInitedOrderId) return;
+        this._lastInitedOrderId = newVal;
         this.orderId = newVal;
         this.disconnect(); // 切换订单，先断旧的 ws
         this.fetchOrderDetail(newVal);
@@ -102,6 +106,7 @@ Component({
       if (!id) return;
       this.orderId = id;
       this._inited = true; // 标记：visible observer 已完成初始化，后续 orderId 变化才走刷新逻辑
+      this._lastInitedOrderId = id; // 记录已初始化的 orderId，防止 orderId observer 重复触发
 
       // 重置每次打开的 UI 状态
       this.setData({
@@ -125,6 +130,7 @@ Component({
     handleClose() {
       // visible=false 时由父级触发：断开 WS / 停止轮询
       this._inited = false;
+      this._lastInitedOrderId = null;
       this.disconnect();
     },
 
@@ -173,7 +179,16 @@ Component({
     },
 
     initWebSocket(orderId) {
-      if (!SERVER_URL || this.wsStatus === 'connecting') return;
+      if (!SERVER_URL) return;
+      // 已经在连接中或已连接：直接复用，不要重新建连接
+      if (this.wsStatus === 'connecting' || this.wsStatus === 'connected') {
+        return;
+      }
+      // 任何残留的 ws 实例先彻底清掉，避免 connectSocket "未完成的操作"
+      if (this.ws) {
+        try { this.ws.close({ code: 1000, reason: 'reconnect' }); } catch (e) {}
+        this.ws = null;
+      }
 
       const token = wx.getStorageSync('token');
       if (!token) {

@@ -383,3 +383,75 @@ export const export_jobs = mysqlTable(
     index("export_jobs_created_idx").on(t.created_at),
   ]
 );
+
+
+// ============================================================
+// merchant-ops-center M5：云打印
+// ============================================================
+
+// 打印模板表
+export const print_templates = mysqlTable(
+  "print_templates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    // TemplateField[] 子集；必须包含 {TABLE_NUMBER, ITEMS, TOTAL}（应用层校验）
+    fields_json: json("fields_json").notNull(),
+    width: varchar("width", { length: 8 }).notNull().default('80mm'), // '58mm' | '80mm'
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  }
+);
+
+// 打印机配置表
+export const printer_configs = mysqlTable(
+  "printer_configs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    provider: varchar("provider", { length: 16 }).notNull(), // FEIE | BLUETOOTH | BROWSER
+    device_sn: varchar("device_sn", { length: 64 }),
+    // AES-256-GCM 密文：iv:tag:ciphertext（hex 拼接）
+    device_key_enc: varchar("device_key_enc", { length: 512 }),
+    role: varchar("role", { length: 16 }).notNull().default('BOTH'), // CASHIER | KITCHEN | BOTH
+    enabled: boolean("enabled").notNull().default(true),
+    auto_print: boolean("auto_print").notNull().default(false),
+    auto_print_add_more: boolean("auto_print_add_more").notNull().default(false), // 加餐自动打印
+    template_id: int("template_id").references(() => print_templates.id),
+    last_online_at: timestamp("last_online_at"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => [
+    index("printer_configs_provider_idx").on(t.provider),
+    index("printer_configs_enabled_idx").on(t.enabled),
+  ]
+);
+
+// 打印任务表
+export const print_jobs = mysqlTable(
+  "print_jobs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    printer_id: int("printer_id").notNull().references(() => printer_configs.id, { onDelete: 'cascade' }),
+    template_id: int("template_id").references(() => print_templates.id),
+    order_id: int("order_id"),
+    /** 'NEW_ORDER' | 'ADD_MORE' | 'REPRINT' | 'TEST' */
+    trigger: varchar("trigger", { length: 20 }).notNull().default('NEW_ORDER'),
+    payload_json: json("payload_json").notNull(),
+    status: varchar("status", { length: 16 }).notNull().default('PENDING'), // PENDING|SENT|SUCCESS|FAILED
+    attempt: int("attempt").notNull().default(0),
+    last_error: varchar("last_error", { length: 500 }),
+    next_retry_at: timestamp("next_retry_at"),
+    provider_job_id: varchar("provider_job_id", { length: 100 }),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+    completed_at: timestamp("completed_at"),
+  },
+  (t) => [
+    index("print_jobs_printer_status_idx").on(t.printer_id, t.status),
+    index("print_jobs_status_retry_idx").on(t.status, t.next_retry_at),
+    index("print_jobs_order_idx").on(t.order_id),
+    index("print_jobs_created_idx").on(t.created_at),
+  ]
+);

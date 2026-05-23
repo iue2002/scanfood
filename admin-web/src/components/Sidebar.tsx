@@ -12,6 +12,7 @@ import {
   ScrollText,
   Bell,
   Download,
+  Printer,
   X,
 } from 'lucide-react'
 import { useUnread } from './UnreadProvider'
@@ -28,6 +29,7 @@ const menuItems = [
   { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
   { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds' as const, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
   { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
+  { path: '/printers', label: '打印设置', icon: Printer, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'] as ReadonlyArray<Role> },
   // 仅店主 / 管理员
   { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },
   { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: ['owner', 'admin'] as ReadonlyArray<Role> },

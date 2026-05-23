@@ -22,6 +22,16 @@ import { DrizzleExportRepo } from './export/export-repo.drizzle';
 import { DrizzleReadOnlyOrdersRepo } from './export/readonly-orders.drizzle';
 import { ExcelPdfArtifactAdapter } from './export/export-artifact.adapter';
 import { ExportCleanupScheduler } from './export/export-cleanup.scheduler';
+import { PrintController } from './print/print.controller';
+import { PrintCore } from './print/print.core';
+import { DrizzlePrintRepo } from './print/print-repo.drizzle';
+import { PrintOrderReader } from './print/readonly-order.drizzle';
+import { FeiePrinterDriver } from './print/drivers/feie.driver';
+import { BrowserPrinterDriver } from './print/drivers/browser.driver';
+import { AesEncryptorService } from './print/aes-encryptor';
+import { MopEventBus } from './print/mop-event-bus';
+import { PrintScheduler } from './print/print.scheduler';
+import { PrintEventHook } from './print/print-event-hook';
 import { StoreSettingsService } from '@/modules/store-settings/store-settings.service';
 import { StoreSettingsModule } from '@/modules/store-settings/store-settings.module';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -34,12 +44,18 @@ const NOTIF_PREF_REPO_TOKEN = 'NotifPrefRepoPort';
 const EXPORT_REPO_TOKEN = 'ExportRepoPort';
 const READONLY_ORDERS_TOKEN = 'ReadOnlyOrdersPort';
 const EXPORT_ARTIFACT_TOKEN = 'ExportArtifactPort';
+const PRINT_REPO_TOKEN = 'PrintRepoPort';
 
 @Module({
   imports: [AuthModule, OrdersModule, StoreSettingsModule, ScheduleModule.forRoot()],
-  controllers: [EmployeeController, AuditController, NotifPrefController, ExportController],
+  controllers: [EmployeeController, AuditController, NotifPrefController, ExportController, PrintController],
   providers: [
     PermissionsGuard,
+    AesEncryptorService,
+    FeiePrinterDriver,
+    BrowserPrinterDriver,
+    MopEventBus,
+    PrintOrderReader,
     {
       provide: EMPLOYEE_REPO_TOKEN,
       useClass: DrizzleEmployeeRepo,
@@ -63,6 +79,10 @@ const EXPORT_ARTIFACT_TOKEN = 'ExportArtifactPort';
     {
       provide: EXPORT_ARTIFACT_TOKEN,
       useClass: ExcelPdfArtifactAdapter,
+    },
+    {
+      provide: PRINT_REPO_TOKEN,
+      useClass: DrizzlePrintRepo,
     },
     {
       provide: AuditCore,
@@ -92,6 +112,32 @@ const EXPORT_ARTIFACT_TOKEN = 'ExportArtifactPort';
       inject: [EXPORT_REPO_TOKEN, READONLY_ORDERS_TOKEN, EXPORT_ARTIFACT_TOKEN, StoreSettingsService],
     },
     {
+      provide: PrintCore,
+      useFactory: (
+        repo,
+        feie: FeiePrinterDriver,
+        browser: BrowserPrinterDriver,
+        aes: AesEncryptorService,
+        bus: MopEventBus,
+        reader: PrintOrderReader,
+      ) => {
+        const drivers = new Map<string, any>([
+          ['FEIE', feie],
+          ['BROWSER', browser],
+        ]);
+        // BrowserDriver 需要事件总线注入
+        try { browser.setEmitter(bus); } catch { /* ignore */ }
+        return new PrintCore(
+          repo,
+          drivers,
+          aes.enc,
+          bus,
+          (orderId: number) => reader.readOrder(orderId),
+        );
+      },
+      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader],
+    },
+    {
       provide: EmployeeCore,
       useFactory: (repo, gateway: OrdersGateway) => new EmployeeCore(repo, {
         forceLogout: (userId, reason) => {
@@ -103,13 +149,15 @@ const EXPORT_ARTIFACT_TOKEN = 'ExportArtifactPort';
     },
     AuditArchiveScheduler,
     ExportCleanupScheduler,
+    PrintScheduler,
+    PrintEventHook,
     // 全局应用 AuditInterceptor：所有挂 @Audit 装饰器的 controller 自动写日志
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
     },
   ],
-  exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore],
+  exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore, PrintCore],
 })
 export class MerchantOpsModule implements OnModuleInit {
   private readonly logger = new Logger(MerchantOpsModule.name);

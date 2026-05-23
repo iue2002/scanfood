@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
-import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Search, ShoppingCart, ShoppingBag } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Printer, Search, ShoppingCart, ShoppingBag } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent } from '@/components/WebSocketProvider'
 import { useUnread } from '@/components/UnreadProvider'
@@ -147,6 +147,20 @@ export default function OrderManage() {
       fetchOrders()
       showToast('订单已结账', 'success')
     })
+  }
+
+  const handleReprint = async (orderId: number) => {
+    try {
+      const res: any = await request.post(`/merchant-ops/orders/${orderId}/reprint`)
+      const data = res?.data ?? res
+      if (data?.enqueued > 0) {
+        showToast(`已派发 ${data.enqueued} 台打印机补打`, 'success')
+      } else {
+        showToast('没有可用打印机，请先在打印设置中配置', 'warning')
+      }
+    } catch (err: any) {
+      showToast(err?.message || '补打失败', 'error')
+    }
   }
 
   const handleCancel = async (id: number) => {
@@ -577,6 +591,9 @@ export default function OrderManage() {
                           </button>
                         </>
                       ) : null}
+                      <button onClick={() => handleReprint(order.id)} className="p-1.5 text-[#9333EA] hover:bg-purple-50 rounded transition-colors cursor-pointer" title="补打小票">
+                        <Printer size={16} />
+                      </button>
                     </div>
                   </td>
                   <td className="px-4 py-3">

@@ -169,5 +169,63 @@ export default function NotificationCenter() {
     )
   )
 
+  // ============ M5: mop:* 打印相关事件 ============
+  // 浏览器打印：后端 BROWSER provider 把 HTML 推过来，前端弹打印窗
+  useWebSocketEvent(
+    'mop:browser-print',
+    useCallback(
+      (data: any) => {
+        if (!data || typeof data.html !== 'string') return
+        try {
+          const w = window.open('', '_blank', 'width=420,height=640')
+          if (!w) {
+            showToast('浏览器打印窗口被拦截，请允许弹窗', 'warning')
+            return
+          }
+          const css = `
+            <style>
+              body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; padding: 8px; }
+              .ticket { width: ${data.width === '58mm' ? '58mm' : '80mm'}; margin: 0 auto; }
+              .store { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 8px; }
+              .row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
+              .row.total { font-size: 14px; font-weight: bold; padding-top: 6px; }
+              .item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
+              .hr { border-top: 1px dashed #94A3B8; margin: 4px 0; }
+              .empty { text-align: center; color: #94A3B8; padding: 4px; font-size: 12px; }
+              @media print { body { padding: 0; } }
+            </style>
+          `
+          w.document.open()
+          w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${data.printerName ?? '小票'}</title>${css}</head><body>${data.html}</body></html>`)
+          w.document.close()
+          // 等内容渲染后再打印
+          setTimeout(() => {
+            try { w.print() } catch { /* ignore */ }
+          }, 200)
+        } catch {
+          showToast('浏览器打印失败', 'error')
+        }
+      },
+      [showToast]
+    )
+  )
+
+  // 打印失败告警（owner / manager 的全局 toast + desktop）
+  useWebSocketEvent(
+    'mop:printer-error',
+    useCallback(
+      (data: any) => {
+        if (!data) return
+        const printerName = data.printerName || `打印机#${data.printerId}`
+        const orderTag = data.orderId ? `（订单 #${data.orderId}）` : ''
+        showToast(`打印失败：${printerName} - ${data.errorCode || '未知错误'}${orderTag}`, 'error')
+        showNotification(`${printerName} 打印失败`, {
+          body: `${data.errorCode || '未知错误'}${data.errorMessage ? ' · ' + data.errorMessage : ''}${orderTag}`,
+        })
+      },
+      [showToast]
+    )
+  )
+
   return null
 }

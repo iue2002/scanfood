@@ -354,3 +354,32 @@ export const user_preferences = mysqlTable(
     updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
   }
 );
+
+
+// merchant-ops-center M4：导出任务表（异步导出 > 5000 行 / 报表生成）
+export const export_jobs = mysqlTable(
+  "export_jobs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // uuid
+    actor_user_id: int("actor_user_id").notNull().references(() => users.id),
+    type: varchar("type", { length: 20 }).notNull(), // 'ORDERS' | 'REPORT_DAILY' | 'REPORT_MONTHLY'
+    status: varchar("status", { length: 20 }).notNull().default('pending'), // pending/running/success/failed
+    progress: int("progress").notNull().default(0), // 0..100
+    row_count: int("row_count"),
+    file_path: varchar("file_path", { length: 500 }),
+    file_size: bigint("file_size", { mode: "number" }),
+    file_name: varchar("file_name", { length: 200 }),
+    mime_type: varchar("mime_type", { length: 100 }),
+    error_code: varchar("error_code", { length: 64 }),
+    error_message: varchar("error_message", { length: 500 }),
+    params_json: json("params_json"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+    completed_at: timestamp("completed_at"),
+  },
+  (t) => [
+    index("export_jobs_actor_idx").on(t.actor_user_id),
+    index("export_jobs_status_idx").on(t.status),
+    index("export_jobs_created_idx").on(t.created_at),
+  ]
+);

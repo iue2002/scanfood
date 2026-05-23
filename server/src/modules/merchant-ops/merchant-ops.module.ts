@@ -16,6 +16,14 @@ import { NotifPrefController } from './notif-pref/notif-pref.controller';
 import { NotifPrefCore } from './notif-pref/notif-pref.core';
 import { DrizzleNotifPrefRepo } from './notif-pref/notif-pref-repo.drizzle';
 import { BUILTIN_SOUND_CATALOG } from './notif-pref/sound-catalog';
+import { ExportController } from './export/export.controller';
+import { ExportCore } from './export/export.core';
+import { DrizzleExportRepo } from './export/export-repo.drizzle';
+import { DrizzleReadOnlyOrdersRepo } from './export/readonly-orders.drizzle';
+import { ExcelPdfArtifactAdapter } from './export/export-artifact.adapter';
+import { ExportCleanupScheduler } from './export/export-cleanup.scheduler';
+import { StoreSettingsService } from '@/modules/store-settings/store-settings.service';
+import { StoreSettingsModule } from '@/modules/store-settings/store-settings.module';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { PERMISSION_MATRIX } from './auth/permission-matrix';
 import { ALL_AUDIT_ACTIONS } from './auth/rbac.types';
@@ -23,10 +31,13 @@ import { ALL_AUDIT_ACTIONS } from './auth/rbac.types';
 const EMPLOYEE_REPO_TOKEN = 'EmployeeRepoPort';
 const AUDIT_REPO_TOKEN = 'AuditRepoPort';
 const NOTIF_PREF_REPO_TOKEN = 'NotifPrefRepoPort';
+const EXPORT_REPO_TOKEN = 'ExportRepoPort';
+const READONLY_ORDERS_TOKEN = 'ReadOnlyOrdersPort';
+const EXPORT_ARTIFACT_TOKEN = 'ExportArtifactPort';
 
 @Module({
-  imports: [AuthModule, OrdersModule, ScheduleModule.forRoot()],
-  controllers: [EmployeeController, AuditController, NotifPrefController],
+  imports: [AuthModule, OrdersModule, StoreSettingsModule, ScheduleModule.forRoot()],
+  controllers: [EmployeeController, AuditController, NotifPrefController, ExportController],
   providers: [
     PermissionsGuard,
     {
@@ -42,6 +53,18 @@ const NOTIF_PREF_REPO_TOKEN = 'NotifPrefRepoPort';
       useClass: DrizzleNotifPrefRepo,
     },
     {
+      provide: EXPORT_REPO_TOKEN,
+      useClass: DrizzleExportRepo,
+    },
+    {
+      provide: READONLY_ORDERS_TOKEN,
+      useClass: DrizzleReadOnlyOrdersRepo,
+    },
+    {
+      provide: EXPORT_ARTIFACT_TOKEN,
+      useClass: ExcelPdfArtifactAdapter,
+    },
+    {
       provide: AuditCore,
       useFactory: (repo) => new AuditCore(repo),
       inject: [AUDIT_REPO_TOKEN],
@@ -50,6 +73,23 @@ const NOTIF_PREF_REPO_TOKEN = 'NotifPrefRepoPort';
       provide: NotifPrefCore,
       useFactory: (repo) => new NotifPrefCore(repo, BUILTIN_SOUND_CATALOG),
       inject: [NOTIF_PREF_REPO_TOKEN],
+    },
+    {
+      provide: ExportCore,
+      useFactory: (repo, ord, art, store: StoreSettingsService) => new ExportCore(
+        repo,
+        ord,
+        art,
+        async () => {
+          try {
+            const s = await store.getStoreSettings();
+            return s?.store_name || '伊美轩';
+          } catch {
+            return '伊美轩';
+          }
+        },
+      ),
+      inject: [EXPORT_REPO_TOKEN, READONLY_ORDERS_TOKEN, EXPORT_ARTIFACT_TOKEN, StoreSettingsService],
     },
     {
       provide: EmployeeCore,
@@ -62,13 +102,14 @@ const NOTIF_PREF_REPO_TOKEN = 'NotifPrefRepoPort';
       inject: [EMPLOYEE_REPO_TOKEN, OrdersGateway],
     },
     AuditArchiveScheduler,
+    ExportCleanupScheduler,
     // 全局应用 AuditInterceptor：所有挂 @Audit 装饰器的 controller 自动写日志
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
     },
   ],
-  exports: [EmployeeCore, AuditCore, NotifPrefCore],
+  exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore],
 })
 export class MerchantOpsModule implements OnModuleInit {
   private readonly logger = new Logger(MerchantOpsModule.name);

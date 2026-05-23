@@ -305,7 +305,6 @@ export class EmployeeCore {
       bumpTokenVersion: true, // 改密 → 强制其他设备下线
     });
   }
-}
 
   async list(filter: EmployeeListFilter, page: PageOptions): Promise<Page<EmployeeRow>> {
     return await this.repo.list(filter, page);

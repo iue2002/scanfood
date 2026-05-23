@@ -1151,11 +1151,8 @@ Page({
   // ====== "我的"弹窗（替代 wx.switchTab → me 页）======
   openMeSheet() {
     if (this.data.showMeSheet) return;
-    // 隐藏自定义 TabBar，让弹窗能完全覆盖
+    // 不隐藏 TabBar：sheet 给底部 TabBar 留空间，用户能直接点"浏览"切回
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && tabBar.setHidden) {
-      tabBar.setHidden(true);
-    }
     if (tabBar && tabBar.setSelected) {
       tabBar.setSelected(1); // "我的"高亮
     }
@@ -1165,9 +1162,6 @@ Page({
   onMeSheetClose() {
     this.setData({ showMeSheet: false });
     const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && tabBar.setHidden) {
-      tabBar.setHidden(false);
-    }
     if (tabBar && tabBar.setSelected) {
       tabBar.setSelected(0); // 恢复"浏览"高亮
     }

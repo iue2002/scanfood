@@ -46,14 +46,15 @@ Component({
     switchTab(e) {
       const data = e.currentTarget.dataset
       const url = data.path
+      const pages = getCurrentPages()
+      const currentPage = pages && pages[pages.length - 1]
+      const isOnOrderPage = currentPage && currentPage.route === 'pages/order/order'
+
       // "我的"标签拦截：通过 globalData 让 order 页打开 me-sheet 而不是真切页
-      // 这样避免 wx.switchTab 的 webview 创建延迟，体验丝滑
       if (url === '/pages/me/me') {
         const app = getApp()
         // 当前已经在 order 页：直接通知打开 sheet
-        const pages = getCurrentPages()
-        const currentPage = pages && pages[pages.length - 1]
-        if (currentPage && currentPage.route === 'pages/order/order' && typeof currentPage.openMeSheet === 'function') {
+        if (isOnOrderPage && typeof currentPage.openMeSheet === 'function') {
           this.setData({ selected: 1 })
           currentPage.openMeSheet()
           return
@@ -65,6 +66,16 @@ Component({
         wx.switchTab({ url: '/pages/order/order' })
         return
       }
+
+      // "浏览"标签：如果 me-sheet 打开，关闭它而不是真切页
+      if (url === '/pages/order/order' && isOnOrderPage && currentPage.data && currentPage.data.showMeSheet) {
+        if (typeof currentPage.onMeSheetClose === 'function') {
+          currentPage.onMeSheetClose()
+          this.setData({ selected: 0 })
+          return
+        }
+      }
+
       if (url !== this.data.list[this.data.selected].pagePath) {
         wx.switchTab({ url })
       }

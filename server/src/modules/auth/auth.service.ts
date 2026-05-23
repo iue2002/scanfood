@@ -86,7 +86,6 @@ export class AuthService {
     if (Date.now() - entry.lastFailAt > AuthService.FAIL_RESET_MS) return 0;
     return entry.failedCount;
   }
-  }
 
   // ===== 审计日志（写入 DB，失败不影响主流程） =====
   private async recordLoginLog(

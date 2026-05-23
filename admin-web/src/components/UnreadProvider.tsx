@@ -77,6 +77,20 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
     }, [])
   )
 
+  // 加餐 / 订单内容更新 → 也算未读，让商家知道有变化
+  useWebSocketEvent(
+    'orderUpdated',
+    useCallback((data: any) => {
+      if (!data || !data.id) return
+      setOrderIds((prev) => {
+        if (prev.has(data.id)) return prev
+        const next = new Set(prev)
+        next.add(data.id)
+        return next
+      })
+    }, [])
+  )
+
   // 退款申请推送 → 加入未读
   useWebSocketEvent(
     'refundCreated',

@@ -47,6 +47,31 @@ export default function NotificationCenter() {
     )
   )
 
+  // 订单内容更新（加餐 / 商家加菜等）
+  // 后端 syncAddMore / addOrderItem / updateOrderItem 都会发这个事件
+  useWebSocketEvent(
+    'orderUpdated',
+    useCallback(
+      (data: any) => {
+        if (!data) return
+        const isTakeaway = data.order_type === 'takeaway'
+        const tableNum = data.tables?.table_number || data.table_id
+        const tableLabel = isTakeaway ? '🛍️ 外带' : `${tableNum}号桌`
+        const orderNo = data.order_number || `#${data.id}`
+
+        // 商家自己加菜的回声（4 秒内）：静默，避免操作反馈和 ws 通知双弹
+        const localKey = `order:updated:${data.id}`
+        if (hasRecentLocalAction(localKey)) return
+
+        showToast(`${tableLabel} 加餐 ${orderNo}`, 'success')
+        showNotification(`${tableLabel} 加餐`, {
+          body: `订单 ${orderNo} 新增菜品，总额 ¥${data.total_amount || '-'}`,
+        })
+      },
+      [showToast, hasRecentLocalAction]
+    )
+  )
+
   // 退款申请
   useWebSocketEvent(
     'refundCreated',

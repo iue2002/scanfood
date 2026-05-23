@@ -288,6 +288,14 @@ Component({
         this.triggerEvent('close');
         this.triggerEvent('reorder', { tableId });
       }, 220);
+    },
+
+    // 订单列表中"查看详情" → 关掉 orders-sheet，再透传给 order 页打开 detail-sheet
+    // 不关 me-sheet：detail-sheet 关闭后，用户应仍处在"我的"页
+    onOrdersDetail(e) {
+      const orderId = e.detail && e.detail.orderId;
+      this.setData({ showOrdersSheet: false });
+      this.triggerEvent('detail', { orderId });
     }
   }
 });

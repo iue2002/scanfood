@@ -5,6 +5,7 @@
   "usingComponents": {
     "theme-modal": "/components/theme-modal/index",
     "me-sheet": "/components/me-sheet/index",
-    "confirm-sheet": "/components/confirm-sheet/index"
+    "confirm-sheet": "/components/confirm-sheet/index",
+    "detail-sheet": "/components/detail-sheet/index"
   }
 }

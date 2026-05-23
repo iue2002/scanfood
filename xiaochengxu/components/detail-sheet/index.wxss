@@ -1,13 +1,74 @@
-/* pages/order/detail.wxss — admin-web 主题对齐 */
+/* components/detail-sheet/index.wxss
+ * 全屏订单详情弹窗：右侧滑入入场，与 confirm-sheet / orders-sheet 同款入场曲线
+ */
 
-.om-page {
-  min-height: 100vh;
+.om-sheet-root {
+  position: fixed;
+  inset: 0;
   background: #F8FAFC;
-  padding: 24rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
+  z-index: 1000; /* 比 orders-sheet / me-sheet 都高一档（最上层） */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 28rpx;
   line-height: 1.5;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  transform: translate3d(100%, 0, 0);
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+.om-sheet-root.om-sheet-root-in {
+  transform: translate3d(0, 0, 0);
+}
+
+/* navbar 与 confirm-sheet / orders-sheet / me-sheet 同款 */
+.om-navbar {
+  background: #FFFFFF;
+  border-bottom: 2rpx solid #F1F5F9;
+  flex-shrink: 0;
+}
+.om-navbar-inner {
+  height: 80rpx;
+  padding: 0 28rpx;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.om-navbar-back {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8rpx;
+  margin-right: 10rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.om-navbar-back-hover {
+  background: #F1F5F9;
+}
+.om-navbar-back-arrow {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #0F172A;
+  font-weight: 500;
+  margin-top: -4rpx;
+}
+.om-navbar-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.5rpx;
+  line-height: 1;
+}
+
+/* 滚动主体：底部留出 action-bar 高度 */
+.om-page-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 24rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -288,7 +349,7 @@
 
 /* ====== 底部操作栏 ====== */
 .om-action-bar {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
@@ -323,7 +384,7 @@
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: flex-end;
-  z-index: 200;
+  z-index: 1100;
 }
 .om-modal-card-fullsheet {
   width: 100%;
@@ -561,7 +622,7 @@
 .om-foot-submit-hover { background: #1D4ED8; }
 .om-foot-submit-disabled { opacity: 0.6; }
 
-/* ====== 数量弹窗（与 order.wxss 保持一致） ====== */
+/* ====== 数量弹窗 ====== */
 .om-qty-modal {
   position: fixed;
   inset: 0;
@@ -569,7 +630,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 220;
+  z-index: 1120;
 }
 .om-qty-card {
   width: calc(100% - 64rpx);
@@ -677,10 +738,9 @@
   border: none;
 }
 
-
-/* ====== 详情页骨架屏 ====== */
+/* ====== 详情骨架屏 ====== */
 .om-skeleton {
-  padding: 24rpx 32rpx;
+  padding: 0 0 24rpx 0;
 }
 .om-skel-card {
   background: #FFFFFF;
@@ -734,9 +794,9 @@
   inset: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
   transform: translateX(-100%);
-  animation: om-shimmer-detail 1.4s infinite;
+  animation: om-shimmer-detail-sheet 1.4s infinite;
 }
-@keyframes om-shimmer-detail {
+@keyframes om-shimmer-detail-sheet {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }

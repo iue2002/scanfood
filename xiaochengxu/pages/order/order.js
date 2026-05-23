@@ -29,7 +29,10 @@ Page({
     // "我的"全屏弹窗（替代 wx.switchTab → me 页）
     showMeSheet: false,
     // "确认订单"全屏弹窗（替代 wx.navigateTo → confirm 页）
-    showConfirmSheet: false
+    showConfirmSheet: false,
+    // "订单详情"全屏弹窗（替代 wx.navigateTo → detail 页）
+    showDetailSheet: false,
+    detailOrderId: ''
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -91,12 +94,7 @@ Page({
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
       if (order && order.id) {
-        wx.navigateTo({
-          url: `/pages/order/detail?id=${order.id}`,
-          fail: (err) => {
-            console.error('跳转订单详情失败:', err);
-          }
-        });
+        this.openDetailSheet(order.id);
       }
     } catch (err) {
       console.log('没有未完成的订单', err);
@@ -117,15 +115,8 @@ Page({
       const order = await request({ url: '/orders/my-active', noLoading: true });
       console.log('checkActiveOrder 结果:', order);
       if (order && order.id) {
-        // 直接跳转到订单详情页，不需要再加载点餐页面
-        // 使用 navigateTo 避免 tabBar 页面 redirectTo 异常
-        wx.navigateTo({
-          url: `/pages/order/detail?id=${order.id}`,
-          fail: (err) => {
-            console.error('跳转订单详情失败:', err);
-            wx.showToast({ title: '跳转失败', icon: 'none' });
-          }
-        });
+        // 有未完成订单：直接打开详情弹窗（不再走页面跳转）
+        this.openDetailSheet(order.id);
         return true;
       }
       // 没有未完成订单，释放桌号资源
@@ -339,9 +330,7 @@ Page({
       if (this.data.isAddMore) {
         return;
       }
-      wx.redirectTo({
-        url: `/pages/order/detail?id=${order.id}`,
-      });
+      this.openDetailSheet(order.id);
     } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
       // 订单已结账或取消，立即释放所有桌号资源
       this.releaseTableResources();
@@ -1058,15 +1047,48 @@ Page({
 
   onConfirmSubmitted(e) {
     const orderId = e.detail && e.detail.orderId;
-    // 关 sheet 在子组件已触发 close 事件；这里只负责跳详情页
+    // 关 confirm-sheet 后，等动画结束再开 detail-sheet
     if (orderId) {
-      // 用 navigateTo（detail 仍是 page）；后续会改为 detail-sheet
       setTimeout(() => {
-        wx.navigateTo({
-          url: `/pages/order/detail?id=${orderId}`,
-        });
-      }, 220);
+        this.openDetailSheet(orderId);
+      }, 240);
     }
+  },
+
+  // ====== 订单详情弹窗（替代 pages/order/detail）======
+  openDetailSheet(orderId) {
+    if (!orderId) return;
+    if (this.data.showDetailSheet && this.data.detailOrderId === String(orderId)) {
+      return;
+    }
+    this.setData({
+      showDetailSheet: true,
+      detailOrderId: String(orderId)
+    });
+  },
+
+  onDetailSheetClose() {
+    this.setData({ showDetailSheet: false, detailOrderId: '' });
+  },
+
+  // detail-sheet 通知：订单已结账/取消，桌号已释放
+  onDetailTableReleased() {
+    // 同步清理 order 页面状态，避免回到 order 页时还显示旧桌号/购物车
+    this.setData({
+      tableId: '',
+      tableNumber: '',
+      hasScannedTable: false,
+      cartCount: {},
+      cartItems: [],
+      totalCount: 0,
+      totalPrice: '0.00',
+      currentCartId: null,
+      currentOrderId: null,
+      orderStatus: null,
+      isAddMore: false
+    });
+    // 关掉 ws 订阅，等用户重新扫码再连
+    this.closeWebSocket();
   },
 
   async submitAddMore() {
@@ -1109,9 +1131,7 @@ Page({
       wx.showToast({ title: '加餐已提交', icon: 'success' });
 
       setTimeout(() => {
-        wx.redirectTo({
-          url: `/pages/order/detail?id=${result.id}`,
-        });
+        this.openDetailSheet(result.id);
       }, 1500);
     } catch (err) {
       wx.hideLoading();
@@ -1196,8 +1216,20 @@ Page({
     }, 50);
   },
 
-  // 拦截系统返回键 / 手势：关闭 me-sheet / confirm-sheet 而不是退出 order 页
+  // me-sheet → orders-sheet 的"查看详情"，me-sheet 仍保留，detail-sheet 叠在最上层
+  onMeDetail(e) {
+    const orderId = e.detail && e.detail.orderId;
+    if (orderId) {
+      this.openDetailSheet(orderId);
+    }
+  },
+
+  // 拦截系统返回键 / 手势：关闭 detail-sheet / confirm-sheet / me-sheet 而不是退出 order 页
   onBackPress() {
+    if (this.data.showDetailSheet) {
+      this.onDetailSheetClose();
+      return true;
+    }
     if (this.data.showConfirmSheet) {
       this.onConfirmSheetClose();
       return true;

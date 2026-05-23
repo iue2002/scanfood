@@ -286,8 +286,9 @@ Component({
 
     goToDetail(e) {
       const id = e.currentTarget.dataset.id;
-      // 关闭 sheet 后跳转，避免栈干扰
-      wx.navigateTo({ url: `/pages/order/detail?id=${id}` });
+      // detail 页已改为弹窗：通知父级（me-sheet → order 页）打开 detail-sheet
+      this.triggerEvent('detail', { orderId: id });
+      this.onClose();
     },
 
     // 触底加载更多（scroll-view 内部触发）

@@ -229,6 +229,7 @@
   visible="{{showMeSheet}}"
   bind:close="onMeSheetClose"
   bind:reorder="onMeReorder"
+  bind:detail="onMeDetail"
 />
 
 <!-- "确认订单"全屏弹窗（替代 wx.navigateTo → pages/order/confirm） -->
@@ -237,4 +238,12 @@
   tableId="{{tableId}}"
   bind:close="onConfirmSheetClose"
   bind:submitted="onConfirmSubmitted"
+/>
+
+<!-- "订单详情"全屏弹窗（替代 wx.navigateTo → pages/order/detail） -->
+<detail-sheet
+  visible="{{showDetailSheet}}"
+  orderId="{{detailOrderId}}"
+  bind:close="onDetailSheetClose"
+  bind:tablereleased="onDetailTableReleased"
 />

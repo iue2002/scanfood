@@ -50,6 +50,12 @@ Component({
       const currentPage = pages && pages[pages.length - 1]
       const isOnOrderPage = currentPage && currentPage.route === 'pages/order/order'
 
+      // 锁定模式（强制完成订单中）：所有 TabBar 切换都禁止
+      if (isOnOrderPage && currentPage.data && currentPage.data.showDetailSheet && currentPage.data.detailLocked) {
+        wx.showToast({ title: '请先完成当前订单', icon: 'none' })
+        return
+      }
+
       // "我的"标签拦截：通过 globalData 让 order 页打开 me-sheet 而不是真切页
       if (url === '/pages/me/me') {
         const app = getApp()

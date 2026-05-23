@@ -32,7 +32,9 @@ Page({
     showConfirmSheet: false,
     // "订单详情"全屏弹窗（替代 wx.navigateTo → detail 页）
     showDetailSheet: false,
-    detailOrderId: ''
+    detailOrderId: '',
+    // 锁定模式：检测到未付款订单时强制完成（隐藏返回 + 盖住 TabBar）
+    detailLocked: false
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -94,7 +96,8 @@ Page({
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
       if (order && order.id) {
-        this.openDetailSheet(order.id);
+        // 自动检测：锁定模式（强制用户完成订单）
+        this.openDetailSheet(order.id, true);
       }
     } catch (err) {
       console.log('没有未完成的订单', err);
@@ -115,8 +118,8 @@ Page({
       const order = await request({ url: '/orders/my-active', noLoading: true });
       console.log('checkActiveOrder 结果:', order);
       if (order && order.id) {
-        // 有未完成订单：直接打开详情弹窗（不再走页面跳转）
-        this.openDetailSheet(order.id);
+        // 有未完成订单：锁定模式打开 detail-sheet（强制用户完成订单）
+        this.openDetailSheet(order.id, true);
         return true;
       }
       // 没有未完成订单，释放桌号资源
@@ -330,7 +333,8 @@ Page({
       if (this.data.isAddMore) {
         return;
       }
-      this.openDetailSheet(order.id);
+      // ws 推送的未付款订单：锁定模式
+      this.openDetailSheet(order.id, true);
     } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
       // 订单已结账或取消，立即释放所有桌号资源
       this.releaseTableResources();
@@ -1047,28 +1051,47 @@ Page({
 
   onConfirmSubmitted(e) {
     const orderId = e.detail && e.detail.orderId;
-    // 关 confirm-sheet 后，等动画结束再开 detail-sheet
+    // 关 confirm-sheet 后，等动画结束再开 detail-sheet（锁定模式：刚下单未结账，强制完成）
     if (orderId) {
       setTimeout(() => {
-        this.openDetailSheet(orderId);
+        this.openDetailSheet(orderId, true);
       }, 240);
     }
   },
 
   // ====== 订单详情弹窗（替代 pages/order/detail）======
-  openDetailSheet(orderId) {
+  // locked=true：锁定模式，禁止关闭，强制用户完成订单（自动检测 / ws 推送时用）
+  // locked=false：普通模式，可以返回（用户从订单列表点击进来时用）
+  openDetailSheet(orderId, locked = false) {
     if (!orderId) return;
     if (this.data.showDetailSheet && this.data.detailOrderId === String(orderId)) {
+      // 已经打开同一订单：仅升级锁定状态（不能从锁→解，只能解→锁或同级）
+      if (locked && !this.data.detailLocked) {
+        this.setData({ detailLocked: true });
+      }
       return;
     }
-    this.setData({
+    // 锁定模式时关掉其他 sheet，避免遮挡
+    const patch = {
       showDetailSheet: true,
-      detailOrderId: String(orderId)
-    });
+      detailOrderId: String(orderId),
+      detailLocked: !!locked
+    };
+    if (locked) {
+      patch.showMeSheet = false;
+      patch.showConfirmSheet = false;
+    }
+    this.setData(patch);
   },
 
   onDetailSheetClose() {
-    this.setData({ showDetailSheet: false, detailOrderId: '' });
+    // detail-sheet 通过 unlock 事件触发的关闭，或非锁定模式的用户主动关闭
+    this.setData({ showDetailSheet: false, detailOrderId: '', detailLocked: false });
+  },
+
+  // 订单结账/取消，detail-sheet 通知解锁（即使在锁定模式也允许关闭了）
+  onDetailUnlock() {
+    this.setData({ detailLocked: false });
   },
 
   // detail-sheet 通知：订单已结账/取消，桌号已释放
@@ -1131,7 +1154,7 @@ Page({
       wx.showToast({ title: '加餐已提交', icon: 'success' });
 
       setTimeout(() => {
-        this.openDetailSheet(result.id);
+        this.openDetailSheet(result.id, true);
       }, 1500);
     } catch (err) {
       wx.hideLoading();
@@ -1227,6 +1250,11 @@ Page({
   // 拦截系统返回键 / 手势：关闭 detail-sheet / confirm-sheet / me-sheet 而不是退出 order 页
   onBackPress() {
     if (this.data.showDetailSheet) {
+      // 锁定模式：禁止返回
+      if (this.data.detailLocked) {
+        wx.showToast({ title: '请先完成当前订单', icon: 'none' });
+        return true;
+      }
       this.onDetailSheetClose();
       return true;
     }

@@ -28,6 +28,13 @@ Component({
           this.initWebSocket(newVal);
         }
       }
+    },
+    // 锁定模式：用于强制拦截未完成订单（自动检测 / ws 推送进来时为 true）
+    // - 隐藏返回按钮、盖住 TabBar、拦截系统返回
+    // - 订单变 settled/cancelled 时自动解锁并关闭
+    locked: {
+      type: Boolean,
+      value: false
     }
   },
 
@@ -115,6 +122,22 @@ Component({
     },
 
     onClose() {
+      // 锁定模式禁止用户主动关闭（强制完成订单才能离开）
+      if (this.data.locked) {
+        wx.showToast({
+          title: '请先完成当前订单',
+          icon: 'none'
+        });
+        return;
+      }
+      this.setData({ sheetIn: false });
+      setTimeout(() => {
+        this.triggerEvent('close');
+      }, 220);
+    },
+
+    // 内部用：忽略 locked，强制关闭（订单已结账/取消时自动调用）
+    forceClose() {
       this.setData({ sheetIn: false });
       setTimeout(() => {
         this.triggerEvent('close');
@@ -287,9 +310,13 @@ Component({
         // 通知父级状态变化（用于关 sheet 后释放桌号）
         this.triggerEvent('statuschange', { status: order.status, orderId: id });
 
-        // 如果订单已结账，立即释放桌号资源
+        // 如果订单已结账/取消，立即释放桌号资源；锁定模式下也要解锁让用户离开
         if (order.status === 'settled' || order.status === 'cancelled') {
           this.releaseTableResources();
+          // 通知父级解锁（订单已完成，允许关闭）
+          if (this.data.locked) {
+            this.triggerEvent('unlock', { orderId: id });
+          }
         }
       } catch (err) {
         console.error('获取订单详情失败', err);

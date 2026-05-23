@@ -244,6 +244,8 @@
 <detail-sheet
   visible="{{showDetailSheet}}"
   orderId="{{detailOrderId}}"
+  locked="{{detailLocked}}"
   bind:close="onDetailSheetClose"
+  bind:unlock="onDetailUnlock"
   bind:tablereleased="onDetailTableReleased"
 />

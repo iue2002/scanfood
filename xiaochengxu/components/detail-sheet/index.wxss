@@ -26,6 +26,12 @@
   transform: translate3d(0, 0, 0);
 }
 
+/* ====== 锁定模式：盖住底部 TabBar，强制完成订单 ====== */
+.om-sheet-root-locked {
+  bottom: 0; /* 不再避开 TabBar */
+  z-index: 1500; /* 高于 TabBar 的 999，完全覆盖 */
+}
+
 /* navbar 与 confirm-sheet / orders-sheet / me-sheet 同款 */
 .om-navbar {
   background: #FFFFFF;

@@ -253,6 +253,42 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /**
+   * 强制断开某用户的全部 WebSocket 连接
+   * 由 merchant-ops 模块调用：当员工被删除/禁用/改密时立即生效
+   * Validates: Requirements 5.6
+   */
+  disconnectUser(userId: number, reason = 'session revoked') {
+    let count = 0;
+    // 收集所有挂着该 userId 的 ws 实例
+    const allClients = new Set<WebSocket>();
+    for (const set of this.tableClients.values()) for (const c of set) allClients.add(c);
+    for (const set of this.orderClients.values()) for (const c of set) allClients.add(c);
+    for (const c of this.adminClients) allClients.add(c);
+
+    for (const client of allClients) {
+      if ((client as any).userId === userId) {
+        try {
+          // 先发一条提示，再 close
+          if (client.readyState === WebSocket.OPEN) {
+            try {
+              client.send(JSON.stringify({ event: 'mop:session-revoked', data: { reason } }));
+            } catch {}
+            client.close(4002, reason);
+          }
+          this.cleanupClient(client);
+          count++;
+        } catch (err) {
+          this.logger.warn(`Failed to disconnect ws for userId=${userId}: ${(err as Error).message}`);
+        }
+      }
+    }
+    if (count > 0) {
+      this.logger.log(`[force-logout] userId=${userId} 已踢出 ${count} 个 ws 连接`);
+    }
+    return count;
+  }
+
   notifyTableUpdate(tableId: string | number, data: any) {
     const clients = this.tableClients.get(String(tableId));
     if (clients && clients.size > 0) {

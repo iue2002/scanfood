@@ -8,7 +8,9 @@
     "dev": "nest start --watch",
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "node dist/main",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",
@@ -55,6 +57,8 @@
     "@types/node": "^22.10.2",
     "@types/uuid": "^10.0.0",
     "drizzle-kit": "^0.31.8",
-    "typescript": "^5.7.2"
+    "fast-check": "^4.8.0",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.7"
   }
 }

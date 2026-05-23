@@ -1,5 +1,7 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { AuthModule } from '@/modules/auth/auth.module';
+import { OrdersModule } from '@/modules/orders/orders.module';
+import { OrdersGateway } from '@/modules/orders/orders.gateway';
 import { EmployeeController } from './employee/employee.controller';
 import { EmployeeCore } from './employee/employee.core';
 import { DrizzleEmployeeRepo } from './employee/employee-repo.drizzle';
@@ -10,7 +12,7 @@ import { ALL_AUDIT_ACTIONS } from './auth/rbac.types';
 const EMPLOYEE_REPO_TOKEN = 'EmployeeRepoPort';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, OrdersModule],
   controllers: [EmployeeController],
   providers: [
     PermissionsGuard,
@@ -20,8 +22,13 @@ const EMPLOYEE_REPO_TOKEN = 'EmployeeRepoPort';
     },
     {
       provide: EmployeeCore,
-      useFactory: (repo) => new EmployeeCore(repo),
-      inject: [EMPLOYEE_REPO_TOKEN],
+      useFactory: (repo, gateway: OrdersGateway) => new EmployeeCore(repo, {
+        forceLogout: (userId, reason) => {
+          try { gateway.disconnectUser(userId, reason); }
+          catch (err) { /* 不让异常冒泡到员工管理主流程 */ }
+        },
+      }),
+      inject: [EMPLOYEE_REPO_TOKEN, OrdersGateway],
     },
   ],
   exports: [EmployeeCore],

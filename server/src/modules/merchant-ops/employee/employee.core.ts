@@ -55,11 +55,22 @@ export interface UpdateEmployeeDto {
   status?: 'active' | 'disabled';
 }
 
+/**
+ * EmployeeCore 选项：注入跨模块依赖
+ */
+export interface EmployeeCoreOpts {
+  /** 强制下线钩子：在 token_version 变更后调用，断开该用户所有 WS */
+  forceLogout?: (userId: number, reason?: string) => void;
+}
+
 @Injectable()
 export class EmployeeCore {
   private readonly logger = new Logger(EmployeeCore.name);
 
-  constructor(private readonly repo: EmployeeRepoPort) {}
+  constructor(
+    private readonly repo: EmployeeRepoPort,
+    private readonly opts: EmployeeCoreOpts = {},
+  ) {}
 
   // ============================================================
   // 静态规则（property test 直接调用）
@@ -230,12 +241,16 @@ export class EmployeeCore {
       (dto.role !== undefined && dto.role !== target.role) ||
       (dto.status !== undefined && dto.status !== target.status);
 
-    return await this.repo.update(id, {
+    const result = await this.repo.update(id, {
       nickname: dto.nickname,
       role: dto.role,
       status: dto.status,
       bumpTokenVersion,
     });
+    if (bumpTokenVersion) {
+      this.opts.forceLogout?.(id, 'employee profile changed');
+    }
+    return result;
   }
 
   async softDelete(actor: ActorContext, id: number): Promise<void> {
@@ -256,6 +271,7 @@ export class EmployeeCore {
       }
     }
     await this.repo.softDelete(id);
+    this.opts.forceLogout?.(id, 'account deleted');
   }
 
   async resetPassword(actor: ActorContext, id: number): Promise<{ tempPassword: string }> {
@@ -274,6 +290,7 @@ export class EmployeeCore {
       must_change_password: true,
       bumpTokenVersion: true,
     });
+    this.opts.forceLogout?.(id, 'password reset');
     return { tempPassword };
   }
 
@@ -304,6 +321,7 @@ export class EmployeeCore {
       must_change_password: false,
       bumpTokenVersion: true, // 改密 → 强制其他设备下线
     });
+    this.opts.forceLogout?.(actor.userId, 'password changed');
   }
 
   async list(filter: EmployeeListFilter, page: PageOptions): Promise<Page<EmployeeRow>> {

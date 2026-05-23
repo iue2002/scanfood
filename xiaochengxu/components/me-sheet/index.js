@@ -29,9 +29,7 @@ Component({
     // 入场动画 class
     sheetIn: false,
     // 内部 sheet：订单列表（保持 me 页原有"点我的订单"行为）
-    showOrdersSheet: false,
-    // 标记：detail 是从订单列表点击进来的，detail 关闭后要重新打开订单列表
-    pendingRestoreOrders: false
+    showOrdersSheet: false
   },
 
   lifetimes: {
@@ -292,19 +290,15 @@ Component({
       }, 220);
     },
 
-    // 订单列表中"查看详情" → 暂存订单列表，由 order 页打开 detail-sheet
-    // detail 关闭后通过 reopenOrders 方法恢复订单列表，回到"我的→订单列表→详情"的栈式体验
+    // 订单列表中"查看详情" → 透传给 order 页打开 detail-sheet
+    // orders-sheet 不关闭：detail-sheet z-index 更高，会叠在订单列表上方；
+    // detail-sheet 关闭后，下层 orders-sheet 自动显露（保留原有滚动位置 + tab 状态），
+    // 实现 iOS 原生 modal stack 般的"返回上一级"体验
     onOrdersDetail(e) {
       const orderId = e.detail && e.detail.orderId;
-      this.setData({ showOrdersSheet: false, pendingRestoreOrders: true });
       this.triggerEvent('detail', { orderId });
-    },
-
-    // 由父级（order 页）调用：detail-sheet 关闭后恢复订单列表
-    reopenOrders() {
-      if (this.data.pendingRestoreOrders) {
-        this.setData({ pendingRestoreOrders: false, showOrdersSheet: true });
-      }
     }
+  }
+});
   }
 });

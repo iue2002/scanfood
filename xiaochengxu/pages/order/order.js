@@ -1060,8 +1060,11 @@ Page({
   },
 
   // ====== 订单详情弹窗（替代 pages/order/detail）======
-  // locked=true：锁定模式，禁止关闭，强制用户完成订单（自动检测 / ws 推送时用）
-  // locked=false：普通模式，可以返回（用户从订单列表点击进来时用）
+  // locked=true：锁定模式，禁止关闭，强制用户完成订单（自动检测 / ws 推送 / 刚下单时用）
+  //   - z-index=1500 完全盖住 TabBar 和其他 sheet
+  //   - 关闭其他 sheet 避免栈层混乱
+  // locked=false：普通模式，叠在 orders-sheet/me-sheet 之上（栈式）
+  //   - 关闭 detail 后下层 sheet 自动显露，保留原滚动位置和状态
   openDetailSheet(orderId, locked = false) {
     if (!orderId) return;
     if (this.data.showDetailSheet && this.data.detailOrderId === String(orderId)) {
@@ -1071,12 +1074,12 @@ Page({
       }
       return;
     }
-    // 锁定模式时关掉其他 sheet，避免遮挡
     const patch = {
       showDetailSheet: true,
       detailOrderId: String(orderId),
       detailLocked: !!locked
     };
+    // 锁定模式才关其他 sheet（避免栈层混乱）；非锁定模式保留下层 sheet 实现栈式返回
     if (locked) {
       patch.showMeSheet = false;
       patch.showConfirmSheet = false;
@@ -1085,13 +1088,9 @@ Page({
   },
 
   onDetailSheetClose() {
-    // detail-sheet 通过 unlock 事件触发的关闭，或非锁定模式的用户主动关闭
+    // detail-sheet 关闭：detail-sheet z-index=900，关闭后下层 orders-sheet (z=800) / me-sheet (z=800)
+    // / confirm-sheet (z=850) 会自动显露（栈式渲染，保留滚动位置和状态）
     this.setData({ showDetailSheet: false, detailOrderId: '', detailLocked: false });
-    // 如果是从"我的→订单列表→详情"路径进来的，detail 关闭后恢复订单列表
-    const meSheet = this.selectComponent('#meSheet');
-    if (meSheet && typeof meSheet.reopenOrders === 'function') {
-      meSheet.reopenOrders();
-    }
   },
 
   // 订单结账/取消，detail-sheet 通知解锁（即使在锁定模式也允许关闭了）

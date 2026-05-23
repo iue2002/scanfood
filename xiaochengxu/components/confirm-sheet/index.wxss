@@ -2,12 +2,9 @@
 
 .om-sheet-root {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: calc(116rpx + env(safe-area-inset-bottom));
+  inset: 0;
   background: #F8FAFC;
-  z-index: 998;
+  z-index: 850; /* 高于 me-sheet/orders-sheet（800），但低于 TabBar 999 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 26rpx;
@@ -65,11 +62,11 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 footer 高度（无需 safe-area，sheet 已避让 TabBar） */
+/* 滚动主体：底部留出 footer + TabBar 高度 */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
-  padding: 24rpx 32rpx 140rpx;
+  padding: 24rpx 32rpx calc(140rpx + 116rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -223,7 +220,8 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* 停在 TabBar 上方 */
+  bottom: calc(116rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   justify-content: space-between;

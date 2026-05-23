@@ -5,13 +5,10 @@
 
 .om-sheet-root {
   position: fixed;
-  /* 顶部到 TabBar 上方为止，让 TabBar 始终可见 */
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: calc(116rpx + env(safe-area-inset-bottom));
+  /* 全屏覆盖（TabBar 通过更高 z-index 视觉上盖住底部，看起来像 Safari 底栏） */
+  inset: 0;
   background: #F8FAFC;
-  z-index: 998; /* 比 orders-sheet 低一档，但高于 TabBar */
+  z-index: 800; /* 低于 TabBar 的 999 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 26rpx;
@@ -48,10 +45,11 @@
   line-height: 1;
 }
 
-/* ====== 滚动主体：填满剩余高度（sheet 已避开 TabBar，不再加 padding-bottom） ====== */
+/* ====== 滚动主体：填满剩余高度，底部留出 TabBar 高度让内容可滑到 TabBar 之下 ====== */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

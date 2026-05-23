@@ -3,15 +3,12 @@
  * 入场动画：从右侧滑入（与 navigateTo 默认动画一致），看不出与原页面跳转的区别
  */
 
-/* ====== 弹窗根：全屏定位（避开底部 TabBar），叠在页面之上 ====== */
+/* ====== 弹窗根：全屏定位，叠在页面之上（TabBar 通过更高 z-index 盖在 sheet 之上） ====== */
 .om-sheet-root {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: calc(116rpx + env(safe-area-inset-bottom));
+  inset: 0;
   background: #F8FAFC;
-  z-index: 998; /* 低于 TabBar 的 999，确保 TabBar 始终可见 */
+  z-index: 800; /* 低于 TabBar 的 999，TabBar 视觉上盖住 sheet 底部 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   line-height: 1.5;
@@ -100,7 +97,8 @@
 .om-list {
   flex: 1;
   min-height: 0;
-  padding: 8rpx 32rpx 32rpx;
+  /* 给底部 TabBar 留出滚动余量，让最后一张订单卡可以滑到 TabBar 上方完全可见 */
+  padding: 8rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -374,7 +372,22 @@
 .om-btn-success:active { background: #059669; }
 
 .om-separator {
-  height: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 18rpx 16rpx;
+}
+.om-separator-line {
+  flex: 1;
+  height: 2rpx;
+  background: linear-gradient(to right, transparent, #BFDBFE, transparent);
+}
+.om-separator-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #60A5FA;
+  flex-shrink: 0;
 }
 
 .om-empty {

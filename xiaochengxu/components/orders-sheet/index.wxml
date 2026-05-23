@@ -154,7 +154,11 @@
         </view>
       </view>
 
-      <view class="om-separator" wx:if="{{orderIndex < filteredOrders.length - 1}}"></view>
+      <view class="om-separator" wx:if="{{orderIndex < filteredOrders.length - 1}}">
+        <view class="om-separator-line"></view>
+        <view class="om-separator-dot"></view>
+        <view class="om-separator-line"></view>
+      </view>
     </block>
 
     <view class="om-loading" wx:if="{{isLoadingMore}}">

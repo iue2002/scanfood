@@ -67,9 +67,9 @@
       <view class="om-empty-desc">快去扫码点餐吧</view>
     </view>
 
-    <!-- 订单卡片 -->
+    <!-- 订单卡片：整张卡片可点击查看详情；内部按钮用 catchtap 拦截冒泡 -->
     <block wx:for="{{filteredOrders}}" wx:key="id" wx:for-index="orderIndex">
-      <view class="om-card">
+      <view class="om-card" bindtap="goToDetail" data-id="{{item.id}}" hover-class="om-card-hover" hover-stay-time="80">
         <view class="om-head">
           <image
             wx:if="{{item.firstDishImage}}"
@@ -100,7 +100,7 @@
         <view
           class="om-summary"
           wx:if="{{!expandedMap[item.id] && item.order_items.length > 0}}"
-          bindtap="toggleExpand"
+          catchtap="toggleExpand"
           data-id="{{item.id}}"
         >
           <text class="om-summary-text">{{item.summaryText}}</text>
@@ -137,7 +137,7 @@
 
           <view class="om-remark" wx:if="{{item.remark}}">备注：{{item.remark}}</view>
 
-          <view class="om-collapse" bindtap="toggleExpand" data-id="{{item.id}}">
+          <view class="om-collapse" catchtap="toggleExpand" data-id="{{item.id}}">
             <text>收起明细</text>
           </view>
         </view>
@@ -148,7 +148,7 @@
             <text class="om-total-amount">¥{{item.total_amount}}</text>
           </view>
           <view class="om-actions">
-            <view class="om-btn om-btn-secondary" bindtap="goToDetail" data-id="{{item.id}}">详情</view>
+            <view class="om-btn om-btn-secondary" catchtap="goToDetail" data-id="{{item.id}}">详情</view>
             <view
               class="om-btn om-btn-success"
               wx:if="{{item.status === 'settled'}}"

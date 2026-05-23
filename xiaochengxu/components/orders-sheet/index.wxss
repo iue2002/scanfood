@@ -114,6 +114,11 @@
 .om-card:first-child {
   margin-top: 12rpx;
 }
+.om-card-hover {
+  background: #F8FAFC;
+  transform: scale(0.99);
+  transition: all 0.12s ease;
+}
 
 .om-head {
   display: flex;

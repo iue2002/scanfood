@@ -222,3 +222,10 @@
 
 <!-- 全局主题 modal（替代 wx.showModal） -->
 <theme-modal id="themeModal" />
+
+
+<!-- "我的"全屏弹窗（替代 wx.switchTab → pages/me/me） -->
+<me-sheet
+  visible="{{showMeSheet}}"
+  bind:close="onMeSheetClose"
+/>

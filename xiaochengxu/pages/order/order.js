@@ -25,7 +25,9 @@ Page({
     editDishCount: 0,
     // 购物车弹窗
     showCartPanel: false,
-    cartItems: []
+    cartItems: [],
+    // "我的"全屏弹窗（替代 wx.switchTab → me 页）
+    showMeSheet: false
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -144,9 +146,16 @@ Page({
   },
 
   async onShow() {
+    // 检查是否需要自动打开"我的"弹窗（从其它非 TabBar 页点底部"我的"切回时）
+    const app = getApp();
+    if (app && app.globalData && app.globalData.openMeOnNextShow) {
+      app.globalData.openMeOnNextShow = false;
+      this.openMeSheet();
+    }
+
     // 先处理页面状态，让用户立即看到内容
-    if (getApp().globalData.addMore) {
-      getApp().globalData.addMore = false;
+    if (app.globalData.addMore) {
+      app.globalData.addMore = false;
       if (!this.data.isAddMore) {
         this.setData({ isAddMore: true });
       }
@@ -1137,5 +1146,39 @@ Page({
     cart.cartCount = { ...cartCount };
     this.calculateTotal();
     this.syncCartToBackend();
+  },
+
+  // ====== "我的"弹窗（替代 wx.switchTab → me 页）======
+  openMeSheet() {
+    if (this.data.showMeSheet) return;
+    // 隐藏自定义 TabBar，让弹窗能完全覆盖
+    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+    if (tabBar && tabBar.setHidden) {
+      tabBar.setHidden(true);
+    }
+    if (tabBar && tabBar.setSelected) {
+      tabBar.setSelected(1); // "我的"高亮
+    }
+    this.setData({ showMeSheet: true });
+  },
+
+  onMeSheetClose() {
+    this.setData({ showMeSheet: false });
+    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+    if (tabBar && tabBar.setHidden) {
+      tabBar.setHidden(false);
+    }
+    if (tabBar && tabBar.setSelected) {
+      tabBar.setSelected(0); // 恢复"浏览"高亮
+    }
+  },
+
+  // 拦截系统返回键 / 手势：关闭 me-sheet 而不是退出 order 页
+  onBackPress() {
+    if (this.data.showMeSheet) {
+      this.onMeSheetClose();
+      return true; // 阻止默认返回
+    }
+    return false;
   }
 })

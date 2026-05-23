@@ -20,40 +20,13 @@ Page({
   },
 
   onShow() {
-    if (this.data.isLoading) {
-      this.setData({ isLoading: false });
+    // me 页已替换为 order 页内嵌的 me-sheet 弹窗
+    // 任何路径进到这里（如旧版 wx.switchTab、分享卡片）都自动重定向到 order 页 + 自动展开 me-sheet
+    const app = getApp();
+    if (app && app.globalData) {
+      app.globalData.openMeOnNextShow = true;
     }
-    this.loadUserInfo();
-    this.updateTabBar();
-
-    // 兜底：如果上次弹窗未正常关闭，进 me 页时确保 TabBar 显示
-    if (!this.data.showOrdersSheet) {
-      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-      if (tabBar && tabBar.setHidden) {
-        tabBar.setHidden(false);
-      }
-    }
-
-    // 状态栏高度只算一次（自绘 navbar 占位）
-    if (!this.data.statusBarHeight) {
-      try {
-        const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-        this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 });
-      } catch (e) {
-        this.setData({ statusBarHeight: 20 });
-      }
-    }
-  },
-
-  onHide() {
-    // 切到其它 TabBar 时，关掉弹窗 + 恢复 TabBar 状态
-    if (this.data.showOrdersSheet) {
-      this.setData({ showOrdersSheet: false });
-      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-      if (tabBar && tabBar.setHidden) {
-        tabBar.setHidden(false);
-      }
-    }
+    wx.switchTab({ url: '/pages/order/order' });
   },
 
   async onPullDownRefresh() {

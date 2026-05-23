@@ -1,0 +1,395 @@
+/* components/me-sheet/index.wxss
+ * "我的"全屏弹窗：右滑入场，与 orders-sheet 同款入场曲线，看不出与原 TabBar 切页的区别
+ * 业务样式完全继承 pages/me/me.wxss，仅入场动画 + 全屏定位是新增
+ */
+
+.om-sheet-root {
+  position: fixed;
+  inset: 0;
+  background: #F8FAFC;
+  z-index: 998; /* 比 orders-sheet 低一档，但高于 TabBar */
+  font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  color: #0F172A;
+  font-size: 26rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* 入场动画：默认右移 100% */
+  transform: translate3d(100%, 0, 0);
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+.om-sheet-root.om-sheet-root-in {
+  transform: translate3d(0, 0, 0);
+}
+
+/* ====== 自绘 navbar（与 orders-sheet 一致） ====== */
+.om-navbar {
+  background: #FFFFFF;
+  border-bottom: 2rpx solid #F1F5F9;
+  flex-shrink: 0;
+}
+.om-navbar-inner {
+  height: 80rpx;
+  padding: 0 28rpx;
+  display: flex;
+  align-items: center;
+}
+.om-navbar-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.5rpx;
+  line-height: 1;
+}
+
+/* ====== 滚动主体：填满剩余高度 ====== */
+.om-page-scroll {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 32rpx;
+  box-sizing: border-box;
+}
+
+/* ====== 用户卡 ====== */
+.om-userblock {
+  margin: 24rpx 32rpx 0;
+  margin-bottom: 24rpx;
+}
+.om-user-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
+}
+.om-avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #EFF6FF;
+  flex-shrink: 0;
+  display: block;
+}
+.om-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #DBEAFE 0%, #93C5FD 100%);
+}
+.om-avatar-letter {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1;
+  letter-spacing: 0.5rpx;
+  text-transform: uppercase;
+}
+.om-user-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.om-user-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.3rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.om-user-meta {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.om-user-arrow {
+  font-size: 30rpx;
+  color: #CBD5E1;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ====== 菜单 ====== */
+.om-menu {
+  margin: 0 32rpx 24rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+.om-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 22rpx 24rpx;
+  border-top: 2rpx solid #F1F5F9;
+}
+.om-menu-item:first-child {
+  border-top: none;
+}
+.om-menu-item-hover {
+  background: #F8FAFC;
+}
+.om-menu-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.om-menu-icon-orders {
+  background: #EFF6FF;
+}
+.om-icon-list {
+  width: 32rpx;
+  height: 32rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
+  align-items: center;
+}
+.om-icon-list-line {
+  width: 22rpx;
+  height: 3rpx;
+  background: #2563EB;
+  border-radius: 2rpx;
+}
+.om-icon-list-line:nth-child(2) { width: 18rpx; }
+.om-icon-list-line:nth-child(3) { width: 14rpx; }
+.om-menu-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+}
+.om-menu-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #0F172A;
+}
+.om-menu-desc {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.om-menu-arrow {
+  font-size: 32rpx;
+  color: #CBD5E1;
+  line-height: 1;
+}
+
+/* ====== 空态 ====== */
+.om-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 32rpx 40rpx;
+  gap: 12rpx;
+}
+.om-empty-icon {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 9999rpx;
+  background: #EFF6FF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+.om-icon-lock {
+  position: relative;
+  width: 56rpx;
+  height: 60rpx;
+}
+.om-icon-lock-shackle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32rpx;
+  height: 28rpx;
+  border: 4rpx solid #2563EB;
+  border-bottom: none;
+  border-radius: 16rpx 16rpx 0 0;
+  box-sizing: border-box;
+}
+.om-icon-lock-body {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 56rpx;
+  height: 36rpx;
+  background: #2563EB;
+  border-radius: 6rpx;
+}
+.om-empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #0F172A;
+}
+.om-empty-desc {
+  font-size: 26rpx;
+  color: #64748B;
+}
+.om-empty-cta {
+  margin-top: 24rpx;
+  height: 80rpx;
+  padding: 0 64rpx;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.5rpx;
+}
+.om-empty-cta-hover { background: #1D4ED8; }
+
+.om-version {
+  text-align: center;
+  font-size: 22rpx;
+  color: #94A3B8;
+  padding: 12rpx 32rpx;
+  letter-spacing: 0.5rpx;
+}
+
+/* ====== 授权 / 昵称弹窗 ====== */
+.om-auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.om-modal-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+}
+.om-modal-card {
+  position: relative;
+  width: calc(100% - 64rpx);
+  max-width: 600rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 16rpx 48rpx rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+}
+.om-modal-head {
+  padding: 28rpx 32rpx 16rpx;
+  border-bottom: 2rpx solid #F1F5F9;
+}
+.om-modal-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.3rpx;
+}
+.om-modal-body {
+  padding: 24rpx 32rpx 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.om-auth-section-title {
+  font-size: 24rpx;
+  color: #64748B;
+  margin-bottom: 4rpx;
+}
+.om-auth-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 20rpx;
+  background: #F8FAFC;
+  border-radius: 16rpx;
+  border: 2rpx solid #F1F5F9;
+}
+.om-auth-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.om-auth-text-main {
+  font-size: 26rpx;
+  color: #0F172A;
+  font-weight: 500;
+}
+.om-auth-text-sub {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.om-auth-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 14rpx 16rpx;
+  background: #EFF6FF;
+  border-radius: 14rpx;
+  margin-top: 8rpx;
+}
+.om-auth-notice-text {
+  flex: 1;
+  font-size: 22rpx;
+  color: #2563EB;
+  line-height: 1.5;
+}
+.om-input-wrap {
+  background: #F8FAFC;
+  border: 2rpx solid #F1F5F9;
+  border-radius: 16rpx;
+  padding: 0 20rpx;
+}
+.om-input {
+  width: 100%;
+  height: 96rpx;
+  font-size: 28rpx;
+  color: #0F172A;
+  background: transparent;
+}
+.om-input-placeholder {
+  color: #94A3B8;
+}
+.om-modal-foot {
+  display: flex;
+  border-top: 2rpx solid #F1F5F9;
+}
+.om-btn-cancel,
+.om-btn-confirm {
+  flex: 1;
+  height: 96rpx;
+  background: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 500;
+  border-radius: 0;
+  line-height: 96rpx;
+  text-align: center;
+}
+.om-btn-cancel {
+  color: #64748B;
+  border-right: 2rpx solid #F1F5F9;
+}
+.om-btn-confirm {
+  color: #2563EB;
+  font-weight: 600;
+}
+.om-btn-cancel::after,
+.om-btn-confirm::after {
+  border: none;
+}

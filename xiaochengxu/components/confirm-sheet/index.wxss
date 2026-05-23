@@ -62,11 +62,11 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 footer + TabBar 高度 */
+/* 滚动主体：底部留出 footer 高度 + 安全区（sheet 已隐藏 TabBar） */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
-  padding: 24rpx 32rpx calc(140rpx + 116rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -220,13 +220,12 @@
   position: absolute;
   left: 0;
   right: 0;
-  /* 停在 TabBar 上方 */
-  bottom: calc(116rpx + env(safe-area-inset-bottom));
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 20rpx 32rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
   background: #FFFFFF;
   border-top: 2rpx solid #F1F5F9;
   z-index: 50;

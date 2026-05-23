@@ -69,16 +69,12 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 action-bar + TabBar 高度 */
+/* 滚动主体：底部留出 action-bar 高度 + 安全区（sheet 已隐藏 TabBar） */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
-  padding: 24rpx 32rpx calc(140rpx + 116rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
-}
-/* 锁定模式：sheet 盖住了 TabBar，所以底部不需要再加 TabBar 高度，只留 action-bar 高度 */
-.om-sheet-root-locked .om-page-scroll {
-  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
 /* ====== 状态卡 ====== */
@@ -367,23 +363,18 @@
   letter-spacing: 0.5rpx;
 }
 
-/* ====== 底部操作栏（默认非锁定：停在 TabBar 上方，让 TabBar 视觉上盖住 sheet 底部） ====== */
+/* ====== 底部操作栏（贴底 + 安全区，sheet 已隐藏 TabBar） ====== */
 .om-action-bar {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(116rpx + env(safe-area-inset-bottom));
-  padding: 20rpx 32rpx;
+  bottom: 0;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
   background: #FFFFFF;
   border-top: 2rpx solid #F1F5F9;
   display: flex;
   gap: 16rpx;
   z-index: 50;
-}
-/* 锁定模式：sheet 已盖住 TabBar，action-bar 直接贴底 + 安全区 */
-.om-sheet-root-locked .om-action-bar {
-  bottom: 0;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 }
 .om-action-btn {
   flex: 1;

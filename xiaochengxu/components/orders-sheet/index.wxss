@@ -97,8 +97,8 @@
 .om-list {
   flex: 1;
   min-height: 0;
-  /* 给底部 TabBar 留出滚动余量，让最后一张订单卡可以滑到 TabBar 上方完全可见 */
-  padding: 8rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
+  /* sheet 已隐藏 TabBar，底部只留安全区 + 一点呼吸距离 */
+  padding: 8rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

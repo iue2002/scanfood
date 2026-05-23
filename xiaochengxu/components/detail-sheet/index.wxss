@@ -404,6 +404,43 @@
   flex: 1;
   margin-left: 16rpx;
 }
+/* 订单号 + 复制按钮的容器 */
+.om-info-value-wrap {
+  flex: 1;
+  margin-left: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12rpx;
+  min-width: 0;
+}
+.om-info-value-wrap .om-info-value {
+  flex: 0 1 auto;
+  margin-left: 0;
+}
+.om-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  height: 44rpx;
+  padding: 0 16rpx;
+  background: #EFF6FF;
+  color: #2563EB;
+  border-radius: 10rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.om-copy-btn-hover {
+  background: #DBEAFE;
+}
+.om-copy-icon {
+  font-size: 24rpx;
+  line-height: 1;
+}
+.om-copy-text {
+  letter-spacing: 0.3rpx;
+}
 .om-mono {
   font-family: SFMono-Regular, Menlo, Consolas, 'PingFang SC', monospace;
   font-feature-settings: 'tnum';

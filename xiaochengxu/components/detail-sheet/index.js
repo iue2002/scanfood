@@ -515,6 +515,21 @@ Component({
 
     preventClose() {},
 
+    // 复制订单号到剪贴板
+    copyOrderNumber(e) {
+      const text = e.currentTarget.dataset.text;
+      if (!text) return;
+      wx.setClipboardData({
+        data: String(text),
+        success: () => {
+          wx.showToast({ title: '订单号已复制', icon: 'success' });
+        },
+        fail: () => {
+          wx.showToast({ title: '复制失败', icon: 'none' });
+        }
+      });
+    },
+
     async submitAddMore() {
       const { addMoreCartCount, allDishes, order } = this.data;
       const items = [];

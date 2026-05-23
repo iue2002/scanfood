@@ -155,7 +155,18 @@
     <view wx:if="{{order}}" class="om-card">
       <view class="om-info-row">
         <text class="om-info-label">订单号</text>
-        <text class="om-info-value om-mono">{{order.order_number}}</text>
+        <view class="om-info-value-wrap">
+          <text class="om-info-value om-mono">{{order.order_number}}</text>
+          <view
+            class="om-copy-btn"
+            catchtap="copyOrderNumber"
+            data-text="{{order.order_number}}"
+            hover-class="om-copy-btn-hover"
+          >
+            <text class="om-copy-icon">⎘</text>
+            <text class="om-copy-text">复制</text>
+          </view>
+        </view>
       </view>
       <view class="om-info-row om-info-row-divider">
         <text class="om-info-label">下单时间</text>

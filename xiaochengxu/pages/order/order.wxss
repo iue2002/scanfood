@@ -531,7 +531,11 @@
 /* ====== 购物车弹窗 ====== */
 .om-cart-modal {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* 不覆盖 TabBar，让 TabBar 始终可见可点 */
+  bottom: calc(116rpx + env(safe-area-inset-bottom));
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: flex-end;
@@ -692,7 +696,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 32rpx;
   background: #FFFFFF;
   border-top: 2rpx solid #F1F5F9;
 }

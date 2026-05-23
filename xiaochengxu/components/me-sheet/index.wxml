@@ -4,7 +4,7 @@
   class="om-sheet-root {{sheetIn ? 'om-sheet-root-in' : ''}}"
 >
   <!-- 自绘顶栏：和 orders-sheet 一致 -->
-  <view class="om-navbar" style="padding-top: {{statusBarHeight || 44}}px;">
+  <view class="om-navbar">
     <view class="om-navbar-inner">
       <text class="om-navbar-title">个人中心</text>
     </view>

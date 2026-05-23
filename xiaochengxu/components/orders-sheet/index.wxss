@@ -3,12 +3,15 @@
  * 入场动画：从右侧滑入（与 navigateTo 默认动画一致），看不出与原页面跳转的区别
  */
 
-/* ====== 弹窗根：全屏定位，叠在页面之上 ====== */
+/* ====== 弹窗根：全屏定位（避开底部 TabBar），叠在页面之上 ====== */
 .om-sheet-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(116rpx + env(safe-area-inset-bottom));
   background: #F8FAFC;
-  z-index: 999;
+  z-index: 998; /* 低于 TabBar 的 999，确保 TabBar 始终可见 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   line-height: 1.5;

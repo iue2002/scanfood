@@ -4,7 +4,7 @@
   class="om-sheet-root {{sheetIn ? 'om-sheet-root-in' : ''}}"
 >
   <!-- 自绘顶栏（带返回） -->
-  <view class="om-navbar" style="padding-top: {{statusBarHeight || 44}}px;">
+  <view class="om-navbar">
     <view class="om-navbar-inner">
       <view class="om-navbar-back" bindtap="onClose" hover-class="om-navbar-back-hover">
         <text class="om-navbar-back-arrow">‹</text>

@@ -14,6 +14,12 @@ page {
   --danger: #ef4444;         /* Red 500 */
   --radius-xl: 24rpx;        /* modern rounded corners */
 
+  /* TabBar 实际高度（用 calc 在子组件里加上安全区）：
+   * custom-tab-bar 内容 ≈ 100rpx，padding 上下 8rpx 8rpx，下边再加 safe-area-inset-bottom
+   * 取 116rpx 作为 TabBar 内容总高（不含安全区），子 sheet 用 var(--tabbar-h) 避让
+   */
+  --tabbar-h: 116rpx;
+
   height: 100%;
   background: var(--bg-slate);
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;

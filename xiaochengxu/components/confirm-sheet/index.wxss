@@ -2,9 +2,12 @@
 
 .om-sheet-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(116rpx + env(safe-area-inset-bottom));
   background: #F8FAFC;
-  z-index: 999;
+  z-index: 998;
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 26rpx;
@@ -62,11 +65,11 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 footer 高度 */
+/* 滚动主体：底部留出 footer 高度（无需 safe-area，sheet 已避让 TabBar） */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
-  padding: 24rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 32rpx 140rpx;
   box-sizing: border-box;
 }
 
@@ -225,7 +228,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 32rpx;
   background: #FFFFFF;
   border-top: 2rpx solid #F1F5F9;
   z-index: 50;

@@ -4,9 +4,13 @@
 
 .om-sheet-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* 留出 TabBar 高度：小程序 TabBar ≈ 100rpx 内容 + 16rpx padding + 安全区 */
+  bottom: calc(116rpx + env(safe-area-inset-bottom));
   background: #F8FAFC;
-  z-index: 1000; /* 比 orders-sheet / me-sheet 都高一档（最上层） */
+  z-index: 998; /* 低于 TabBar 的 999，确保 TabBar 始终可见 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 28rpx;
@@ -64,11 +68,11 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 action-bar 高度 */
+/* 滚动主体：sheet 根已经避开了 TabBar，此处只为底部 action-bar 留位置 */
 .om-page-scroll {
   flex: 1;
   min-height: 0;
-  padding: 24rpx 32rpx calc(160rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 32rpx 140rpx;
   box-sizing: border-box;
 }
 
@@ -347,13 +351,13 @@
   letter-spacing: 0.5rpx;
 }
 
-/* ====== 底部操作栏 ====== */
+/* ====== 底部操作栏（固定在 sheet 底部，不再加 safe-area，因为 sheet 已避让 TabBar） ====== */
 .om-action-bar {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 32rpx;
   background: #FFFFFF;
   border-top: 2rpx solid #F1F5F9;
   display: flex;
@@ -377,9 +381,9 @@
 }
 .om-action-btn-primary-hover { background: #1D4ED8; }
 
-/* ====== 加餐弹窗 ====== */
+/* ====== 加餐弹窗（在 detail-sheet 内部，不需要再避 TabBar，因为 sheet 已避） ====== */
 .om-modal {
-  position: fixed;
+  position: absolute; /* 改成 absolute 让它相对 sheet 定位，不超出 sheet 范围 */
   inset: 0;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
@@ -388,7 +392,7 @@
 }
 .om-modal-card-fullsheet {
   width: 100%;
-  height: 90vh;
+  height: 90%;
   background: #F8FAFC;
   border-radius: 32rpx 32rpx 0 0;
   display: flex;
@@ -570,7 +574,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 28rpx;
   background: #FFFFFF;
   border-top: 2rpx solid #F1F5F9;
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { export_jobs } from '@/storage/database/shared/schema';
-import { and, desc, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import type { ExportRepoPort } from './export-repo.port';
 import type { ExportJobRow, ExportJobStatus, ExportJobType } from './export.types';
 
@@ -73,5 +73,22 @@ export class DrizzleExportRepo implements ExportRepoPort {
       .orderBy(export_jobs.created_at)
       .limit(batchSize);
     return rows.map((r) => this.mapRow(r));
+  }
+
+  async deleteCompletedJobs(cutoff: Date, batchSize: number): Promise<number> {
+    // 已结束（success / failed）且 30 天前的任务可以彻底丢弃，避免表无限增长
+    const old = await db
+      .select({ id: export_jobs.id })
+      .from(export_jobs)
+      .where(and(
+        lt(export_jobs.created_at, cutoff),
+        inArray(export_jobs.status, ['success', 'failed']),
+      ))
+      .orderBy(export_jobs.created_at)
+      .limit(batchSize);
+    if (old.length === 0) return 0;
+    const ids = old.map((r) => r.id);
+    await db.delete(export_jobs).where(inArray(export_jobs.id, ids));
+    return old.length;
   }
 }

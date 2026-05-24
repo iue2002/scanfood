@@ -164,6 +164,21 @@ export default function PrinterManage() {
     })
   }
 
+  const handleDeleteTemplate = async (tpl: Template) => {
+    showConfirm(`确定删除模板「${tpl.name}」？引用此模板的打印机会自动回退到默认模板`, async () => {
+      try {
+        await request.delete(`/merchant-ops/print-templates/${tpl.id}`)
+        showToast('已删除', 'success')
+        await refreshAll()
+      } catch (err: any) {
+        const code = err?.code
+        if (code === 'TEMPLATE_PROTECTED') showToast('系统默认模板不能删除', 'warning')
+        else if (code === 'TEMPLATE_LAST_ONE') showToast('至少保留一个模板', 'warning')
+        else showToast(err?.message || '删除失败', 'error')
+      }
+    })
+  }
+
   const templateMap = useMemo(() => {
     const m = new Map<number, Template>()
     for (const t of templates) m.set(t.id, t)
@@ -248,25 +263,51 @@ export default function PrinterManage() {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {templates.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setEditTemplate(t)}
-              className="text-left p-4 rounded-lg border border-[#E2E8F0] bg-white hover:border-[#2563EB] hover:shadow transition-all cursor-pointer"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-[#0F172A]">{t.name}</span>
-                <span className="text-xs text-[#94A3B8]">{t.width}</span>
+          {templates.map((t) => {
+            const isSystem = t.id === 1 || t.id === 2
+            return (
+              <div
+                key={t.id}
+                className="text-left p-4 rounded-lg border border-[#E2E8F0] bg-white hover:border-[#2563EB] hover:shadow transition-all"
+              >
+                <button
+                  onClick={() => setEditTemplate(t)}
+                  className="w-full text-left cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-[#0F172A]">{t.name}</span>
+                    <span className="text-xs text-[#94A3B8]">{t.width}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {t.fields_json.map((f) => (
+                      <span key={f} className="px-1.5 py-0.5 text-xs rounded bg-[#F1F5F9] text-[#475569]">
+                        {FIELD_LABEL[f]}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+                <div className="mt-3 flex items-center justify-between">
+                  {isSystem ? (
+                    <span className="text-xs text-[#94A3B8]">系统默认</span>
+                  ) : (
+                    <span className="text-xs text-[#94A3B8]">自定义</span>
+                  )}
+                  {!isSystem && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteTemplate(t)
+                      }}
+                      className="text-xs text-[#DC2626] hover:underline cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      删除
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {t.fields_json.map((f) => (
-                  <span key={f} className="px-1.5 py-0.5 text-xs rounded bg-[#F1F5F9] text-[#475569]">
-                    {FIELD_LABEL[f]}
-                  </span>
-                ))}
-              </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
       </section>
 

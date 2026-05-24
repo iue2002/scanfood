@@ -33,6 +33,7 @@ import { MopEventBus } from './print/mop-event-bus';
 import { PrintScheduler } from './print/print.scheduler';
 import { PrintEventHook } from './print/print-event-hook';
 import { MerchantOpsRequestLogInterceptor } from './common/request-log.interceptor';
+import { RateLimitSweepScheduler } from './common/rate-limit-sweep.scheduler';
 import { StoreSettingsService } from '@/modules/store-settings/store-settings.service';
 import { StoreSettingsModule } from '@/modules/store-settings/store-settings.module';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -152,6 +153,7 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
     ExportCleanupScheduler,
     PrintScheduler,
     PrintEventHook,
+    RateLimitSweepScheduler,
     // 全局应用 AuditInterceptor：所有挂 @Audit 装饰器的 controller 自动写日志
     {
       provide: APP_INTERCEPTOR,

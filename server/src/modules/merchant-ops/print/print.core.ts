@@ -393,6 +393,24 @@ export class PrintCore {
   }
 
   /**
+   * 删除模板：DB FK 已配 ON DELETE SET NULL，引用模板的打印机/任务自动解引用
+   * 安全保障：禁止删除最后一个模板（避免新打印机找不到默认模板）
+   * 禁止删除 id=1 / id=2 系统默认模板（业务规则，UI 也禁止）
+   */
+  async deleteTemplate(id: number): Promise<void> {
+    if (id === 1 || id === 2) {
+      throw new BadRequestException({ code: 'TEMPLATE_PROTECTED', msg: '系统默认模板不能删除' });
+    }
+    const cur = await this.repo.findTemplateById(id);
+    if (!cur) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND', msg: '模板不存在' });
+    const total = (await this.repo.listTemplates()).length;
+    if (total <= 1) {
+      throw new BadRequestException({ code: 'TEMPLATE_LAST_ONE', msg: '至少保留一个模板' });
+    }
+    await this.repo.deleteTemplate(id);
+  }
+
+  /**
    * R14.4：模板预览（生成 ESC/POS + HTML）
    */
   async previewTemplate(id: number, sample?: PrintPayload): Promise<{ escpos: string; html: string }> {

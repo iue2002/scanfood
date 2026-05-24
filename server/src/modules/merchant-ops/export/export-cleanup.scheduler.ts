@@ -15,8 +15,8 @@ export class ExportCleanupScheduler {
   async run() {
     try {
       const result = await this.core.cleanupExpired(new Date(), 24, 200);
-      if (result.removed > 0) {
-        this.logger.log(`[export-cleanup] removed ${result.removed} expired files`);
+      if (result.removed > 0 || result.rowsDeleted > 0) {
+        this.logger.log(`[export-cleanup] removed ${result.removed} files, ${result.rowsDeleted} old job rows`);
       }
     } catch (err) {
       this.logger.error(`[export-cleanup] failed: ${(err as Error).message}`);

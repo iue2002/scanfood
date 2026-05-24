@@ -38,6 +38,7 @@ export interface PrintRepoPort {
   // ============ 模板 ============
   insertTemplate(name: string, fields: TemplateField[], width: TemplateRow['width']): Promise<TemplateRow>;
   updateTemplate(id: number, patch: Partial<Pick<TemplateRow, 'name' | 'fields_json' | 'width'>>): Promise<TemplateRow>;
+  deleteTemplate(id: number): Promise<void>;
   findTemplateById(id: number): Promise<TemplateRow | null>;
   listTemplates(): Promise<TemplateRow[]>;
 

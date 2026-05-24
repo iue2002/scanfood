@@ -197,4 +197,19 @@ export class AuditCore {
     }
     return { totalMigrated: total };
   }
+
+  /**
+   * 归档表自身的二级清理：archived_at 超过 archiveRetentionDays 天的彻底丢弃，
+   * 避免归档表也无限增长。默认保留 365 天。
+   */
+  async pruneArchive(now: Date = new Date(), archiveRetentionDays = 365, batchSize = 5000, maxRounds = 200): Promise<{ totalPruned: number }> {
+    const cutoff = new Date(now.getTime() - archiveRetentionDays * 24 * 60 * 60 * 1000);
+    let total = 0;
+    for (let i = 0; i < maxRounds; i++) {
+      const pruned = await this.repo.deleteArchivedOlderThan(cutoff, batchSize);
+      total += pruned;
+      if (pruned < batchSize) break;
+    }
+    return { totalPruned: total };
+  }
 }

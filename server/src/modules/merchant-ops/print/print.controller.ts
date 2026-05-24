@@ -150,6 +150,15 @@ export class PrintController {
     return { data };
   }
 
+  @Delete('print-templates/:id')
+  @Permissions('PRINT_TEMPLATE_UPDATE')
+  @Audit('PRINT_TEMPLATE_UPDATE', { targetType: 'print_template' })
+  @HttpCode(HttpStatus.OK)
+  async removeTemplate(@Param('id', ParseIntPipe) id: number) {
+    await this.core.deleteTemplate(id);
+    return { data: { id, deleted: true } };
+  }
+
   @Post('print-templates/:id/preview')
   @Roles('owner', 'manager', 'admin')
   @HttpCode(HttpStatus.OK)

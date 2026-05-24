@@ -318,8 +318,9 @@ export class ExportCore {
 
   /**
    * R11.8：定时清理 24 小时前 file_path 仍存在的任务文件（每 1 小时跑一次）
+   * 同时清理 30 天前完全结束的任务行，避免 export_jobs 表无限增长
    */
-  async cleanupExpired(now: Date = new Date(), retentionHours = 24, batchSize = 100): Promise<{ removed: number }> {
+  async cleanupExpired(now: Date = new Date(), retentionHours = 24, batchSize = 100): Promise<{ removed: number; rowsDeleted: number }> {
     const cutoff = new Date(now.getTime() - retentionHours * 60 * 60 * 1000);
     const expired = await this.repo.listExpired(cutoff, batchSize);
     let removed = 0;
@@ -330,10 +331,18 @@ export class ExportCore {
         await this.repo.updateJob(job.id, { file_path: null });
         removed += 1;
       } catch (err) {
-        this.logger.warn(`[export] cleanup failed for job ${job.id}: ${(err as Error).message}`);
+        this.logger.warn(`[export] cleanup file failed for job ${job.id}: ${(err as Error).message}`);
       }
     }
-    return { removed };
+    // 清理 30 天前已结束（success/failed）的任务行
+    const rowCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    let rowsDeleted = 0;
+    try {
+      rowsDeleted = await this.repo.deleteCompletedJobs(rowCutoff, 1000);
+    } catch (err) {
+      this.logger.warn(`[export] cleanup rows failed: ${(err as Error).message}`);
+    }
+    return { removed, rowsDeleted };
   }
 
   // ============================================================

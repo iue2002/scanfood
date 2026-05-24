@@ -58,6 +58,19 @@ class StubAuditRepo implements AuditRepoPort {
     this.rows = this.rows.filter((r) => !oldIds.has(r.id));
     return old.length;
   }
+
+  async deleteArchivedOlderThan(cutoff: Date, batchSize: number): Promise<number> {
+    // 模拟：archived 行存档时间假设等于其 created_at（stub 测试不区分）
+    const before = this.archived.length;
+    const remaining = this.archived.filter((r) => r.created_at >= cutoff);
+    const trim = remaining.length + Math.min(before - remaining.length, batchSize);
+    const removed = before - trim < 0 ? 0 : before - trim;
+    // 简化：直接保留所有 created_at >= cutoff 的，删除最早 batchSize 个
+    const expired = this.archived.filter((r) => r.created_at < cutoff).slice(0, batchSize);
+    const ids = new Set(expired.map((e) => e.id));
+    this.archived = this.archived.filter((r) => !ids.has(r.id));
+    return expired.length;
+  }
 }
 
 const ALL_ACTIONS: AuditAction[] = [
@@ -426,5 +439,32 @@ describe('Feature: merchant-ops-center, Property 10: audit archive partitioning'
     expect(r2.totalMigrated).toBe(0);
     expect(repo.rows.length).toBe(40);
     expect(repo.archived.length).toBe(60);
+  });
+
+  // ============================================================
+  // pruneArchive：归档表二级清理（防止归档表无限增长）
+  // ============================================================
+  it('pruneArchive removes old rows from archive table', async () => {
+    const now = new Date('2025-06-01T00:00:00Z');
+    // 直接插入归档表（绕过 archive，因为 stub archived_at = created_at）
+    for (let i = 0; i < 50; i++) {
+      const ageDays = i < 30 ? 400 : 100; // 30 行已经在归档 400 天，20 行 100 天
+      const at = new Date(now.getTime() - ageDays * 24 * 60 * 60 * 1000);
+      repo.archived.push({
+        id: i + 1000,
+        actor_user_id: 1,
+        actor_role: 'owner',
+        action: 'ORDER_CHECKOUT',
+        target_type: 'order',
+        target_id: String(i),
+        payload_json: '{}',
+        ip_address: '127.0.0.1',
+        user_agent: 'jest',
+        created_at: at,
+      });
+    }
+    const result = await core.pruneArchive(now, 365);
+    expect(result.totalPruned).toBe(30);
+    expect(repo.archived.length).toBe(20);
   });
 });

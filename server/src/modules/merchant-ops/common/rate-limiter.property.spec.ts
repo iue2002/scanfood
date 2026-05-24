@@ -102,4 +102,56 @@ describe('Feature: merchant-ops-center, Property 23: SlidingWindowRateLimiter', 
     expect(() => new SlidingWindowRateLimiter({ limit: 5, windowMs: 0 })).toThrow();
     expect(() => new SlidingWindowRateLimiter({ limit: 5, windowMs: -1 })).toThrow();
   });
+
+  // ============================================================
+  // 内存清理：sweep() 移除空桶（避免长期运行进程内存泄漏）
+  // ============================================================
+  it('sweep() removes buckets that have no active entries', () => {
+    let now = 0;
+    const rl = new SlidingWindowRateLimiter({ limit: 3, windowMs: 60_000 }, () => now);
+    // 创建 5 个 user 的桶
+    for (let i = 0; i < 5; i++) rl.consume(`u${i}`);
+    expect(rl.size()).toBe(5);
+    // 推进时钟到所有条目过期
+    now = 60_001;
+    const r = rl.sweep();
+    expect(r.removed).toBe(5);
+    expect(rl.size()).toBe(0);
+  });
+
+  it('sweep() preserves buckets with active entries', () => {
+    let now = 0;
+    const rl = new SlidingWindowRateLimiter({ limit: 3, windowMs: 60_000 }, () => now);
+    rl.consume('user-active');
+    now = 30_000;
+    rl.consume('user-fresh');
+    // user-old 已经过期（now 已到 30s，60s 窗口仍涵盖 user-active）
+    now = 30_001;
+    rl.sweep();
+    // user-active（@ 0）还在窗口内（0 > -30001=now-windowMs）
+    // user-fresh 也在
+    expect(rl.size()).toBe(2);
+  });
+
+  it('sweep PBT: invariant size always ≤ count of active keys', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.tuple(fc.string({ minLength: 1, maxLength: 6 }), fc.integer({ min: 0, max: 200_000 })), { minLength: 1, maxLength: 30 }),
+        (events) => {
+          let now = 0;
+          const rl = new SlidingWindowRateLimiter({ limit: 5, windowMs: 60_000 }, () => now);
+          for (const [key, gap] of events) {
+            now += gap;
+            rl.consume(key);
+          }
+          // 推进 60s+ 后 sweep
+          now += 60_001;
+          rl.sweep();
+          // 之后所有桶都应该是空的
+          return rl.size() === 0;
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
 });

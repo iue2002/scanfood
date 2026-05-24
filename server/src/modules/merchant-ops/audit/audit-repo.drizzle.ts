@@ -101,4 +101,16 @@ export class DrizzleAuditRepo implements AuditRepoPort {
     }
     return rows.length;
   }
+
+  async deleteArchivedOlderThan(cutoff: Date, batchSize: number): Promise<number> {
+    const rows = await db.select({ id: audit_logs_archive.id })
+      .from(audit_logs_archive)
+      .where(lt(audit_logs_archive.archived_at, cutoff))
+      .orderBy(asc(audit_logs_archive.archived_at))
+      .limit(batchSize);
+    if (rows.length === 0) return 0;
+    const ids = rows.map((r) => r.id);
+    await db.delete(audit_logs_archive).where(sql`${audit_logs_archive.id} IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})`);
+    return rows.length;
+  }
 }

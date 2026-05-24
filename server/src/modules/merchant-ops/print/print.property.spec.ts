@@ -96,6 +96,9 @@ class StubPrintRepo implements PrintRepoPort {
     Object.assign(this.templates[i], patch);
     return this.templates[i];
   }
+  async deleteTemplate(id: number): Promise<void> {
+    this.templates = this.templates.filter((t) => t.id !== id);
+  }
   async findTemplateById(id: number): Promise<TemplateRow | null> {
     return this.templates.find((t) => t.id === id) ?? null;
   }
@@ -280,6 +283,31 @@ describe('Feature: merchant-ops-center, Property 16: template fields are subset 
       expect(r2.ok).toBe(true);
       if (r2.ok) expect(r2.normalized).toEqual(r1.normalized);
     }
+  });
+
+  it('deleteTemplate rejects system defaults (id 1, 2)', async () => {
+    const repo = new StubPrintRepo();
+    const driver = new StubDriver();
+    const bus = new StubEventBus();
+    const core = new PrintCore(repo, new Map([['FEIE', driver as any]]), TEST_AES, bus, async () => null);
+    // 假装 id=1 / id=2 已存在
+    repo.templates.push({ id: 1, name: 'sys1', fields_json: ['TABLE_NUMBER', 'ITEMS', 'TOTAL'], width: '80mm', created_at: new Date(), updated_at: new Date() });
+    repo.templates.push({ id: 2, name: 'sys2', fields_json: ['TABLE_NUMBER', 'ITEMS', 'TOTAL'], width: '80mm', created_at: new Date(), updated_at: new Date() });
+    repo.templates.push({ id: 3, name: 'custom', fields_json: ['TABLE_NUMBER', 'ITEMS', 'TOTAL'], width: '80mm', created_at: new Date(), updated_at: new Date() });
+    await expect(core.deleteTemplate(1)).rejects.toThrow();
+    await expect(core.deleteTemplate(2)).rejects.toThrow();
+    // 自定义模板可以删
+    await core.deleteTemplate(3);
+    expect(repo.templates.length).toBe(2);
+  });
+
+  it('deleteTemplate rejects when only one template remains', async () => {
+    const repo = new StubPrintRepo();
+    const driver = new StubDriver();
+    const bus = new StubEventBus();
+    const core = new PrintCore(repo, new Map([['FEIE', driver as any]]), TEST_AES, bus, async () => null);
+    repo.templates.push({ id: 5, name: 'only', fields_json: ['TABLE_NUMBER', 'ITEMS', 'TOTAL'], width: '80mm', created_at: new Date(), updated_at: new Date() });
+    await expect(core.deleteTemplate(5)).rejects.toThrow();
   });
 });
 

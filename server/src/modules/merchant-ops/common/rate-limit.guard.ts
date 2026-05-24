@@ -17,7 +17,7 @@ const EXPORT_LIMIT = 5;
 const EXPORT_WINDOW_MS = 60 * 1000;
 
 // 进程内单例：每个用户独立桶
-const exportLimiter = new SlidingWindowRateLimiter({ limit: EXPORT_LIMIT, windowMs: EXPORT_WINDOW_MS });
+export const exportLimiter = new SlidingWindowRateLimiter({ limit: EXPORT_LIMIT, windowMs: EXPORT_WINDOW_MS });
 
 @Injectable()
 export class ExportRateLimitGuard implements CanActivate {

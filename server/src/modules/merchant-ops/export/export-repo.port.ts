@@ -22,6 +22,8 @@ export interface ExportRepoPort {
   ): Promise<void>;
   /** R11.8：清理 created_at < cutoff 且 file_path 非空的任务文件路径 */
   listExpired(cutoff: Date, batchSize: number): Promise<ExportJobRow[]>;
+  /** 清理 created_at < cutoff 且 status ∈ {success, failed} 的任务行（已完全结束的可丢） */
+  deleteCompletedJobs(cutoff: Date, batchSize: number): Promise<number>;
 }
 
 export interface ReadOnlyOrdersPort {

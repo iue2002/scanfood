@@ -82,4 +82,27 @@ export class SlidingWindowRateLimiter {
     if (key === undefined) this.buckets.clear();
     else this.buckets.delete(key);
   }
+
+  /**
+   * 主动清理：移除所有"窗口内已无任何条目"的 key
+   * 应在长期运行进程中定期调用（例如每 5 分钟），避免空桶占内存
+   */
+  sweep(): { removed: number } {
+    const cutoff = this.nowMs() - this.windowMs;
+    let removed = 0;
+    for (const [key, arr] of this.buckets) {
+      // 清理过期条目
+      while (arr.length > 0 && arr[0] <= cutoff) arr.shift();
+      if (arr.length === 0) {
+        this.buckets.delete(key);
+        removed += 1;
+      }
+    }
+    return { removed };
+  }
+
+  /** 当前桶数（监控用） */
+  size(): number {
+    return this.buckets.size;
+  }
 }

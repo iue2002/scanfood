@@ -417,7 +417,7 @@ export const printer_configs = mysqlTable(
     enabled: boolean("enabled").notNull().default(true),
     auto_print: boolean("auto_print").notNull().default(false),
     auto_print_add_more: boolean("auto_print_add_more").notNull().default(false), // 加餐自动打印
-    template_id: int("template_id").references(() => print_templates.id),
+    template_id: int("template_id").references(() => print_templates.id, { onDelete: 'set null' }),
     last_online_at: timestamp("last_online_at"),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
@@ -434,7 +434,7 @@ export const print_jobs = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     printer_id: int("printer_id").notNull().references(() => printer_configs.id, { onDelete: 'cascade' }),
-    template_id: int("template_id").references(() => print_templates.id),
+    template_id: int("template_id").references(() => print_templates.id, { onDelete: 'set null' }),
     order_id: int("order_id"),
     /** 'NEW_ORDER' | 'ADD_MORE' | 'REPRINT' | 'TEST' */
     trigger: varchar("trigger", { length: 20 }).notNull().default('NEW_ORDER'),

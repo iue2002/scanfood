@@ -175,6 +175,10 @@ export class DrizzlePrintRepo implements PrintRepoPort {
     return this.toTemplate(rows[0]);
   }
 
+  async deleteTemplate(id: number): Promise<void> {
+    await db.delete(print_templates).where(eq(print_templates.id, id));
+  }
+
   async listTemplates(): Promise<TemplateRow[]> {
     const rows = await db.select().from(print_templates).orderBy(asc(print_templates.id));
     return rows.map((r) => this.toTemplate(r));

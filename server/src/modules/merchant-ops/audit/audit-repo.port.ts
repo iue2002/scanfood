@@ -47,4 +47,6 @@ export interface AuditRepoPort {
    * 返回本次迁移的行数
    */
   archiveOlderThan(cutoff: Date, batchSize: number): Promise<number>;
+  /** 删除归档表中 archived_at < cutoff 的记录（避免归档表无限增长） */
+  deleteArchivedOlderThan(cutoff: Date, batchSize: number): Promise<number>;
 }

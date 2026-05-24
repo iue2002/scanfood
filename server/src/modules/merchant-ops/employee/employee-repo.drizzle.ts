@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
-import { users } from '@/storage/database/shared/schema';
+import { users, user_preferences } from '@/storage/database/shared/schema';
 import { and, eq, ne, like, sql, desc } from 'drizzle-orm';
 import type {
   EmployeeRepoPort,
@@ -110,6 +110,11 @@ export class DrizzleEmployeeRepo implements EmployeeRepoPort {
       token_version: sql`${users.token_version} + 1`,
       updated_at: new Date(),
     }).where(eq(users.id, id));
+    // 级联清理：员工被软删后通知偏好不再有意义
+    // user_preferences 的 user_id FK 是 ON DELETE CASCADE，但软删不会触发 cascade，要手动
+    try {
+      await db.delete(user_preferences).where(eq(user_preferences.user_id, id));
+    } catch { /* 静默：清理失败不阻塞软删主流程 */ }
     const row = await this.findById(id);
     if (!row) throw new Error('soft delete succeeded but row not found');
     return row;

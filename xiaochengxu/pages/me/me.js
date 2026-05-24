@@ -6,6 +6,7 @@ Page({
     userInfo: null,
     isLoading: false,
     showAuthModal: false,
+    chooseAvatarPending: false,
     showNicknameModal: false,
     tempAvatarUrl: '',
     tempNickname: '',
@@ -116,7 +117,7 @@ Page({
   },
 
   hideAuthModal() {
-    this.setData({ showAuthModal: false });
+    this.setData({ showAuthModal: false, chooseAvatarPending: false });
   },
 
   hideNicknameModal() {
@@ -124,12 +125,24 @@ Page({
   },
 
   onChooseAvatar(e) {
+    // 防重复触发：第一次点击后立即禁用按钮，2 秒后自动恢复
+    // 用户点完成功 → setData chooseAvatarPending=false（下面）
+    // 用户点完取消 → 微信不回调 onChooseAvatar，靠 timer 兜底恢复
+    if (this.data.chooseAvatarPending) return;
+    this.setData({ chooseAvatarPending: true });
+    setTimeout(() => {
+      if (this.data.chooseAvatarPending) {
+        this.setData({ chooseAvatarPending: false });
+      }
+    }, 2000);
+
     const { avatarUrl } = e.detail;
 
-    this.setData({ 
+    this.setData({
       tempAvatarUrl: avatarUrl,
       showAuthModal: false,
-      showNicknameModal: true
+      showNicknameModal: true,
+      chooseAvatarPending: false,
     });
   },
 

@@ -20,6 +20,7 @@ Component({
     userInfo: null,
     isLoading: false,
     showAuthModal: false,
+    chooseAvatarPending: false,
     showNicknameModal: false,
     tempAvatarUrl: '',
     tempNickname: '',
@@ -126,7 +127,7 @@ Component({
     },
 
     hideAuthModal() {
-      this.setData({ showAuthModal: false });
+      this.setData({ showAuthModal: false, chooseAvatarPending: false });
     },
 
     hideNicknameModal() {
@@ -134,11 +135,21 @@ Component({
     },
 
     onChooseAvatar(e) {
+      // 防重复触发：第一次点击后立即禁用按钮，2 秒兜底恢复
+      if (this.data.chooseAvatarPending) return;
+      this.setData({ chooseAvatarPending: true });
+      setTimeout(() => {
+        if (this.data.chooseAvatarPending) {
+          this.setData({ chooseAvatarPending: false });
+        }
+      }, 2000);
+
       const { avatarUrl } = e.detail;
       this.setData({
         tempAvatarUrl: avatarUrl,
         showAuthModal: false,
-        showNicknameModal: true
+        showNicknameModal: true,
+        chooseAvatarPending: false,
       });
     },
 

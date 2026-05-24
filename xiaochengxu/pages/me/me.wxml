@@ -101,7 +101,12 @@
       </view>
       <view class="om-modal-foot">
         <button class="om-btn-cancel" bindtap="hideAuthModal">暂不授权</button>
-        <button class="om-btn-confirm" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">同意并授权</button>
+        <button
+          class="om-btn-confirm"
+          open-type="chooseAvatar"
+          bindchooseavatar="onChooseAvatar"
+          disabled="{{chooseAvatarPending}}"
+        >{{chooseAvatarPending ? '处理中...' : '同意并授权'}}</button>
       </view>
     </view>
   </view>

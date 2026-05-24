@@ -63,3 +63,6 @@ key/
 # 后端运行时上传的图片（用户头像、二维码等）
 server/uploads/
 admin-web/dev-dist/
+
+# 临时构建产物（手动上传到服务器用的）
+admin-web-dist.zip

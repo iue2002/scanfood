@@ -287,7 +287,9 @@ export default function DishManage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
+        {/* 桌面端：表格视图（≥ md） */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[#F8FAFC] text-[#334155]">
             <tr>
               <th className="text-left px-4 py-3 font-medium">菜品</th>
@@ -352,7 +354,97 @@ export default function DishManage() {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
+
+        {/* 手机/小平板：卡片视图（仿顾客小程序菜品卡片，左大图 + 右信息） */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {filtered.length === 0 && (
+            <div className="text-center py-16 text-[#94A3B8]">暂无菜品</div>
+          )}
+          {filtered.map((dish) => {
+            const categoryName = categories.find(c => c.id === dish.category_id)?.name || '-'
+            const isAvailable = dish.status === 'available'
+            return (
+              <div key={dish.id} className="p-3 hover:bg-gray-50/50 transition-colors">
+                <div className="flex gap-3">
+                  {/* 左：大图 */}
+                  <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                    {dish.image_url ? (
+                      <img
+                        src={dish.image_url.startsWith('http') ? dish.image_url : API_BASE + dish.image_url}
+                        className="w-full h-full object-cover"
+                        alt=""
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
+                    )}
+                  </div>
+
+                  {/* 右：信息 + 操作 */}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    {/* 第一行：名称 + 状态徽章 */}
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="text-base font-semibold text-[#0F172A] truncate">{dish.name}</h3>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${isAvailable ? 'text-[#10B981] bg-[#D1FAE5]' : 'text-[#94A3B8] bg-[#F1F5F9]'}`}>
+                        {isAvailable ? '上架' : '下架'}
+                      </span>
+                    </div>
+
+                    {/* 第二行：分类 + 必选/最少数量徽章 */}
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className="text-xs text-[#64748B]">{categoryName}</span>
+                      {dish.is_required && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#B91C1C] font-medium">必选</span>
+                      )}
+                      {dish.min_quantity && dish.min_quantity > 1 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">≥ {dish.min_quantity} 份</span>
+                      )}
+                    </div>
+
+                    {/* 第三行：规格（如有） */}
+                    {dish.dish_specs && dish.dish_specs.length > 0 && (
+                      <div className="text-xs text-[#94A3B8] mb-1.5 truncate">
+                        {dish.dish_specs.map(s => `${s.spec_name} ¥${s.price}`).join(' / ')}
+                      </div>
+                    )}
+
+                    {/* 底部：价格 + 操作按钮（push 到底部） */}
+                    <div className="mt-auto flex items-end justify-between gap-2">
+                      <div className="flex items-baseline">
+                        <span className="text-sm text-[#EF4444]">¥</span>
+                        <span className="text-xl font-bold text-[#EF4444] leading-none">{dish.price}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleToggle(dish.id)}
+                          className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#2563EB] bg-[#EFF6FF] active:bg-[#DBEAFE] transition-colors cursor-pointer"
+                          title={isAvailable ? '点击下架' : '点击上架'}
+                        >
+                          {isAvailable ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                        </button>
+                        <button
+                          onClick={() => openEditModal(dish)}
+                          className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#6366F1] bg-[#EEF2FF] active:bg-[#E0E7FF] transition-colors cursor-pointer"
+                          title="编辑"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(dish.id)}
+                          className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#EF4444] bg-red-50 active:bg-red-100 transition-colors cursor-pointer"
+                          title="删除"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {showModal && (

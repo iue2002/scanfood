@@ -422,9 +422,9 @@ export default function OrderManage() {
 
   return (
     <div>
-      {/* 标题栏 */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="hidden lg:block text-xl font-semibold text-[#0F172A]">订单管理</h2>
+      {/* 标题栏（桌面端显示，小屏隐藏 — 与 Sidebar 高亮项重复） */}
+      <div className="hidden lg:flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-[#0F172A]">订单管理</h2>
       </div>
 
       {/* 筛选区域 */}

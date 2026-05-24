@@ -1,508 +1,448 @@
-# 开发规范 (CRITICAL)
+# AI 协作开发规范（CRITICAL）
 
-## 包管理器
+> 这是给 AI 大模型看的项目真相文档。**写代码前必读**，避免基于错误假设给出误导建议。
 
-是启动命令npm run dev
+## 项目实际结构
+
+这是一个**三端独立子项目集合**，**根目录不安装任何依赖**：
+
+```
+projects/
+├── xiaochengxu/    # 微信小程序顾客端（原生 wxml/wxss/js，非 Taro 非 React）
+├── admin-web/      # 商家后台（Vite + React 18 + TailwindCSS 3 + axios + zustand）
+├── server/         # 后端 API（NestJS 10 + Drizzle 0.45 + MySQL 8 + ws）
+└── ...（文档、key、内网穿透指南等）
 ```
 
-## 图片与视频资源使用规范
+历史包袱：项目早期是 Taro 4 H5+小程序，后期重构为原生小程序 + admin-web 独立。所有 Taro / pnpm / shadcn-ui / `@/components/ui/*` / `@tarojs/components` / `lucide-react-taro` / `weapp-tailwindcss` 的痕迹都已移除。**如果在历史 commit / 文档里看到这些字眼，那是死代码，不是当前项目特征。**
 
-**强制规则**：图片、视频等静态资源必须通过 TOS 对象存储管理，代码中使用 TOS 返回的 URL 引用。
+## 包管理
 
-1. **资源存储方式**：
-   - 所有图片和视频资源必须上传到 TOS 对象存储，使用返回的 URL 在代码中引用
-   - 需要上传功能时，必须加载 `storage` 技能获取 TOS 上传能力
-   - 仅 TabBar 图标允许放在 `src/assets/tabbar/` 下（微信小程序 TabBar 强制要求本地 PNG），其余一律走 TOS
+- 根目录：**不装依赖**（package.json 只是 meta）
+- `server/`：**npm**，`npm install` / `npm run dev` / `npm test`
+- `admin-web/`：**npm**，`npm install` / `npm run dev` / `npm run build`
+- `xiaochengxu/`：原生小程序，**无 node_modules**，用微信开发者工具打开
 
-2. **禁止事项**：
-   - 禁止将大图片、视频等资源直接打包到项目中（会导致包体积超限）
-   - 禁止使用 `https://via.placeholder.com/` 等占位符服务
-   - 禁止使用 `/images/placeholder.jpg` 等虚构路径
-   - 禁止使用 `https://example.com/` 等示例域名
-
-3. **正确实践**：
-
-   ```tsx
-   // ✅ 使用 TOS 对象存储返回的 URL
-   <Image src={tosImageUrl} />
-
-   // ❌ 禁止将图片打包到项目（TabBar 图标除外）
-   <Image src="/assets/logo.png" />
-
-   // ❌ 禁止使用占位符
-   <Image src="https://via.placeholder.com/300" />
-   ```
+Node 锁定：`>=20 <23`（项目根 `.nvmrc=20`，两个子项目 `package.json` 都有 `engines`）。
 
 ## Git 提交规范
 
-项目使用 Commitlint 强制规范提交信息：
+Commitlint 强制（看 commit history 风格）：
 
-```bash
-git commit -m "feat: 新增用户登录功能"
-git commit -m "fix: 修复列表加载问题"
-git commit -m "style: 优化首页样式"
 ```
+feat: 新增 X 功能
+fix: 修复 X 问题
+refactor: 重构 X
+chore: 杂项（依赖治理 / 配置 / 文档）
+style: 仅样式调整
+perf: 性能优化
+docs: 仅文档
+test: 仅测试
+```
+
+中文 message 可读性优先；仅 mop 模块前缀化：`feat(merchant-ops): xxx`。
 
 ## 命名规范
 
-**命名规范**：
+- **文件名**：kebab-case（`employee-repo.drizzle.ts`、`audit.core.ts`）；React 组件文件 PascalCase（`Sidebar.tsx`、`PrinterManage.tsx`）
+- **类 / 接口 / 类型**：PascalCase（`EmployeeCore`、`PrinterRow`）
+- **变量 / 函数**：camelCase（`getOrDefault`、`runRetryTick`）
+- **常量**：UPPER_SNAKE_CASE（`RETRY_DELAYS_MS`、`PAYLOAD_BYTE_LIMIT`）
+- **CSS**：Tailwind utility classes（不是 CSS module / styled-components）
 
-- **文件名**：使用 kebab-case，例如 `user-profile.tsx`
-- **组件名**：使用 PascalCase，例如 `UserProfile`
-- **变量/函数**：使用 camelCase，例如 `getUserInfo`
-- **常量**：使用 UPPER_SNAKE_CASE，例如 `API_BASE_URL`
-- **类型/接口**：使用 PascalCase，例如 `UserInfo`
-- **CSS 类名**：使用 Tailwind css
+---
 
-## 组件库
+# 一、后端规范（server/）
 
-Taro 版 shadcn/ui 组件库在 `@/components/ui` 路径下，使用 `ls src/components/ui` 可查看所有可用组件。你可以随意使用或修改这个目录下的组件源代码。
+## NestJS 项目结构
 
-可用组件总览如下：
+`server/` 用 **Hexagonal / Ports-and-Adapters** 架构（mop 模块尤其严格）：
 
-| 组件名称       | 导入路径                          | 典型使用场景                       | 选型提示                             |
-| -------------- | --------------------------------- | ---------------------------------- | ------------------------------------ |
-| Accordion      | `@/components/ui/accordion`       | FAQ、设置分组、折叠内容列表        | 适合分段展开/收起内容                |
-| Alert          | `@/components/ui/alert`           | 页面内提示、风险提醒、状态说明     | 纯展示型提示，不承载强交互           |
-| AlertDialog    | `@/components/ui/alert-dialog`    | 删除确认、危险操作二次确认         | 比普通 Dialog 更适合高风险确认       |
-| AspectRatio    | `@/components/ui/aspect-ratio`    | 图片卡片、视频封面、媒体占位       | 需要固定宽高比时优先使用             |
-| Avatar         | `@/components/ui/avatar`          | 用户头像、群组头像、评论区身份展示 | 支持图片与 fallback 文本             |
-| Badge          | `@/components/ui/badge`           | 状态标签、分类标记、数量标识       | 适合轻量状态标识，不替代按钮         |
-| Breadcrumb     | `@/components/ui/breadcrumb`      | 层级导航、路径回溯                 | 适合多层信息架构或管理后台           |
-| Button         | `@/components/ui/button`          | 提交、确认、取消、主次操作入口     | 所有通用按钮优先用它，不手搓         |
-| ButtonGroup    | `@/components/ui/button-group`    | 连续操作按钮、分组操作栏           | 适合同一语义下的多个并列操作         |
-| Calendar       | `@/components/ui/calendar`        | 日期选择、签到、行程安排           | 需要可视化日期面板时使用             |
-| Card           | `@/components/ui/card`            | 信息卡片、列表项容器、模块分组     | 页面块级容器优先考虑它               |
-| Carousel       | `@/components/ui/carousel`        | 轮播图、引导页、Banner 展示        | 多张内容横向切换时使用               |
-| Checkbox       | `@/components/ui/checkbox`        | 多选表单、协议勾选、批量选择       | 多项可同时选中时用 Checkbox          |
-| CodeBlock      | `@/components/ui/code-block`      | 代码展示、命令示例、技术说明       | 展示代码片段时优先复用               |
-| Collapsible    | `@/components/ui/collapsible`     | 展开更多、收起详情、简化视图       | 单块内容折叠比 Accordion 更轻        |
-| Command        | `@/components/ui/command`         | 命令面板、搜索动作入口、快捷操作   | 适合“搜索 + 选择动作”交互            |
-| ContextMenu    | `@/components/ui/context-menu`    | 长按菜单、上下文操作菜单           | 适合局部对象的附加操作               |
-| Dialog         | `@/components/ui/dialog`          | 普通弹窗、表单弹层、信息确认       | 非危险弹窗默认优先用 Dialog          |
-| Drawer         | `@/components/ui/drawer`          | 底部抽屉、移动端筛选面板           | 更适合移动端从边缘滑出的层           |
-| DropdownMenu   | `@/components/ui/dropdown-menu`   | 更多操作、头像菜单、筛选菜单       | 适合触发后展示短菜单列表             |
-| Field          | `@/components/ui/field`           | 表单项布局、标签与控件对齐         | 统一表单结构时优先使用               |
-| HoverCard      | `@/components/ui/hover-card`      | 预览卡片、悬停详情、补充信息       | 适合轻量预览，不适合关键流程         |
-| Input          | `@/components/ui/input`           | 单行输入、搜索框、账号密码输入     | 通用单行输入必须优先使用             |
-| InputGroup     | `@/components/ui/input-group`     | 带前后缀输入框、搜索栏、金额输入   | 输入框需嵌入图标/按钮时使用          |
-| InputOTP       | `@/components/ui/input-otp`       | 验证码、短信口令、一次性密码输入   | OTP 场景不要自行拆格手搓             |
-| Label          | `@/components/ui/label`           | 表单标签、字段说明、输入关联文本   | 与 Input/Checkbox 等配合使用         |
-| Menubar        | `@/components/ui/menubar`         | 顶部菜单栏、桌面式功能菜单         | 适合较复杂的菜单层级                 |
-| NavigationMenu | `@/components/ui/navigation-menu` | 导航入口、站点级菜单、分栏导航     | 用于页面级或模块级导航               |
-| Pagination     | `@/components/ui/pagination`      | 分页列表、表格翻页、结果页码导航   | 数据量大需分页时优先使用             |
-| Popover        | `@/components/ui/popover`         | 浮层说明、轻量表单、局部附加内容   | 比 Dialog 更轻，比 Tooltip 更丰富    |
-| Portal         | `@/components/ui/portal`          | 浮层挂载、顶层渲染容器             | 一般作为底层能力，业务少直接使用     |
-| Progress       | `@/components/ui/progress`        | 上传进度、任务进度、完成度展示     | 线性进度反馈优先用它                 |
-| RadioGroup     | `@/components/ui/radio-group`     | 单选题、规格选择、互斥选项         | 互斥选择不要用 Checkbox 替代         |
-| Resizable      | `@/components/ui/resizable`       | 可拖拽分栏、面板尺寸调整           | 适合复杂布局或工作台场景             |
-| ScrollArea     | `@/components/ui/scroll-area`     | 自定义滚动区域、长列表容器         | 局部滚动区域优先考虑它               |
-| Select         | `@/components/ui/select`          | 下拉选择、选项筛选、单项选择器     | 标准选项选择器优先用 Select          |
-| Separator      | `@/components/ui/separator`       | 分割线、内容区块分隔               | 视觉分隔优先用它，不手写边框线       |
-| Sheet          | `@/components/ui/sheet`           | 侧边栏、抽屉面板、配置面板         | 适合从边缘滑出的补充面板             |
-| Skeleton       | `@/components/ui/skeleton`        | 加载骨架屏、列表占位、页面预加载   | 加载态优先用 Skeleton，不写灰块假 UI |
-| Slider         | `@/components/ui/slider`          | 音量、价格区间、数值拖动调节       | 连续数值输入优先用 Slider            |
-| Sonner         | `@/components/ui/sonner`          | 轻提示、操作反馈、全局消息提醒     | 偏轻量 toast 通知能力                |
-| Switch         | `@/components/ui/switch`          | 开关设置、布尔状态切换             | 开/关场景优先用 Switch               |
-| Table          | `@/components/ui/table`           | 数据表格、对账列表、结构化信息展示 | 表格型数据不要用 View 手搓           |
-| Tabs           | `@/components/ui/tabs`            | 分段切换、内容分类、频道页         | 标签切换场景优先用 Tabs              |
-| Textarea       | `@/components/ui/textarea`        | 多行输入、备注、评论、反馈内容     | 多行文本输入必须优先使用             |
-| Toast          | `@/components/ui/toast`           | 操作结果提示、失败提醒、短时反馈   | 适合局部或系统级短反馈               |
-| Toggle         | `@/components/ui/toggle`          | 单个开关按钮、格式切换、选中态按钮 | 适合按钮式开/关选择                  |
-| ToggleGroup    | `@/components/ui/toggle-group`    | 多个切换按钮组合、视图模式选择     | 适合按钮组式互斥/多选切换            |
-| Tooltip        | `@/components/ui/tooltip`         | 图标说明、补充提示、悬停解释       | 只放简短解释，不承载复杂内容         |
-
-IMPORTANT: 优先使用 `@/components/ui` 下的组件，只对必要情况（如组件库缺失组件，或者 View、Text、Camera、Canvas 等无需封装的组件）才能直接使用 `@tarojs/components` 原生组件。
-
-CRITICAL（执行约束）：
-
-- 只要涉及“通用 UI 组件”（按钮/输入框/弹窗/表单控件/菜单/提示/卡片/表格/标签页等），必须先在 `src/components/ui` 查找并优先使用；存在即从 `@/components/ui/*` 导入使用。
-- 禁止用 `View/Text` + Tailwind 手搓上述通用组件的外观与交互，除非组件库确实缺失且你已按下条补齐或说明理由。
-- 组件库缺失时，优先把组件补齐到 `src/components/ui`（可复用、可维护），再在页面中引用；不要在页面/业务组件里临时造轮子。
-- 页面实现前必须先判断：按钮、输入框、卡片、标签、Tabs、弹窗、Toast、Skeleton 等是否已有 `@/components/ui/*` 可复用；能用组件库的地方，不要退回原生组件或单独写样式。
-- 若最终没有使用 `@/components/ui/*` 中已存在的通用组件，必须先自查并改回；不要把“赶时间”当作例外理由。
-- 以上规则以页面级 ESLint 作为兜底；若页面中直接使用原生 `Input`，或用 `View/Text` 手搓通用 UI，`pnpm validate` 会报错。
-
-示例：
-
-```tsx
-// ✅ 优先使用 ui 组件
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Text } from '@tarojs/components'
-
-<Card>
-  <CardContent className="p-4">
-    <Button onClick={() => {}}>
-      <Text>提交</Text>
-    </Button>
-  </CardContent>
-</Card>
+```
+src/modules/<feature>/
+├── <feature>.controller.ts   # 路由 + DTO 校验
+├── <feature>.dto.ts          # class-validator
+├── <feature>.core.ts         # 纯业务规则类（无 I/O 依赖，可 PBT）
+├── <feature>-repo.port.ts    # 持久化接口
+├── <feature>-repo.drizzle.ts # Drizzle 实现
+└── <feature>.property.spec.ts # fast-check 属性测试
 ```
 
-```tsx
-// ❌ 不要手搓“按钮/弹窗/输入框”等通用组件（除非组件库缺失）
-import { View, Text } from '@tarojs/components'
+## 路由前缀（CRITICAL）
 
-<View className="px-4 py-2 rounded bg-primary">
-  <Text className="text-primary-foreground">提交</Text>
-</View>
+`main.ts` 已 `app.setGlobalPrefix('api')`，所有路由自动加 `/api`。
+
+```ts
+// ✅ 正确
+@Controller('users')         // → /api/users
+@Controller('merchant-ops/employees')  // → /api/merchant-ops/employees
+
+// ❌ 错误
+@Controller('api/users')     // → /api/api/users
 ```
 
-## 样式开发
+## HTTP 状态码
 
-IMPORTANT：样式默认优先使用 Tailwind。凡是 Tailwind 能表达的样式，都不要退回 `style` 或 `.css`；只有动画、关键帧、复杂选择器、第三方组件覆盖、框架级兼容处理等场景，才允许少量使用 CSS。
+`HttpStatusInterceptor` 自动把 POST 的默认 201 改成 200。**所有成功请求统一 200**。失败状态码按语义返回（400 / 401 / 403 / 404 / 409 / 429 / 500）。
 
-CRITICAL：
+## DTO 校验（CRITICAL）
 
-- 默认先写 `className`，再考虑 `style`。
-- 颜色、间距、圆角、边框、阴影、排版、flex/grid、宽高等常规样式必须收敛在 Tailwind 类名中。
-- 禁止使用 `w-[340px]`、`text-[14px]`、`p-[16px]` 这类带 `px` 的 Tailwind 任意值。
-- 禁止使用 `style={{ width: '200px' }}`、`fontSize: '14px'` 这类硬编码尺寸。
-- Taro 会通过 `pxtransform` 将尺寸转换为跨端单位（小程序 `rpx`、H5 `rem`），业务代码里直接写 `px` 容易导致不同端显示不一致。
-- `style` 只允许用于少量跨端兼容修正；`.css` 只用于 Tailwind 明显不适合的场景，且范围必须最小。
-- 若页面主要样式本可用 Tailwind 表达，却仍主要来自 `style={{ ... }}` 或 `.css` 文件，视为不合规实现。
+`main.ts` 已配置 `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`：
+- 自动剥离 DTO 未定义字段
+- 包含未知字段直接 400 拒绝
 
-> 项目已集成 Tailwind CSS 4 + weapp-tailwindcss，支持跨端原子化样式：
+所有写接口必须有 DTO + class-validator 装饰器：
 
-```tsx
-<View className="flex flex-col h-full">
-  <Text className="text-2xl font-bold text-blue-600 mb-4">标题</Text>
-  <View className="w-full px-4">
-    <Button className="w-full bg-blue-500 text-white rounded-lg py-3">
-      按钮
-    </Button>
-  </View>
-</View>
-```
+```ts
+export class CreateEmployeeDto {
+  @IsString() @MinLength(3) @MaxLength(50)
+  username!: string;
 
-**推荐做法**：优先使用 Tailwind 预设类名或相对单位，避免硬编码 `px`。
+  @IsString() @MinLength(8) @MaxLength(64)
+  password!: string;
 
-```tsx
-// ❌ 错误：硬编码 px 值，跨端显示不一致
-<View className="w-[340px] h-[200px] p-[16px]">
-  <Text className="text-[14px]">内容</Text>
-</View>
-
-// ✅ 正确：使用 Tailwind 预设类名
-<View className="w-full max-w-sm h-48 p-4">
-  <Text className="text-sm">内容</Text>
-</View>
-```
-
-## 图标库 (lucide-react-taro)
-
-项目使用 `lucide-react-taro` 作为图标库，这是 Lucide 图标的 Taro 适配版本，已经进行预安装。
-
-### 渲染原理（微信小程序端）
-
-每个 icon 不是用 `<svg />` 渲染，而是把 SVG 字符串编码成 `data:image/svg+xml,...`，再用 `@tarojs/components` 的 `<Image />` 渲染。
-
-这带来一个关键结论：`className` 只作用在 `<Image />` 本身（布局/外边距/对齐等），不会作用到 SVG 内部的 `stroke/fill`，也不会从父级继承 `currentColor`。
-
-### 用法示例
-
-✅ 正确示例（优先用 `color/size/strokeWidth`，避免再额外写尺寸样式）
-
-```tsx
-import { House, Settings, Camera } from 'lucide-react-taro'
-
-<House />
-<Settings size={32} />
-<Camera color="#ff0000" />
-<Camera size={48} color="#1890ff" strokeWidth={1.5} />
-
-<House className="mr-2" size={18} color="#1890ff" />
-```
-
-❌ 错误示例（`className` 的 `text-*` 不会改变 icon 的 `stroke/fill`；它只是 `<Image />` 的 class）
-
-```tsx
-import { House } from 'lucide-react-taro'
-
-<House className="text-red-500 w-8 h-8" />
-```
-
-### 查找可用图标
-
-图标命名与 Lucide 官方一致（PascalCase），完整列表可使用命令查询：
-
-```bash
-npx taro-lucide-find --list
-```
-
-推荐在生成代码前，使用 `--json` 参数批量验证图标是否存在：
-
-```bash
-npx taro-lucide-find arrow-up user settings arw --json
-```
-
-## 网络请求规范 (Network Request Guidelines)
-
-### 1. 全局路由前缀
-
-项目后端入口 `main.ts` 中已配置 `app.setGlobalPrefix('api')`，所有路由会自动加上 `/api` 前缀。
-
-**严格约束**：
-
-后端响应状态码：在编写 NestJS 后端接口时，我会显式处理 HTTP 状态码，确保所有成功的请求（包括通常默认返回 201 的 POST 请求）统一返回 HTTP 200 OK。
-
-在编写 NestJS Controller 代码时，**绝对禁止**在 `@Controller()` 或 `@Get()`/`@Post()` 等路由装饰器的路径中手动添加 `api` 字样。
-
-**示例**：
-
-- ✅ 正确：`@Controller('users')` (实际路由: `/api/users`)
-- ❌ 错误：`@Controller('api/users')` (实际路由: `/api/api/users`)
-
-### 2. 发送请求
-
-Network 是对 Taro.request、Taro.uploadFile、Taro.downloadFile 的封装，自动添加项目域名前缀，参数与 Taro 一致。
-
-IMPORTANT: 禁止直接使用 Taro.request、Taro.uploadFile、Taro.downloadFile，使用 Network.request、Network.uploadFile、Network.downloadFile 替代。
-
-IMPORTANT: 禁止自己封装 Network 类/库/文件，必须使用预先封装好的 Network `import { Network } from '@/network'`
-
-IMPORTANT: 如无必要，禁止修改 `@/network` 中的文件，即使遇到 tsc 类型报错，也不能修改
-
-✅ 正确使用方式
-
-```typescript
-import { Network } from '@/network'
-
-// GET 请求
-const data = await Network.request({
-  url: '/api/hello'
-})
-
-// POST 请求
-const result = await Network.request({
-  url: '/api/user/login',
-  method: 'POST',
-  data: { username, password }
-})
-
-// 文件上传
-await Network.uploadFile({
-  url: '/api/upload',
-  filePath: tempFilePath,
-  name: 'file'
-})
-
-// 文件下载
-await Network.downloadFile({
-  url: '/api/download/file.pdf'
-})
-```
-
-❌ 错误用法
-
-```typescript
-import Taro from '@tarojs/taro'
-
-// ❌ 会导致自动域名拼接无法生效，除非是特殊指定域名
-const data = await Network.request({
-  url: 'http://localhost/api/hello'
-})
-
-// ❌ 不要直接使用 Taro.request
-await Taro.request({ url: '/api/hello' })
-
-// ❌ 不要直接使用 Taro.uploadFile
-await Taro.uploadFile({ url: '/api/upload', filePath, name: 'file' })
-```
-
-### 3. URL 构建规范 (CRITICAL)
-
-**禁止硬编码 localhost 或域名到请求 URL 中**
-
-在使用 `Network.request`、`Network.uploadFile`、`Network.downloadFile` 等 API 时，**严禁**硬编码完整的域名或 localhost 地址。
-
-**错误示范**：
-
-```typescript
-// ❌ 错误：硬编码 localhost 地址
-await fetch('http://localhost:3000/api/knowledge/chat', {
-  method: 'POST',
-  body: JSON.stringify({ message })
-})
-
-// ❌ 错误：硬编码域名
-await Network.request({
-  url: 'http://example.com/api/hello'
-})
-```
-
-**正确做法**：
-
-```typescript
-// ✅ 正确：使用相对路径，让 Network 自动处理
-await Network.request({
-  url: '/api/knowledge/chat',
-  method: 'POST',
-  data: { message }
-})
-
-// ✅ 正确：如果需要使用外部域名，显式判断
-const isExternalUrl = url.startsWith('http://') || url.startsWith('https://')
-if (isExternalUrl) {
-  // 使用完整 URL
-  await Network.request({ url })
-} else {
-  // 使用相对路径，Network 会自动添加 PROJECT_DOMAIN
-  await Network.request({ url: '/api/...' })
+  @IsIn(['owner', 'manager', 'cashier', 'waiter'])
+  role!: Role;
 }
 ```
 
-**工作原理**：
+## 响应格式
 
-1. **开发环境（H5）**：使用 `/api/xxx` 相对路径，Vite 的 proxy 会自动将其代理到 `http://localhost:3000/api/xxx`
-2. **生产环境**：如果配置了 `PROJECT_DOMAIN` 环境变量，Network 会自动拼接为 `${PROJECT_DOMAIN}/api/xxx`
-3. **小程序端**：同样会根据 `PROJECT_DOMAIN` 配置使用正确的域名
+后端响应**没有信封模式包装**。直接返回业务对象或 `{ data: ... }`：
 
-**Vite 代理配置**（已在项目中配置，无需修改）：
+```ts
+// 列表
+return { data: [...], total: 100 }
 
-```typescript
-// vite.config.ts
-export default {
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
-      }
-    }
+// 单实体
+return { data: { id: 1, name: 'xxx' } }
+
+// 简单消息
+return { message: '删除成功' }
+```
+
+错误统一由 `AllExceptionsFilter` 处理：
+
+```json
+{ "statusCode": 400, "code": "RANGE_INVALID", "message": "...", "data": null }
+```
+
+## merchant-ops 模块的特殊规范
+
+mop 模块（`src/modules/merchant-ops/`）有 **78+ 条产品需求 + 25 条不变量 + 25 个 PBT**，详见 `.kiro/specs/merchant-ops-center/`。开发时必读：
+
+1. **Core 是纯类**：不 inject Repo 实现类，只 inject `RepoPort` 接口；通过 stub 注入做 PBT
+2. **审计 / 通知 / 打印 / 导出 失败必须吞错**：不冒泡到订单主流程（红线）
+3. **新 WebSocket 事件必须 `mop:` 前缀**：通过 `MopEventBus` 发出（运行期 + 类型层双重约束）
+4. **既有表只能 `ADD COLUMN`**：不改列类型 / 名称
+5. **写接口挂 `@Audit('XXX_ACTION')`**：审计自动写入 audit_logs
+
+## PBT 测试约定
+
+```ts
+// 文件名：xxx.property.spec.ts
+// 描述：'Feature: merchant-ops-center, Property N: <title>'
+import { describe, it, expect } from 'vitest';
+import fc from 'fast-check';
+
+describe('Feature: merchant-ops-center, Property 17: ESC/POS round-trip', () => {
+  it('parseEscPosFields(renderEscPos(t, p)) ⊇ Set(t.fields_json)', () => {
+    fc.assert(fc.property(arbTemplate, (t) => { /* ... */ }), { numRuns: 200 });
+  });
+});
+```
+
+跑测试：`cd server && npm test`（vitest run，不带 watch）。
+
+---
+
+# 二、商家后台规范（admin-web/）
+
+## 技术栈（写代码前确认）
+
+- **React 18** + TypeScript + Vite 5
+- **TailwindCSS 3**（vanilla，**不是** TailwindCSS 4，**不是** weapp-tailwindcss）
+- **lucide-react**（**不是** lucide-react-taro）
+- **axios**（**不是** Taro.request / Network）
+- **zustand**（store）
+- **react-router-dom v6**（PrivateRoute + RoleGuard）
+
+**没有** `@/components/ui/*`、shadcn、Card 这种组件库。所有 UI 都是用 div + Tailwind 手搓。
+
+## 文件别名
+
+```ts
+// vite.config.ts 配置
+import request from '@/api/request'   // → admin-web/src/api/request
+import Sidebar from '@/components/Sidebar'  // → admin-web/src/components/Sidebar
+```
+
+## 网络请求
+
+**唯一入口**：`@/api/request`（axios 实例，已配置 baseURL + Authorization 拦截器）。
+
+```ts
+import request from '@/api/request'
+
+// GET（注意 axios 拦截器已 unwrap response.data）
+const data = await request.get('/users')
+
+// POST
+const result = await request.post('/users', { username, password })
+
+// 带 query params
+const list = await request.get('/orders', { params: { page: 1, status: 'submitted' } })
+
+// 上传（FormData）
+const formData = new FormData()
+formData.append('file', file)
+await request.post('/upload/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+```
+
+**禁止**：
+- `fetch('http://localhost:3000/api/...')` — 硬编码地址
+- 自己 `axios.create(...)` — 不要绕开统一拦截器
+- 直接读 `response.data.data` — 已被拦截器 unwrap 一层
+
+**响应解包**：`request.interceptors.response.use((response) => response.data)` 已自动剥一层 axios 包装。**业务数据通常是 `{ data: ... }` 形式**，需要再 `.data` 一次或解构：
+
+```ts
+const res: any = await request.get('/merchant-ops/employees')
+const list = res?.data ?? res     // 兼容两种返回（直接数组 / { data: [...] }）
+```
+
+## URL 约定
+
+```ts
+// ✅ 正确：相对路径，dev 走 vite proxy → :3000，prod 走环境变量 VITE_API_BASE_URL
+await request.get('/orders')           // → /api/orders
+await request.post('/auth/login', dto)
+
+// ❌ 错误
+await fetch('http://localhost:3000/api/orders')   // 硬编码
+await request.get('/api/orders')                   // 路径里又写 /api，变成 /api/api/orders
+```
+
+`baseURL` 默认是 `/api`，所以业务代码 url **不写 `/api/` 前缀**，直接 `/orders` 即可。
+
+## 样式
+
+```tsx
+// ✅ 正确：vanilla TailwindCSS 3 类名
+<div className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] p-5">
+  <button className="px-3 py-2 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1D4ED8]">
+    保存
+  </button>
+</div>
+
+// ⚠️ 注意：项目有大量带 # 的硬编码颜色（如 #2563EB），这是既有惯例，新代码可以保留
+// 后续若做主题化可以抽到 CSS variable，但本次不要批量改
+
+// ❌ 不要引入不存在的组件库
+import { Button } from '@/components/ui/button'  // 这个目录在 admin-web 不存在
+```
+
+## 图标
+
+```tsx
+// ✅ 正确
+import { Save, Trash2, Loader2, Plus } from 'lucide-react'
+
+<Save className="w-4 h-4" />
+<Loader2 className="w-4 h-4 animate-spin" />
+<Trash2 size={16} />
+
+// ❌ 错误
+import { Save } from 'lucide-react-taro'  // 这是 Taro 时代的，已不用
+```
+
+`lucide-react` 在 admin-web 是 React 组件，`className` 直接控制 stroke / fill 完全没问题（不像 Taro 版有 SVG 编码限制）。
+
+## RBAC 权限守卫
+
+业务页 + Sidebar 显隐由 `@/rbac/types.ts` 的 `PERMISSION_MATRIX` 控制；路由级守卫用 `<RoleGuard requiredRoles={[...]}>`：
+
+```tsx
+<Route path="employees" element={
+  <RoleGuard requiredRoles={['owner', 'admin']}>
+    <EmployeeManage />
+  </RoleGuard>
+} />
+```
+
+被禁角色直接 `<Forbidden />`。
+
+---
+
+# 三、微信小程序规范（xiaochengxu/）
+
+## 技术栈（CRITICAL）
+
+**纯微信原生小程序**：
+- `.wxml` 模板（不是 JSX、不是 Vue template）
+- `.wxss` 样式（不是 TailwindCSS）
+- `.js` 逻辑（不是 TypeScript）
+- `app.json` / `pages/<page>/<page>.json` 配置
+
+**没有 React、没有 Taro、没有 H5、没有 Webpack/Vite**。
+
+## TabBar
+
+`app.json` 用 `"custom": true` 启用自定义 TabBar，组件位于 `xiaochengxu/custom-tab-bar/`。
+
+底部三项：浏览（home/order）、订单（logs）、我的（me）。
+
+## 网络请求
+
+**唯一入口**：`utils/request.js` 暴露的 `request()` 函数（封装 `wx.request`）。
+
+```js
+const { request } = require('../../utils/request')
+const config = require('../../config')
+
+// GET（默认不显示 loading 蒙层）
+const data = await request({ url: '/orders/my-active' })
+
+// POST（显式开启 loading）
+const result = await request({
+  url: '/orders',
+  method: 'POST',
+  data: { tableId, items },
+  loading: true,
+  loadingTitle: '提交订单中...'
+})
+
+// 不需要 loading 的接口（绝大多数都是这种）
+await request({ url: '/dishes', noLoading: true })
+```
+
+URL 拼接：`request.js` 内部用 `config.baseURL` 自动加前缀。`baseURL = config.SERVER_URL + '/api'`。
+
+**SERVER_URL 切换**（`xiaochengxu/config.js`）：
+- `LOCAL` — `http://localhost:3000`（仅微信开发者工具，需关闭"校验合法域名"）
+- `TUNNEL` — cpolar/natapp 内网穿透 https 地址（开发版/体验版用，参考 `内网穿透配置指南.md`）
+- `PROD` — `https://www.ali88.online`
+
+**禁止**：
+- `wx.request({ url: 'http://localhost:3000/...' })` — 直接调 wx.request 绕过封装
+- 在业务代码里硬编码 URL — 走 `config` 模块
+
+## 图片资源
+
+- **TabBar 图标**：放 `xiaochengxu/images/tabbar/`（微信小程序硬要求本地 PNG）
+- **菜品 / 店铺头像 / 桌台二维码**：后端 `multer + /uploads/` 存储，URL 通过 API 返回，小程序拼 `SERVER_URL + url` 显示
+
+```js
+// ✅ 拼接相对 URL
+const dishImage = dish.image_url.startsWith('http')
+  ? dish.image_url
+  : SERVER_URL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url
+
+// ❌ 不要在小程序代码里 import 大图（包体积超限）
+```
+
+注：项目"应该"用 TOS 但**实际还没切**，当前用本地 multer。等切到 TOS 后这块要改。
+
+## 平台检测（不需要）
+
+xiaochengxu 是**纯小程序**，没有 H5 端，**不需要任何平台检测代码**。看到 `Taro.getEnv()` 这种是误导。
+
+---
+
+# 四、跨端通用约定
+
+## 数据库迁移
+
+所有迁移按编号顺序在 `server/drizzle/` 下：`0001_init.sql` → `0010_merchant_ops_m6_cleanup.sql` ...
+
+迁移必须是 **idempotent 的**（重跑无副作用）：
+- `CREATE TABLE IF NOT EXISTS`
+- `INSERT ... ON DUPLICATE KEY UPDATE`
+- 索引内联到 `CREATE TABLE` 里（避免重复 `CREATE INDEX` 报 1061）
+
+执行（Windows）：
+```bash
+$env:MYSQL_PWD='xxx'; mysql -uroot --default-character-set=utf8mb4 scanfood -e "source drizzle/0010_xxx.sql"
+```
+
+## 资源清理（防止孤儿）
+
+删除菜品 / 桌台 / 员工 / 店铺头像替换时，**业务代码必须清理对应的本地文件**。已封装为 `LocalImageCleanupService`（在 `CommonModule`，全局可用）：
+
+```ts
+// 在 service 注入
+constructor(private readonly imageCleanup: LocalImageCleanupService) {}
+
+// fire-and-forget（不阻塞主删除流程）
+async deleteDish(id: number) {
+  const cur = await db.select({ image_url: dishes.image_url }).from(dishes).where(eq(dishes.id, id)).limit(1)
+  await db.delete(dishes).where(eq(dishes.id, id))
+  if (cur[0]?.image_url) {
+    void this.imageCleanup.removeByUrl(cur[0].image_url)  // 自动跳过外部 URL
   }
 }
 ```
 
-**关键原则**：
+`removeByUrl()` 已做路径白名单：仅清理 `/uploads/` 下的文件，外部 URL（http(s)://...）和路径穿越自动拒绝（Property 24/25 PBT 验证）。
 
-- ✅ 始终使用 `/api/xxx` 形式的相对路径
-- ✅ 让 Network 自动处理域名拼接
-- ✅ 在 H5 开发环境中依赖 Vite proxy
-- ❌ 禁止硬编码 `http://localhost:3000`
-- ❌ 禁止在业务代码中使用 `fetch` 直接调用 API
+## 错误处理
 
-### 4. 接口数据解包与防御性编程 (API Response Handling & Unwrapping)
+- 业务异常 throw `BadRequestException({ code: 'XXX_ERROR', msg: '...' })`
+- 跨切关注点（审计 / 打印 / 通知）异常**必须 try/catch 吞掉**，不能影响主流程
+- 永远不要在 controller 里 try/catch 然后 return 业务错误对象（让 `AllExceptionsFilter` 统一处理）
 
-**警惕 "嵌套 Data" 陷阱 (Critical: The Double Data Trap)**
-在处理前后端交互时，必须敏锐识别数据结构的嵌套层级：
+## 安全红线（绝不破坏）
 
-1. **第一层 (`res.data`)**：`Taro.request` 返回的对象包含 `statusCode`, `header`, `data`。这里的 `data` 是 HTTP 响应体。
-2. **第二层 (`res.data.data`)**：现代后端（NestJS）通常遵循 "Envelope Pattern"（信封模式），将业务数据再次封装在 JSON 的 `data` 字段中（如 `{ code: 200, msg: "success", data: { ... } }`）。
+来自 spec 的不可改条款：
+- ✅ 既有共享购物车 / WS 订阅 / 订单锁定 / 桌号释放机制
+- ✅ `users` / `orders` / `cart_items` 表只能 `ADD COLUMN`，不改原列
+- ✅ 既有 WebSocket 事件名 + payload 不动；新事件必须 `mop:` 前缀
+- ✅ `OrdersGateway.notifyAllAdmins` / `OrdersService` 方法签名不动
+- ✅ AES_KEY / FEIE_USER / FEIE_UKEY 等密钥从 `.env` 注入，**禁止硬编码**
 
-**严格执行以下约束：**
-- **先打印，后访问**：在编写数据处理逻辑前，必须先 `console.log(res.data)` 确认后端返回的 JSON 结构。
-- **拒绝盲目直连**：禁止想当然地认为 `res.data` 就是业务对象。
-- **防御性取值**：优先使用可选链 (`?.`) 或编写明确的解包逻辑。
-- **TypeScript 强类型**：如果可能，应定义通用的 `ApiResponse<T>` 接口来强制提示数据层级。
+---
 
-**错误示范 (Don't do this)**：
+# 五、AI 协作规则
 
-```typescript
-// ❌ 假设后端直接返回了用户对象，实际上后端返回的是包裹后的 JSON
-const { avatar_url } = res.data; // 报错或 undefined
+## 改动前必读
+
+1. 这份 AGENTS.md
+2. 涉及 mop 模块时还要读 `.kiro/specs/merchant-ops-center/{requirements,design}.md`
+3. README.md（项目结构与启动）
+4. DEPS_HEALTH.md（依赖版本治理记录）
+
+## 改动后必做
+
+1. 跑 `cd server && npm test` 确认 PBT 全过
+2. 跑 `cd server && npm run build` 确认 nest build
+3. 跑 `cd admin-web && npx tsc --noEmit` 确认类型
+4. commit 用 commitlint 规范
+
+## 包管理操作
+
+```bash
+# server/admin-web 装新包：单独 cd 进去
+cd server && npm install <pkg>
+cd admin-web && npm install <pkg>
+
+# 不要在根目录 npm install / pnpm install（根目录无依赖）
+# 不要装 pnpm（项目不用 pnpm 了）
 ```
 
-## H5/小程序跨端兼容性（CRITICAL）
+## 平台环境
 
-### 跨端规则速查表
+Windows + cmd / PowerShell + Node 20。命令提示：
+- 用 `;` 不用 `&&`（PowerShell 不支持后者）
+- 重定向用 `2>&1` 但 PowerShell 把 stderr 当错误，可能误报；优先看 exit code
+- 中文路径用 utf-8（mysql 命令加 `--default-character-set=utf8mb4`）
 
-- Taro 原生 Text 换行/白屏：小程序 block 正常，H5 inline 白屏 → 垂直 Text 添加 `block` 类 + 平台检 测直接判断
-- Taro 原生 Input 样式：H5 端 inline 导致样式失效 → View 包裹，样式放外层
-- Taro 原生 Input/Button Flex：H5 不支持 flex → View 包装，flex 放 View 上
-- Fixed + Flex：H5 Tailwind 失效 → 必须 `style={{ position: 'fixed', display: 'flex' }}`
-- 底部 TabBar 重叠 → 底部固定元素 `bottom: 50`+，列表加底部内边距
-- 原生组件：H5 不可用 → `Taro.getEnv() === WEAPP` + H5 降级
-- RecorderManager：H5 报错 → 检测平台 + useEffect 初始化 + H5 降级
-- 文件上传：H5 readFile 报错 → 用 `Network.uploadFile(tempFilePath)`
-- 后端文件读取：小程序 file.path / H5 file.buffer → 同时支持两种方式
-- H5 上传图片偶发裂开：Coze 平台 SW 拦截 blob fetch → H5 端取原始 File 对象手动构建 FormData 上传，绕过 Taro uploadFile
+## 不要做的事
 
-### 一、强制规范与代码模板
+- ❌ 引入 Taro / pnpm / shadcn-ui / weapp-tailwindcss / lucide-react-taro 这种已死技术
+- ❌ 在根目录添加依赖（根 package.json 是 meta，0 依赖）
+- ❌ 跳过 `LocalImageCleanupService` 直接 `fs.unlink`（要走白名单防穿越）
+- ❌ 在 mop core 里 inject `OrdersService`（DI-7 红线，只能通过 RepoPort 投影读）
+- ❌ 改既有列类型 / 名称（红线）
+- ❌ 把密钥写进代码或测试文件（用 env）
 
-平台检测直接判断，禁止 useState + useEffect 设置平台（会导致状态延迟、H5 白屏）
-
-```tsx
-// ✅ 正确
-const isWeapp = Taro.getEnv() === Taro.ENV_TYPE.WEAPP
-// ❌ 错误：状态延迟导致初始渲染错误
-const [isWeapp, setIsWeapp] = useState(false)
-useEffect(() => { setIsWeapp(Taro.getEnv() === Taro.ENV_TYPE.WEAPP) }, [])
-```
-
-**Taro 原生 Text 换行**：所有垂直排列的 Text 必须添加 `block`
-
-```tsx
-<Text className="block text-lg font-semibold">标题</Text>
-<Text className="block text-sm text-gray-500">说明</Text>
-```
-
-**Taro 原生 Input/Textarea 样式**：必须 View 包裹，样式放 View 上（H5 端 Input 是 inline 元素）
-
-```tsx
-// ✅ 正确：View 包裹
-<View className="bg-gray-50 rounded-xl px-4 py-3">
-  <Input className="w-full bg-transparent" placeholder="请输入内容" />
-</View>
-// ❌ 错误：H5 端样式不生效
-<Input className="bg-gray-50 rounded-xl px-4 py-3 w-full" />
-
-// ✅ Textarea 同理
-<View className="bg-gray-50 rounded-2xl p-4 mb-4">
-  <Textarea style={{ width: '100%', minHeight: '100px', backgroundColor: 'transparent' }} placeholder="请输入详细描述..." maxlength={500} />
-</View>
-```
-
-**Taro 原生 Input + Button Flex 布局**：flex 放 View，Input 用 `width: 100%`
-
-```tsx
-// ✅ 正确：View 包装 + inline style
-<View style={{ display: 'flex', flexDirection: 'row', gap: '8px', padding: '12px' }}>
-  <View style={{ flex: 1, backgroundColor: '#f5f5f5', borderRadius: '20px', padding: '8px 12px' }}>
-    <Input style={{ width: '100%', fontSize: '14px' }} placeholder="输入消息..." />
-  </View>
-  <View style={{ flexShrink: 0 }}>
-    <Button size="mini" type="primary">发送</Button>
-  </View>
-</View>
-// ❌ 错误：H5 端 Input 不支持 flex
-<View style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
-  <Input style={{ flex: 1 }} placeholder="输入消息..." />
-  <Button>发送</Button>
-</View>
-```
-
-**Fixed + Flex 布局**：必须 inline style（Tailwind fixed+flex 在 H5 失效），`bottom: 50` 避开 TabBar
-
-```tsx
-// ✅ 正确：inline style + 避开 TabBar
-<View style={{
-  position: 'fixed', bottom: 50, left: 0, right: 0,
-  display: 'flex', flexDirection: 'row', gap: '12px',
-  padding: '12px', backgroundColor: '#fff', borderTop: '1px solid #e5e5e5', zIndex: 100
-}}>
-  <View style={{ flex: 1 }}><Button>取消</Button></View>
-  <View style={{ flex: 1 }}><Button>确认</Button></View>
-</View>
-// ❌ 错误：Tailwind fixed+flex H5 失效，bottom-0 被 TabBar 遮挡
-<View className="fixed bottom-0 left-0 right-0 flex flex-row gap-3 p-4 bg-white z-50">
-  <Button className="flex-1">取消</Button>
-</View>
-```
-
-### 二、原生组件平台检测
-
-**需检测组件**: Camera, Map, Canvas, Video, RecorderManager
-
-```tsx
-{Taro.getEnv() === Taro.ENV_TYPE.WEAPP ? (
-  <Camera className="w-full h-96" devicePosition="back" />
-) : (
-  <View className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-    <Text className="block text-gray-500 text-center">
-      相机功能仅在小程序中可用{'\n'}请在微信小程序中打开体验完整功能
-    </Text>
-  </View>
-)}
-```
+如果有疑惑：**先看代码，不看历史文档**。本项目历史包袱多，文档可能过时，代码是唯一真相源。

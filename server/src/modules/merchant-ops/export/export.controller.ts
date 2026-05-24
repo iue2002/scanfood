@@ -19,6 +19,7 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { Audit, Permissions } from '../auth/decorators';
 import { ExportCore } from './export.core';
 import { ExportOrdersBodyDto, ExportReportBodyDto } from './export.dto';
+import { ExportRateLimitGuard } from '../common/rate-limit.guard';
 import type { ActorContext } from '../auth/rbac.types';
 
 /**
@@ -57,6 +58,7 @@ export class ExportController {
   }
 
   @Post('orders')
+  @UseGuards(ExportRateLimitGuard)
   @Permissions('EXPORT_ORDERS')
   @Audit('EXPORT_ORDERS', { targetType: 'export_job' })
   @HttpCode(HttpStatus.OK)
@@ -110,6 +112,7 @@ export class ExportController {
   }
 
   @Post('reports')
+  @UseGuards(ExportRateLimitGuard)
   @Permissions('EXPORT_REPORT')
   @Audit('EXPORT_REPORT', { targetType: 'report' })
   @HttpCode(HttpStatus.OK)

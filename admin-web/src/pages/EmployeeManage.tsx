@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Filter,
@@ -72,6 +73,8 @@ export default function EmployeeManage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Employee | null>(null)
   const [tempPwdResult, setTempPwdResult] = useState<{ employee: Employee; tempPassword: string } | null>(null)
+  // R21: 排班表占位 Tab
+  const [activeTab, setActiveTab] = useState<'employees' | 'shifts'>('employees')
 
   const fetchList = useCallback(async () => {
     setLoading(true)
@@ -141,15 +144,57 @@ export default function EmployeeManage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-3">
         <h2 className="text-xl sm:text-2xl font-semibold text-[#0F172A]">员工管理</h2>
+        {activeTab === 'employees' && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer"
+          >
+            <Plus size={16} /> 新增员工
+          </button>
+        )}
+      </div>
+
+      {/* Tab 切换：员工 / 排班表占位（R21） */}
+      <div className="flex items-center gap-1 border-b border-[#E2E8F0] mb-4">
         <button
-          onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer"
+          onClick={() => setActiveTab('employees')}
+          className={`px-4 py-2 text-sm font-medium cursor-pointer transition-colors border-b-2 -mb-px ${
+            activeTab === 'employees'
+              ? 'border-[#2563EB] text-[#2563EB]'
+              : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+          }`}
         >
-          <Plus size={16} /> 新增员工
+          员工
+        </button>
+        <button
+          onClick={() => setActiveTab('shifts')}
+          className={`px-4 py-2 text-sm font-medium cursor-pointer transition-colors border-b-2 -mb-px ${
+            activeTab === 'shifts'
+              ? 'border-[#2563EB] text-[#2563EB]'
+              : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+          }`}
+        >
+          排班表
+          <span className="ml-1 text-xs text-[#94A3B8]">即将推出</span>
         </button>
       </div>
+
+      {activeTab === 'shifts' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-[#F1F5F9] flex items-center justify-center">
+            <CalendarClock className="w-7 h-7 text-[#94A3B8]" />
+          </div>
+          <h3 className="text-base font-semibold text-[#0F172A] mb-1">排班表（即将推出）</h3>
+          <p className="text-sm text-[#94A3B8] max-w-sm mx-auto">
+            二期我们会在这里支持周排班、班次模板、跨员工调班、自动统计工时等能力。当前先把员工管理基础打牢。
+          </p>
+        </div>
+      )}
+
+      {activeTab === 'employees' && (
+        <>
 
       {/* 过滤条 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5">
@@ -297,11 +342,8 @@ export default function EmployeeManage() {
         )}
       </div>
 
-      {/* 占位提示：排班表二期 */}
-      <div className="mt-5 p-4 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl text-sm text-[#92400E]">
-        <strong>📅 排班表（即将推出）</strong>
-        <span className="ml-2 text-[#A16207]">该功能将在二期上线，可记录员工排班与考勤。</span>
-      </div>
+        </>
+      )}
 
       {/* 创建员工 modal */}
       {createOpen && (
@@ -546,4 +588,12 @@ function TempPasswordModal({ employee, tempPassword, onClose }: { employee: Empl
       </div>
     </div>
   )
+}
+
+/**
+ * R21.3：员工详情页底部预留挂载点（本期渲染为 null，二期填实）
+ * 通过 export 出去，外部组件可在员工详情区域挂上 <EmployeeShiftSection employeeId={id} />
+ */
+export function EmployeeShiftSection(_props: { employeeId: number }): null {
+  return null
 }

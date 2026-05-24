@@ -32,6 +32,7 @@ import { AesEncryptorService } from './print/aes-encryptor';
 import { MopEventBus } from './print/mop-event-bus';
 import { PrintScheduler } from './print/print.scheduler';
 import { PrintEventHook } from './print/print-event-hook';
+import { MerchantOpsRequestLogInterceptor } from './common/request-log.interceptor';
 import { StoreSettingsService } from '@/modules/store-settings/store-settings.service';
 import { StoreSettingsModule } from '@/modules/store-settings/store-settings.module';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -155,6 +156,11 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
+    },
+    // 全局请求日志（仅 /api/merchant-ops/* 路由生效，R20.3）
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MerchantOpsRequestLogInterceptor,
     },
   ],
   exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore, PrintCore],

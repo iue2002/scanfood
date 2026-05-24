@@ -4,6 +4,7 @@ import { tables, orders, order_items, table_validations } from '@/storage/databa
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
 import { eq, asc, and, inArray, desc, ne } from 'drizzle-orm';
 import { WechatService } from '@/modules/wechat/wechat.service';
+import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 
 const TAKEAWAY_TABLE_NUMBER = '__TAKEAWAY__';
 
@@ -12,6 +13,7 @@ export class TablesService {
   constructor(
     @Inject(WechatService)
     private readonly wechatService: WechatService,
+    private readonly imageCleanup: LocalImageCleanupService,
   ) {}
 
   async getTables() {
@@ -116,15 +118,22 @@ export class TablesService {
   }
 
   async deleteTable(id: number) {
+    // 先读 qr_code_url，删完表行后再清理本地二维码图片
+    const cur = await db.select({ qr_code_url: tables.qr_code_url }).from(tables).where(eq(tables.id, id)).limit(1);
+    const qrUrl = cur[0]?.qr_code_url ?? null;
     // 同步删除验证表中的记录（外键 onDelete:cascade 也会处理，但显式删除更安全）
     await db.delete(table_validations).where(eq(table_validations.table_id, id));
     await db.delete(tables).where(eq(tables.id, id));
+    if (qrUrl) {
+      void this.imageCleanup.removeByUrl(qrUrl); // fire-and-forget
+    }
     return { message: '删除成功' };
   }
 
   async generateQrCode(id: number) {
     const table = await this.getTableById(id);
-    
+    const oldQr = table.qr_code_url ?? null;
+
     // scene参数只传桌台编号，不带前缀（与yanshi项目一致）
     const scene = table.table_number;
     // 使用 order 页面
@@ -141,6 +150,10 @@ export class TablesService {
         qrCodeUrl = await this.wechatService.generateQrCode(scene, page, 430);
       }
       await db.update(tables).set({ qr_code_url: qrCodeUrl }).where(eq(tables.id, id));
+      // 旧二维码替换：清理上一份本地文件
+      if (oldQr && oldQr !== qrCodeUrl) {
+        void this.imageCleanup.removeByUrl(oldQr);
+      }
       console.log('微信小程序码生成成功');
       return await this.getTableById(id);
     } catch (error) {

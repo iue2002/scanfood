@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
+import { CommonModule } from '@/modules/common/common.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { DishesModule } from '@/modules/dishes/dishes.module';
 import { TablesModule } from '@/modules/tables/tables.module';
@@ -19,6 +20,7 @@ import { MerchantOpsModule } from '@/modules/merchant-ops/merchant-ops.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    CommonModule,
     AuthModule,
     DishesModule,
     TablesModule,

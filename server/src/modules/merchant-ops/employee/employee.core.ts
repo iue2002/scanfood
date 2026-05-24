@@ -61,6 +61,8 @@ export interface UpdateEmployeeDto {
 export interface EmployeeCoreOpts {
   /** 强制下线钩子：在 token_version 变更后调用，断开该用户所有 WS */
   forceLogout?: (userId: number, reason?: string) => void;
+  /** 头像清理钩子：删除员工 / 更新头像后清理本地图片文件（fire-and-forget） */
+  cleanupAvatar?: (avatarUrl: string) => void;
 }
 
 @Injectable()
@@ -272,6 +274,10 @@ export class EmployeeCore {
     }
     await this.repo.softDelete(id);
     this.opts.forceLogout?.(id, 'account deleted');
+    if (target.avatar_url) {
+      try { this.opts.cleanupAvatar?.(target.avatar_url); }
+      catch { /* 不让头像清理失败阻塞软删主流程 */ }
+    }
   }
 
   async resetPassword(actor: ActorContext, id: number): Promise<{ tempPassword: string }> {

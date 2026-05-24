@@ -34,6 +34,7 @@ import { PrintScheduler } from './print/print.scheduler';
 import { PrintEventHook } from './print/print-event-hook';
 import { MerchantOpsRequestLogInterceptor } from './common/request-log.interceptor';
 import { RateLimitSweepScheduler } from './common/rate-limit-sweep.scheduler';
+import { LocalImageCleanupService } from './common/image-cleanup';
 import { StoreSettingsService } from '@/modules/store-settings/store-settings.service';
 import { StoreSettingsModule } from '@/modules/store-settings/store-settings.module';
 import { PermissionsGuard } from './auth/permissions.guard';
@@ -141,13 +142,17 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
     },
     {
       provide: EmployeeCore,
-      useFactory: (repo, gateway: OrdersGateway) => new EmployeeCore(repo, {
+      useFactory: (repo, gateway: OrdersGateway, imageCleanup: LocalImageCleanupService) => new EmployeeCore(repo, {
         forceLogout: (userId, reason) => {
           try { gateway.disconnectUser(userId, reason); }
           catch (err) { /* 不让异常冒泡到员工管理主流程 */ }
         },
+        cleanupAvatar: (url) => {
+          try { void imageCleanup.removeByUrl(url); }
+          catch { /* fire-and-forget */ }
+        },
       }),
-      inject: [EMPLOYEE_REPO_TOKEN, OrdersGateway],
+      inject: [EMPLOYEE_REPO_TOKEN, OrdersGateway, LocalImageCleanupService],
     },
     AuditArchiveScheduler,
     ExportCleanupScheduler,

@@ -2,9 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { store_settings } from '@/storage/database/shared/schema';
 import { eq } from 'drizzle-orm';
+import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 
 @Injectable()
 export class StoreSettingsService {
+  constructor(private readonly imageCleanup: LocalImageCleanupService) {}
+
   async getStoreSettings() {
     const settings = await db
       .select()
@@ -35,17 +38,25 @@ export class StoreSettingsService {
       return { store_name: data.store_name, store_avatar: data.store_avatar || '' };
     }
     
+    const oldAvatar = existing[0].store_avatar ?? null;
+    const nextAvatar = data.store_avatar !== undefined ? data.store_avatar : oldAvatar;
+
     await db
       .update(store_settings)
       .set({
         store_name: data.store_name,
-        store_avatar: data.store_avatar || existing[0].store_avatar,
+        store_avatar: nextAvatar,
       })
       .where(eq(store_settings.id, existing[0].id));
+
+    // 头像被替换：清理旧的本地文件
+    if (oldAvatar && data.store_avatar && oldAvatar !== data.store_avatar) {
+      void this.imageCleanup.removeByUrl(oldAvatar);
+    }
     
     return { 
       store_name: data.store_name, 
-      store_avatar: data.store_avatar || existing[0].store_avatar 
+      store_avatar: nextAvatar
     };
   }
 }

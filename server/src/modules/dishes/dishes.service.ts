@@ -3,9 +3,11 @@ import { db } from '@/storage/database/mysql-client';
 import { dishes, dish_categories, dish_specs } from '@/storage/database/shared/schema';
 import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
 import { eq, asc, and } from 'drizzle-orm';
+import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 
 @Injectable()
 export class DishesService {
+  constructor(private readonly imageCleanup: LocalImageCleanupService) {}
   async getCategories() {
     return await db.select().from(dish_categories).orderBy(asc(dish_categories.sort_order));
   }
@@ -82,7 +84,16 @@ export class DishesService {
   async updateDish(id: number, dto: UpdateDishDto) {
     const updateData: any = { ...dto };
     if (dto.price !== undefined) updateData.price = dto.price.toFixed(2);
+    // 若 image_url 改了，先记录旧值，更新后清理本地旧图
+    let oldImage: string | null | undefined;
+    if (dto.image_url !== undefined) {
+      const cur = await db.select({ image_url: dishes.image_url }).from(dishes).where(eq(dishes.id, id)).limit(1);
+      oldImage = cur[0]?.image_url ?? null;
+    }
     await db.update(dishes).set(updateData).where(eq(dishes.id, id));
+    if (oldImage && oldImage !== dto.image_url) {
+      void this.imageCleanup.removeByUrl(oldImage); // fire-and-forget
+    }
     return await this.getDishById(id);
   }
 
@@ -94,7 +105,14 @@ export class DishesService {
   }
 
   async deleteDish(id: number) {
+    // 先读取图片地址，删完表行后再清理本地文件
+    // 注意：order_items 已经存了 dish_name 冗余，删菜品不影响历史订单显示
+    const cur = await db.select({ image_url: dishes.image_url }).from(dishes).where(eq(dishes.id, id)).limit(1);
+    const imgUrl = cur[0]?.image_url ?? null;
     await db.delete(dishes).where(eq(dishes.id, id));
+    if (imgUrl) {
+      void this.imageCleanup.removeByUrl(imgUrl); // fire-and-forget
+    }
     return { message: '删除成功' };
   }
 

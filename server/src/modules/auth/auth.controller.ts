@@ -24,7 +24,6 @@ export class AuthController {
       || req.connection?.remoteAddress
       || '';
     const userAgent = (req.headers['user-agent'] as string) || '';
-    console.log('[POST /api/auth/login]', { username: dto.username, ip: ipAddress });
     const result = await this.authService.login(dto, ipAddress, userAgent);
     console.log('[Response]', { userId: result.user?.id, hasLastLogin: !!result.last_login });
     return result;
@@ -32,7 +31,6 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() dto: RegisterDto) {
-    console.log('[POST /api/auth/register]', dto);
     const result = await this.authService.register(dto);
     console.log('[Response]', result);
     return result;
@@ -40,7 +38,6 @@ export class AuthController {
 
   @Post('wechat-login')
   async wechatLogin(@Body() dto: WechatLoginDto) {
-    console.log('[POST /api/auth/wechat-login]', dto);
     const result = await this.authService.wechatLogin(dto.code, dto.nickname, dto.avatar_url);
     console.log('[Response]', result);
     return result;
@@ -69,7 +66,6 @@ export class AuthController {
   @Post('bind-table')
   @UseGuards(JwtAuthGuard)
   async bindTable(@Request() req: any, @Body() dto: BindTableDto) {
-    console.log('[POST /api/auth/bind-table]', dto);
     const result = await this.authService.bindTable(req.user.userId, dto);
     console.log('[Response]', result);
     return result;

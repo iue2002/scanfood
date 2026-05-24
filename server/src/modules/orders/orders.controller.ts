@@ -15,7 +15,6 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Get('current/:tableId')
   async getTableCurrentOrder(@Param('tableId', ParseIntPipe) tableId: number) {
-    console.log('[GET /api/orders/current/:tableId]', { tableId });
     const result = await this.ordersService.getTableCurrentOrder(tableId);
     const settings = await this.storeSettingsService.getStoreSettings();
     return { ...result, store_name: settings.store_name, store_avatar: settings.store_avatar };
@@ -24,7 +23,6 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Get('my-active')
   async getMyActiveOrder(@Req() req) {
-    console.log('[GET /api/orders/my-active]', { userId: req.user?.userId });
     const result = await this.ordersService.getMyActiveOrder(req.user?.userId);
     const settings = await this.storeSettingsService.getStoreSettings();
     if (result) {
@@ -40,7 +38,6 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Post('sync-draft')
   async syncDraft(@Body() dto: CreateOrderDto) {
-    console.log('[POST /api/orders/sync-draft]', dto);
     return await this.ordersService.syncDraft(dto);
   }
 
@@ -50,7 +47,6 @@ export class OrdersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SyncAddMoreDto,
   ) {
-    console.log('[POST /api/orders/:id/sync-add-more]', { id, dto });
     return await this.ordersService.syncAddMore(id, dto);
   }
 
@@ -83,14 +79,12 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getOrderById(@Param('id', ParseIntPipe) id: number) {
-    console.log('[GET /api/orders/:id]', { id });
     return await this.ordersService.getOrderById(id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post()
   async createOrder(@Body() dto: CreateOrderDto) {
-    console.log('[POST /api/orders]', dto);
     return await this.ordersService.createOrder(dto);
   }
 
@@ -101,7 +95,6 @@ export class OrdersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddOrderItemDto,
   ) {
-    console.log('[POST /api/orders/:id/items]', { id, dto });
     return await this.ordersService.addOrderItem(id, dto);
   }
 
@@ -112,7 +105,6 @@ export class OrdersController {
     @Param('itemId', ParseIntPipe) itemId: number,
     @Query('quantity') quantity?: string,
   ) {
-    console.log('[DELETE /api/orders/:id/items/:itemId]', { id, itemId, quantity });
     const qty = quantity ? parseInt(quantity, 10) : undefined;
     return await this.ordersService.removeOrderItem(id, itemId, qty);
   }
@@ -124,7 +116,6 @@ export class OrdersController {
     @Param('itemId', ParseIntPipe) itemId: number,
     @Body('quantity') quantity: number,
   ) {
-    console.log('[PUT /api/orders/:id/items/:itemId]', { id, itemId, quantity });
     return await this.ordersService.updateOrderItemQuantity(id, itemId, quantity);
   }
 
@@ -135,7 +126,6 @@ export class OrdersController {
     @Param('itemId', ParseIntPipe) itemId: number,
     @Body() dto: UpdateOrderItemServedDto,
   ) {
-    console.log('[POST /api/orders/:id/items/:itemId/served]', { id, itemId, dto });
     return await this.ordersService.updateOrderItemServed(id, itemId, dto.served);
   }
 
@@ -146,14 +136,12 @@ export class OrdersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
   ) {
-    console.log('[POST /api/orders/:id/status]', { id, dto });
     return await this.ordersService.updateOrderStatus(id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async deleteOrder(@Param('id', ParseIntPipe) id: number) {
-    console.log('[DELETE /api/orders/:id]', { id });
     return await this.ordersService.deleteOrder(id);
   }
 }

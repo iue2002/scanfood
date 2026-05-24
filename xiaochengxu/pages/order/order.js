@@ -59,7 +59,6 @@ Page({
       // 微信扫码进入时，scene就是桌台编号（如 "01"）
       try {
         const scene = decodeURIComponent(options.scene);
-        console.log('解析 scene:', scene);
         if (scene) {
           tableNumber = scene;
         }
@@ -95,7 +94,6 @@ Page({
     try {
       const token = wx.getStorageSync('token');
       if (!token) {
-        console.log('未登录，跳过检查未完成订单');
         return;
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
@@ -112,7 +110,6 @@ Page({
     try {
       const token = wx.getStorageSync('token');
       if (!token) {
-        console.log('未登录，跳过检查未完成订单');
         // 未登录时也释放桌号资源
         if (this.data.tableId) {
           this.releaseTableResources();
@@ -120,7 +117,6 @@ Page({
         return false;
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
-      console.log('checkActiveOrder 结果:', order);
       if (order && order.id) {
         // 有未完成订单：锁定模式打开 detail-sheet（强制用户完成订单）
         this.openDetailSheet(order.id, true);
@@ -218,7 +214,6 @@ Page({
   },
 
   async onPullDownRefresh() {
-    console.log('下拉刷新 - 重新加载菜品和订单');
     try {
       await this.fetchData();
       if (this.data.tableId) {
@@ -294,8 +289,7 @@ Page({
     this.ws.onMessage((res) => {
       try {
         const message = JSON.parse(res.data);
-        console.log('收到 WebSocket 消息:', message);
-        
+
         if (message.event === 'cartUpdated') {
           this.handleCartUpdate(message.data);
         } else if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
@@ -361,8 +355,6 @@ Page({
   },
 
   handleOrderUpdate(order) {
-    console.log('处理订单更新:', order);
-    
     if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
       if (this.data.isAddMore) {
         return;
@@ -464,8 +456,6 @@ Page({
 
   // 释放桌号资源 - 结账/取消后必须清理，避免缓存导致下次进入混乱
   releaseTableResources() {
-    console.log('释放桌号资源，清理所有缓存');
-
     // 重置页面数据
     this.setData({
       cartCount: {},
@@ -567,13 +557,9 @@ Page({
 
   async fetchData() {
     try {
-      console.log('开始获取菜品数据...');
       const categories = await request({ url: '/dishes/categories', noLoading: true });
-      console.log('获取到分类:', categories);
-      
       let allDishes = await request({ url: '/dishes', noLoading: true });
-      console.log('获取到菜品:', allDishes);
-      
+
       const { serverURL } = require('../../utils/request');
       allDishes = allDishes.map(dish => {
         if (dish.image_url && !dish.image_url.startsWith('http')) {
@@ -670,7 +656,6 @@ Page({
       onlyFromCamera: false,
       scanType: ['qrCode', 'barCode', 'wxCode'],
       success: (res) => {
-        console.log('扫码结果:', res);
         let tableNumber = '';
         
         // 优先从 path 的 scene 参数中提取桌码号（小程序码扫码）

@@ -10,7 +10,6 @@ export class DishesController {
   // 获取所有菜品分类
   @Get('categories')
   async getCategories() {
-    console.log('[GET /api/dishes/categories]');
     return await this.dishesService.getCategories();
   }
 
@@ -18,7 +17,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Post('categories')
   async createCategory(@Body() dto: CreateCategoryDto) {
-    console.log('[POST /api/dishes/categories]', dto);
     return await this.dishesService.createCategory(dto);
   }
 
@@ -29,7 +27,6 @@ export class DishesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateCategoryDto,
   ) {
-    console.log('[PUT /api/dishes/categories/:id]', { id, dto });
     return await this.dishesService.updateCategory(id, dto);
   }
 
@@ -37,7 +34,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Delete('categories/:id')
   async deleteCategory(@Param('id', ParseIntPipe) id: number) {
-    console.log('[DELETE /api/dishes/categories/:id]', { id });
     return await this.dishesService.deleteCategory(id);
   }
 
@@ -53,7 +49,6 @@ export class DishesController {
   // 获取单个菜品
   @Get(':id')
   async getDishById(@Param('id', ParseIntPipe) id: number) {
-    console.log('[GET /api/dishes/:id]', { id });
     return await this.dishesService.getDishById(id);
   }
 
@@ -61,7 +56,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async createDish(@Body() dto: CreateDishDto) {
-    console.log('[POST /api/dishes]', dto);
     return await this.dishesService.createDish(dto);
   }
 
@@ -72,7 +66,6 @@ export class DishesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDishDto,
   ) {
-    console.log('[PUT /api/dishes/:id]', { id, dto });
     return await this.dishesService.updateDish(id, dto);
   }
 
@@ -80,7 +73,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/toggle')
   async toggleDishStatus(@Param('id', ParseIntPipe) id: number) {
-    console.log('[POST /api/dishes/:id/toggle]', { id });
     return await this.dishesService.toggleDishStatus(id);
   }
 
@@ -88,7 +80,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async deleteDish(@Param('id', ParseIntPipe) id: number) {
-    console.log('[DELETE /api/dishes/:id]', { id });
     return await this.dishesService.deleteDish(id);
   }
 
@@ -96,7 +87,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Post('specs')
   async addDishSpec(@Body() dto: CreateDishSpecDto) {
-    console.log('[POST /api/dishes/specs]', dto);
     return await this.dishesService.addDishSpec(dto);
   }
 
@@ -104,7 +94,6 @@ export class DishesController {
   @UseGuards(JwtAuthGuard)
   @Delete('specs/:id')
   async deleteDishSpec(@Param('id', ParseIntPipe) id: number) {
-    console.log('[DELETE /api/dishes/specs/:id]', { id });
     return await this.dishesService.deleteDishSpec(id);
   }
 }

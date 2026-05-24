@@ -1,8 +1,7 @@
 {
   "pages": [
     "pages/order/order",
-    "pages/me/me",
-    "pages/logs/logs"
+    "pages/me/me"
   ],
   "preloadRule": {
     "pages/me/me": {

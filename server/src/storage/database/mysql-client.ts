@@ -4,8 +4,9 @@ import * as schema from './shared/schema';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-// 加载 .env 文件
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+// 加载 server/.env （main.ts 也已 import 'dotenv/config' 走 process.cwd()，
+// 这里再次显式指定路径以兼容非 cwd 启动场景，比如 jest / vitest）
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const host = process.env.DB_HOST || 'localhost';
 const port = parseInt(process.env.DB_PORT || '3306', 10);

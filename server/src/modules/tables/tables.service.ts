@@ -134,19 +134,16 @@ export class TablesService {
     const table = await this.getTableById(id);
     const oldQr = table.qr_code_url ?? null;
 
-    // scene参数只传桌台编号，不带前缀（与yanshi项目一致）
+    // scene 参数：桌台编号（不加前缀）
     const scene = table.table_number;
-    // 使用 order 页面
     const page = 'pages/order/order';
-    
+
     try {
-      console.log('生成微信小程序码...');
-      // 先尝试使用 createQRCode 接口（对未发布小程序更友好）
+      // 先尝试使用 createQRCode 接口（对未发布小程序更友好），失败降级到 getUnlimited
       let qrCodeUrl;
       try {
         qrCodeUrl = await this.wechatService.createQRCode(scene, page, 430);
       } catch (error) {
-        console.log('createQRCode 失败，尝试使用 getUnlimited 接口');
         qrCodeUrl = await this.wechatService.generateQrCode(scene, page, 430);
       }
       await db.update(tables).set({ qr_code_url: qrCodeUrl }).where(eq(tables.id, id));
@@ -154,7 +151,6 @@ export class TablesService {
       if (oldQr && oldQr !== qrCodeUrl) {
         void this.imageCleanup.removeByUrl(oldQr);
       }
-      console.log('微信小程序码生成成功');
       return await this.getTableById(id);
     } catch (error) {
       console.error('微信小程序码生成失败:', error.message);

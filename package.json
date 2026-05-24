@@ -9,8 +9,7 @@
   },
   "scripts": {
     "_meta": "本项目是三个独立子项目的集合，根目录不安装任何依赖。请进入各子目录单独 npm install。",
-    "install:all": "echo \"请分别进入 server/ 和 admin-web/ 执行 npm install\"",
-    "kill:all": "powershell -NoProfile -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\""
+    "install:all": "echo \"请分别进入 server/ 和 admin-web/ 执行 npm install\""
   },
   "workspaces": []
 }

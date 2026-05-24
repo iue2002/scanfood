@@ -34,7 +34,6 @@ Page({
   },
 
   async onPullDownRefresh() {
-    console.log('下拉刷新 - 重新加载用户信息');
     try {
       this.loadUserInfo();
       wx.stopPullDownRefresh();
@@ -126,8 +125,7 @@ Page({
 
   onChooseAvatar(e) {
     const { avatarUrl } = e.detail;
-    console.log('用户选择头像', avatarUrl);
-    
+
     this.setData({ 
       tempAvatarUrl: avatarUrl,
       showAuthModal: false,
@@ -163,9 +161,7 @@ Page({
       const app = getApp();
       const config = require('../../config');
 
-      console.log('=== 开始微信登录流程 ===');
       const loginRes = await wx.login();
-      console.log('wx.login 结果:', loginRes);
 
       if (!loginRes.code) {
         throw new Error('获取登录code失败: ' + loginRes.errMsg);
@@ -182,14 +178,12 @@ Page({
         },
         noLoading: true
       });
-      console.log('微信登录成功', loginData);
 
       // === Step 2: 上传微信临时头像，换永久 URL（best-effort，失败不阻塞登录） ===
       let permanentAvatarUrl = '';
       if (avatarUrl) {
         try {
           permanentAvatarUrl = await this.uploadAvatar(avatarUrl, loginData.token);
-          console.log('头像上传成功:', permanentAvatarUrl);
         } catch (uploadErr) {
           console.warn('头像上传失败，使用昵称首字母占位', uploadErr);
         }

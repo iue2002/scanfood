@@ -22,8 +22,8 @@ export class WechatService {
   private readonly uploadPath: string;
   
   constructor(private readonly configService: ConfigService) {
-    this.appId = this.configService.get<string>('WECHAT_APPID') || this.configService.get<string>('WX_APP_ID', '');
-    this.appSecret = this.configService.get<string>('WECHAT_APPSECRET') || this.configService.get<string>('WX_APP_SECRET', '');
+    this.appId = this.configService.get<string>('WX_APP_ID', '');
+    this.appSecret = this.configService.get<string>('WX_APP_SECRET', '');
     this.uploadPath = this.configService.get<string>('UPLOAD_PATH', './uploads');
   }
 
@@ -74,7 +74,7 @@ export class WechatService {
         width: width
       });
 
-      this.logger.log(`调用微信API生成二维码: ${url}`);
+      this.logger.log(`调用微信API生成二维码（getwxacodeunlimit）`);
       this.logger.log(`请求参数: scene=${scene}, page=${page}, width=${width}`);
 
       // 发送POST请求获取二进制图片数据
@@ -121,7 +121,7 @@ export class WechatService {
         width: width
       });
 
-      this.logger.log(`调用微信API createQRCode: ${url}`);
+      this.logger.log(`调用微信API createQRCode（createwxaqrcode）`);
       this.logger.log(`请求参数: path=${page}?scene=${scene}, width=${width}`);
 
       const imageBuffer = await this.requestBinary(url, postData);

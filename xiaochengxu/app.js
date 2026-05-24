@@ -4,10 +4,6 @@ const dishesCache = require('./utils/dishes-cache');
 
 App({
   onLaunch() {
-    const logs = wx.getStorageSync('logs') || []
-    logs.unshift(Date.now())
-    wx.setStorageSync('logs', logs)
-
     this.globalData.tableId = null;
     this.globalData.carts = {};
     this.globalData.addMoreCarts = {};

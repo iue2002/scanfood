@@ -105,12 +105,11 @@ async function bootstrap() {
   try {
     const httpServer = app.getHttpServer();
     await app.listen(port);
-    console.log(`Server running on http://localhost:${port}`);
 
     // 初始化 WebSocket 服务器
     const ordersGateway = app.get(OrdersGateway);
     ordersGateway.init(httpServer);
-    console.log(`WebSocket server running on ws://localhost:${port}/ws`);
+    console.log(`Server running on http://localhost:${port} (WebSocket: ws://localhost:${port}/ws)`);
   } catch (err) {
     if (err.code === 'EADDRINUSE') {
       console.error(`❌ 端口 ${port} 被占用! 请运行 'npx kill-port ${port}' 然后重试。`);
@@ -119,6 +118,5 @@ async function bootstrap() {
       throw err;
     }
   }
-  console.log(`Application is running on: http://localhost:${port}`);
 }
 bootstrap();

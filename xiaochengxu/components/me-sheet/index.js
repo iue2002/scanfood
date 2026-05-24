@@ -135,7 +135,6 @@ Component({
 
     onChooseAvatar(e) {
       const { avatarUrl } = e.detail;
-      console.log('用户选择头像', avatarUrl);
       this.setData({
         tempAvatarUrl: avatarUrl,
         showAuthModal: false,
@@ -167,9 +166,7 @@ Component({
       try {
         const app = getApp();
 
-        console.log('=== 开始微信登录流程 ===');
         const loginRes = await wx.login();
-        console.log('wx.login 结果:', loginRes);
 
         if (!loginRes.code) {
           throw new Error('获取登录code失败: ' + loginRes.errMsg);
@@ -185,13 +182,11 @@ Component({
           },
           noLoading: true
         });
-        console.log('微信登录成功', loginData);
 
         let permanentAvatarUrl = '';
         if (avatarUrl) {
           try {
             permanentAvatarUrl = await this.uploadAvatar(avatarUrl, loginData.token);
-            console.log('头像上传成功:', permanentAvatarUrl);
           } catch (uploadErr) {
             console.warn('头像上传失败，使用昵称首字母占位', uploadErr);
           }

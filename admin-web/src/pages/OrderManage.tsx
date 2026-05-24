@@ -426,9 +426,9 @@ export default function OrderManage() {
       </div>
 
       {/* 筛选区域 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5">
-        {/* 订单号搜索（独占一行，移动端友好） */}
-        <div className="mb-3 relative">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5 space-y-3">
+        {/* 第 1 行：订单号搜索 */}
+        <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
           <input
             type="text"
@@ -448,53 +448,51 @@ export default function OrderManage() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          {/* 状态下拉（始终显示，但 < lg 时隐藏 Filter 图标节省空间） */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Filter size={16} className="hidden lg:inline text-[#64748B]" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            >
-              <option value="">全部状态</option>
-              <option value="draft">待提交</option>
-              <option value="submitted">已提交</option>
-              <option value="printed">已打印</option>
-              <option value="settled">已结账</option>
-              <option value="cancelled">已取消</option>
-              <option value="refunded">已退款</option>
-            </select>
-          </div>
 
-          {/* 日期范围（始终显示，<sm 时图标隐藏） */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Calendar size={16} className="hidden sm:inline text-[#64748B]" />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setActiveTag('') }}
-              className="px-2 sm:px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-              placeholder="开始日期"
-            />
-            <span className="text-[#94A3B8]">至</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setActiveTag('') }}
-              className="px-2 sm:px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-              placeholder="结束日期"
-            />
+        {/* 第 2 行：状态胶囊（横向滚动，覆盖所有状态；取代之前重复的下拉） */}
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
+            <Filter size={12} />
+            <span>状态筛选</span>
           </div>
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1">
+            {[
+              { value: '', label: '全部' },
+              { value: 'submitted', label: '已提交' },
+              { value: 'printed', label: '已打印' },
+              { value: 'unpaid', label: '待支付' },
+              { value: 'settled', label: '已结账' },
+              { value: 'cancelled', label: '已取消' },
+              { value: 'refunded', label: '已退款' },
+              { value: 'draft', label: '待提交' },
+            ].map((item) => (
+              <button
+                key={item.value || 'all'}
+                onClick={() => setFilterStatus(item.value)}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                  filterStatus === item.value
+                    ? 'bg-[#2563EB] text-white'
+                    : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          {/* 时段预设标签（>= md 显示） */}
-          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
-            <Tag size={16} className="text-[#64748B]" />
+        {/* 第 3 行：时段预设（高频，所有屏幕都显示） */}
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
+            <Tag size={12} />
+            <span>时段</span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1">
             {presetTags.map(tag => (
               <button
                 key={tag.key}
                 onClick={() => applyTag(tag.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                   activeTag === tag.key
                     ? 'bg-[#2563EB] text-white'
                     : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
@@ -504,39 +502,43 @@ export default function OrderManage() {
               </button>
             ))}
           </div>
+        </div>
 
-          {(dateFrom || dateTo || filterStatus || orderSearchInput) && (
+        {/* 第 4 行：日期范围（独占，input 不再挤压） */}
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
+            <Calendar size={12} />
+            <span>自定义日期</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setActiveTag('') }}
+              className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            />
+            <span className="text-[#94A3B8] text-sm shrink-0">至</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setActiveTag('') }}
+              className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            />
+          </div>
+        </div>
+
+        {/* 第 5 行（条件）：清除按钮 + 生效条件提示 */}
+        {(dateFrom || dateTo || filterStatus || orderSearchInput || activeTag) && (
+          <div className="flex items-center justify-end pt-1 border-t border-gray-100">
             <button
               onClick={() => { setDateFrom(''); setDateTo(''); setFilterStatus(''); setActiveTag(''); setOrderSearchInput('') }}
-              className="px-3 py-1.5 text-sm text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
             >
-              清除筛选
+              <XCircle size={14} />
+              清除全部筛选
             </button>
-          )}
-        </div>
-        <div className="mt-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          {[
-            { value: '', label: '全部' },
-            { value: 'submitted', label: '已提交' },
-            { value: 'printed', label: '已打印' },
-            { value: 'unpaid', label: '待支付' },
-            { value: 'settled', label: '已结账' },
-            { value: 'cancelled', label: '已取消' },
-            { value: 'refunded', label: '已退款' },
-          ].map((item) => (
-            <button
-              key={item.value || 'all'}
-              onClick={() => setFilterStatus(item.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                filterStatus === item.value
-                  ? 'bg-[#2563EB] text-white'
-                  : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* 订单列表 - 桌面端表格 */}

@@ -119,7 +119,10 @@ export interface PrintPayload {
   fields: TemplateField[];
   // 订单数据投影
   store_name?: string;
+  /** 真实桌号（外带订单为内部哨兵 '__TAKEAWAY__'，由 order_type 区分） */
   table_number?: string;
+  /** 'dine_in' | 'takeaway'；不传时按堂食处理 */
+  order_type?: string;
   order_no?: string;
   order_time?: string;
   items?: Array<{ name: string; quantity: number; spec?: string | null; subtotal?: number }>;
@@ -128,15 +131,26 @@ export interface PrintPayload {
   operator?: string | null;
 }
 
+/** 内部哨兵：外带订单的虚拟"打包"桌台 number（来自 orders 业务层约定） */
+export const TAKEAWAY_TABLE_SENTINEL = '__TAKEAWAY__';
+
 /** 订单投影（M4 已有 OrderExportRow，但打印需要更细粒度） */
 export interface OrderProjection {
   order_id: number;
   order_no: string;
+  /** 真实桌号字符串（外带订单为内部哨兵 '__TAKEAWAY__'，渲染层自行识别） */
   table_number: string;
+  /** 'dine_in' | 'takeaway' — 渲染时按外带特殊显示 */
+  order_type: string;
   store_name: string;
   created_at: Date;
   total_amount: number;
   remark: string | null;
+  /**
+   * 操作员（结账/收银的店员）。
+   * 注意：当前库里没有"哪个员工处理"的字段，所以总是 null。
+   * 不要把订单的 user_id（顾客）当 operator——那是顾客微信昵称，打到小票上是错的。
+   */
   operator: string | null;
   items: Array<{ name: string; spec: string | null; quantity: number; subtotal: number }>;
 }

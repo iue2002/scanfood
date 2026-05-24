@@ -8,7 +8,6 @@ import {
   orders,
   order_items,
   tables,
-  users,
   store_settings,
 } from '@/storage/database/shared/schema';
 import { asc, eq } from 'drizzle-orm';
@@ -21,16 +20,14 @@ export class PrintOrderReader {
       .select({
         id: orders.id,
         order_number: orders.order_number,
+        order_type: orders.order_type,
         total_amount: orders.total_amount,
         remark: orders.remark,
         created_at: orders.created_at,
         table_number: tables.table_number,
-        operator_user: users.username,
-        operator_nick: users.nickname,
       })
       .from(orders)
       .leftJoin(tables, eq(tables.id, orders.table_id))
-      .leftJoin(users, eq(users.id, orders.user_id))
       .where(eq(orders.id, orderId))
       .limit(1);
     if (head.length === 0) return null;
@@ -56,11 +53,15 @@ export class PrintOrderReader {
       order_id: h.id,
       order_no: h.order_number,
       table_number: h.table_number ?? '-',
+      order_type: h.order_type || 'dine_in',
       store_name: storeName,
       created_at: h.created_at as Date,
       total_amount: Number(h.total_amount ?? 0),
       remark: h.remark ?? null,
-      operator: h.operator_nick || h.operator_user || null,
+      // 当前库里没有"哪个员工处理订单"的字段；
+      // 不要把订单的 user_id（顾客）当 operator —— 那是顾客微信昵称，打到小票上是错的。
+      // 等以后 orders 表加 settled_by_employee_id 等字段再 join 真正的员工 nickname。
+      operator: null,
       items: items.map((it) => ({
         name: it.name,
         spec: it.spec ?? null,

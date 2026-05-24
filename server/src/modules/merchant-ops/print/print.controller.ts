@@ -162,8 +162,9 @@ export class PrintController {
   @Post('print-templates/:id/preview')
   @Roles('owner', 'manager', 'admin')
   @HttpCode(HttpStatus.OK)
-  async previewTemplate(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.core.previewTemplate(id);
+  async previewTemplate(@Param('id', ParseIntPipe) id: number, @Query('scenario') scenario?: string) {
+    const isTakeaway = scenario === 'takeaway';
+    const data = await this.core.previewTemplate(id, undefined, isTakeaway);
     return { data };
   }
 }

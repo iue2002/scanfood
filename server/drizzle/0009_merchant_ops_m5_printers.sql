@@ -57,8 +57,10 @@ CREATE TABLE IF NOT EXISTS `print_jobs` (
 );
 
 -- 默认模板（idempotent：ON DUPLICATE KEY UPDATE 兜底重跑）
+-- 注意：不含 OPERATOR 字段。当前业务库里没存"哪个员工处理订单"的字段；
+-- 强行打印只能拿到顾客昵称（错的）。等 orders 表加 settled_by_employee_id 后再加。
 INSERT INTO `print_templates` (`id`, `name`, `fields_json`, `width`)
-VALUES (1, '默认全票', JSON_ARRAY('STORE_NAME','TABLE_NUMBER','ORDER_NO','TIME','ITEMS','TOTAL','REMARK','OPERATOR'), '80mm')
+VALUES (1, '默认全票', JSON_ARRAY('STORE_NAME','TABLE_NUMBER','ORDER_NO','TIME','ITEMS','TOTAL','REMARK'), '80mm')
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `fields_json` = VALUES(`fields_json`), `width` = VALUES(`width`);
 
 INSERT INTO `print_templates` (`id`, `name`, `fields_json`, `width`)

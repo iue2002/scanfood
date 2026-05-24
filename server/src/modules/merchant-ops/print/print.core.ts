@@ -43,9 +43,20 @@ import {
   RETRY_DELAYS_MS,
   RETRY_TICK_BATCH_PER_PRINTER,
   SEND_TIMEOUT_MS,
+  TAKEAWAY_TABLE_SENTINEL,
   TEST_PRINT_TIMEOUT_MS,
 } from './print.types';
 import type { Aes256Encryptor } from './aes-encryptor';
+
+/** 渲染桌号字段时的友好显示 */
+function formatTableLabel(payload: PrintPayload): { label: string; value: string } {
+  const isTakeaway = payload.order_type === 'takeaway' || payload.table_number === TAKEAWAY_TABLE_SENTINEL;
+  if (isTakeaway) {
+    // 外带订单：不显示桌号字段名，只标"外带"
+    return { label: '类型', value: '🛍️ 外带' };
+  }
+  return { label: '桌号', value: payload.table_number ?? '-' };
+}
 
 /** ESC/POS 渲染时使用的字段标记（解析时回读） */
 const FIELD_MARKERS: Record<TemplateField, string> = {
@@ -147,9 +158,11 @@ export class PrintCore {
         case 'STORE_NAME':
           lines.push(payload.store_name ?? '');
           break;
-        case 'TABLE_NUMBER':
-          lines.push(`桌号：${payload.table_number ?? '-'}`);
+        case 'TABLE_NUMBER': {
+          const t = formatTableLabel(payload);
+          lines.push(`${t.label}：${t.value}`);
           break;
+        }
         case 'ORDER_NO':
           lines.push(`订单号：${payload.order_no ?? '-'}`);
           break;
@@ -157,7 +170,10 @@ export class PrintCore {
           lines.push(`时间：${payload.order_time ?? '-'}`);
           break;
         case 'OPERATOR':
-          lines.push(`操作员：${payload.operator ?? '-'}`);
+          // 仅在 payload 真有 operator 时打印；没有时整行省略，避免出现 "操作员：-"
+          if (payload.operator && payload.operator.trim().length > 0) {
+            lines.push(`操作员：${payload.operator}`);
+          }
           break;
         case 'REMARK':
           lines.push(`备注：${payload.remark ?? '-'}`);
@@ -210,9 +226,11 @@ export class PrintCore {
         case 'STORE_NAME':
           blocks.push(`<div class="store">${escapeHtml(payload.store_name ?? '')}</div>`);
           break;
-        case 'TABLE_NUMBER':
-          blocks.push(`<div class="row"><span>桌号</span><b>${escapeHtml(payload.table_number ?? '-')}</b></div>`);
+        case 'TABLE_NUMBER': {
+          const t = formatTableLabel(payload);
+          blocks.push(`<div class="row"><span>${escapeHtml(t.label)}</span><b>${escapeHtml(t.value)}</b></div>`);
           break;
+        }
         case 'ORDER_NO':
           blocks.push(`<div class="row"><span>订单号</span><b>${escapeHtml(payload.order_no ?? '-')}</b></div>`);
           break;
@@ -220,7 +238,10 @@ export class PrintCore {
           blocks.push(`<div class="row"><span>时间</span><b>${escapeHtml(payload.order_time ?? '-')}</b></div>`);
           break;
         case 'OPERATOR':
-          blocks.push(`<div class="row"><span>操作员</span><b>${escapeHtml(payload.operator ?? '-')}</b></div>`);
+          // 仅当 payload 真有 operator 时显示；空则整行省略
+          if (payload.operator && payload.operator.trim().length > 0) {
+            blocks.push(`<div class="row"><span>操作员</span><b>${escapeHtml(payload.operator)}</b></div>`);
+          }
           break;
         case 'REMARK':
           blocks.push(`<div class="row"><span>备注</span><b>${escapeHtml(payload.remark ?? '-')}</b></div>`);
@@ -424,9 +445,9 @@ export class PrintCore {
   /**
    * R14.4：模板预览（生成 ESC/POS + HTML）
    */
-  async previewTemplate(id: number, sample?: PrintPayload): Promise<{ escpos: string; html: string }> {
+  async previewTemplate(id: number, sample?: PrintPayload, isTakeaway = false): Promise<{ escpos: string; html: string }> {
     const tpl = await this.getTemplate(id);
-    const payload: PrintPayload = sample ?? await this.buildPreviewPayload(tpl);
+    const payload: PrintPayload = sample ?? await this.buildPreviewPayload(tpl, isTakeaway);
     return {
       escpos: PrintCore.renderEscPos(tpl, { ...payload, fields: tpl.fields_json, width: tpl.width }),
       html: PrintCore.renderHtml(tpl, payload),
@@ -437,7 +458,7 @@ export class PrintCore {
    * 优先用真实 store + 真实菜品做样本；任何步骤失败则退回通用占位
    * （这样预览反映真实业务，不会出现"宫保鸡丁"这种与业务无关的硬编码）
    */
-  private async buildPreviewPayload(tpl: TemplateRow): Promise<PrintPayload> {
+  private async buildPreviewPayload(tpl: TemplateRow, isTakeaway = false): Promise<PrintPayload> {
     let storeName: string | null = null;
     let items: Array<{ name: string; spec: string | null; quantity: number; subtotal: number }> = [];
     if (this.sampleProvider) {
@@ -445,7 +466,6 @@ export class PrintCore {
       try { items = await this.sampleProvider.getSampleItems(); } catch { /* fall through */ }
     }
     if (items.length === 0) {
-      // 通用占位，不绑定任何具体业态
       items = [
         { name: '示例商品 A', spec: null, quantity: 1, subtotal: 0 },
         { name: '示例商品 B', spec: null, quantity: 1, subtotal: 0 },
@@ -456,13 +476,14 @@ export class PrintCore {
       width: tpl.width,
       fields: tpl.fields_json,
       store_name: storeName ?? '示例店铺',
-      table_number: '8',
+      table_number: isTakeaway ? TAKEAWAY_TABLE_SENTINEL : '8',
+      order_type: isTakeaway ? 'takeaway' : 'dine_in',
       order_no: 'OD-PREVIEW-001',
       order_time: this.fmtDateTime(this.clock()),
       items,
       total,
       remark: '（这是模板预览，实际打印按订单数据渲染）',
-      operator: '示例操作员',
+      operator: null,  // 预览也不假装有操作员，与真实打印一致
     };
   }
 
@@ -552,6 +573,7 @@ export class PrintCore {
       fields,
       store_name: order.store_name,
       table_number: order.table_number,
+      order_type: order.order_type,
       order_no: order.order_no,
       order_time: this.fmtDateTime(order.created_at),
       items: order.items.map((it) => ({ name: it.name, quantity: it.quantity, spec: it.spec, subtotal: it.subtotal })),

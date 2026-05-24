@@ -594,6 +594,7 @@ function TemplateEditDialog({
   const [saving, setSaving] = useState(false)
   const [previewHtml, setPreviewHtml] = useState<string>('')
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewScenario, setPreviewScenario] = useState<'dine_in' | 'takeaway'>('dine_in')
 
   const toggleField = (f: Field) => {
     setFields((prev) => {
@@ -635,12 +636,13 @@ function TemplateEditDialog({
     }
   }
 
-  const loadPreview = async (id?: number) => {
+  const loadPreview = async (id?: number, scenario: 'dine_in' | 'takeaway' = previewScenario) => {
     const tid = id ?? (isNew ? null : (target as Template).id)
     if (!tid) return
     setPreviewLoading(true)
     try {
-      const res: any = await request.post(`/merchant-ops/print-templates/${tid}/preview`)
+      const url = `/merchant-ops/print-templates/${tid}/preview${scenario === 'takeaway' ? '?scenario=takeaway' : ''}`
+      const res: any = await request.post(url)
       const data = res?.data ?? res
       setPreviewHtml(data?.html ?? '')
     } catch (err: any) {
@@ -651,9 +653,9 @@ function TemplateEditDialog({
   }
 
   useEffect(() => {
-    if (!isNew) loadPreview()
+    if (!isNew) loadPreview(undefined, previewScenario)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [previewScenario])
 
   return (
     <Dialog title={isNew ? '新增模板' : `编辑：${initial?.name}`} onClose={onClose} large>
@@ -702,7 +704,29 @@ function TemplateEditDialog({
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-[#64748B]">实时预览</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#64748B]">实时预览</span>
+              <div className="flex bg-[#F1F5F9] rounded p-0.5 text-xs">
+                <button
+                  onClick={() => setPreviewScenario('dine_in')}
+                  disabled={isNew}
+                  className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                    previewScenario === 'dine_in' ? 'bg-white shadow-sm text-[#0F172A]' : 'text-[#64748B] hover:text-[#0F172A]'
+                  } disabled:opacity-50`}
+                >
+                  堂食
+                </button>
+                <button
+                  onClick={() => setPreviewScenario('takeaway')}
+                  disabled={isNew}
+                  className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                    previewScenario === 'takeaway' ? 'bg-white shadow-sm text-[#0F172A]' : 'text-[#64748B] hover:text-[#0F172A]'
+                  } disabled:opacity-50`}
+                >
+                  外带
+                </button>
+              </div>
+            </div>
             <button
               onClick={() => loadPreview()}
               disabled={previewLoading || isNew}

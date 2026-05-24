@@ -46,7 +46,7 @@ export class PrintOrderReader {
       .where(eq(order_items.order_id, orderId))
       .orderBy(asc(order_items.id));
 
-    let storeName = '伊美轩';
+    let storeName = '小店';
     try {
       const store = await db.select({ name: store_settings.store_name }).from(store_settings).limit(1);
       if (store[0]?.name) storeName = store[0].name;

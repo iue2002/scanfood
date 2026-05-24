@@ -35,6 +35,7 @@ import { AesEncryptorService } from './print/aes-encryptor';
 import { MopEventBus } from './print/mop-event-bus';
 import { PrintScheduler } from './print/print.scheduler';
 import { PrintEventHook } from './print/print-event-hook';
+import { DrizzlePreviewSampleProvider } from './print/preview-sample.provider';
 import { MerchantOpsRequestLogInterceptor } from './common/request-log.interceptor';
 import { RateLimitSweepScheduler } from './common/rate-limit-sweep.scheduler';
 import { LocalImageCleanupService } from './common/image-cleanup';
@@ -65,6 +66,7 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
     BrowserPrinterDriver,
     MopEventBus,
     PrintOrderReader,
+    DrizzlePreviewSampleProvider,
     {
       provide: EMPLOYEE_REPO_TOKEN,
       useClass: DrizzleEmployeeRepo,
@@ -112,9 +114,9 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
         async () => {
           try {
             const s = await store.getStoreSettings();
-            return s?.store_name || '伊美轩';
+            return s?.store_name || '小店';
           } catch {
-            return '伊美轩';
+            return '小店';
           }
         },
       ),
@@ -132,6 +134,7 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
         aes: AesEncryptorService,
         bus: MopEventBus,
         reader: PrintOrderReader,
+        sampleProvider: DrizzlePreviewSampleProvider,
       ) => {
         const drivers = new Map<string, any>([
           ['FEIE', feie],
@@ -148,9 +151,11 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
           aes.enc,
           bus,
           (orderId: number) => reader.readOrder(orderId),
+          () => new Date(),
+          sampleProvider,
         );
       },
-      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, YlyPrinterDriver, ZyyPrinterDriver, XPrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader],
+      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, YlyPrinterDriver, ZyyPrinterDriver, XPrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader, DrizzlePreviewSampleProvider],
     },
     {
       provide: EmployeeCore,

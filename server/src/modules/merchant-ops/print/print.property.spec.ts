@@ -180,16 +180,16 @@ const baseTemplate = (overrides: Partial<TemplateRow> = {}): TemplateRow => ({
 const samplePayload = (fields: TemplateField[]): PrintPayload => ({
   width: '80mm',
   fields,
-  store_name: '伊美轩',
+  store_name: 'Test Store',
   table_number: '8',
   order_no: 'OD-1',
   order_time: '2026-05-24 12:00:00',
   items: [
-    { name: '宫保鸡丁', spec: '辣', quantity: 2, subtotal: 40 },
-    { name: '米饭', spec: null, quantity: 1, subtotal: 3 },
+    { name: 'Item-A', spec: 'spec-1', quantity: 2, subtotal: 40 },
+    { name: 'Item-B', spec: null, quantity: 1, subtotal: 3 },
   ],
   total: 43,
-  remark: '不要香菜',
+  remark: 'no garnish',
   operator: 'alice',
 });
 

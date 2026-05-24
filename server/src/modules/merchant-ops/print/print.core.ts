@@ -69,6 +69,15 @@ export interface MopEventEmitter {
   emit(event: `mop:${string}`, payload: any): void;
 }
 
+/**
+ * 预览样本数据提供者：从真实店铺/菜品里取 1-3 项，没数据时返回 null
+ * （由 module factory 注入，从 store_settings + dishes 表读）
+ */
+export interface PreviewSampleProvider {
+  getStoreName(): Promise<string | null>;
+  getSampleItems(): Promise<Array<{ name: string; spec: string | null; quantity: number; subtotal: number }>>;
+}
+
 @Injectable()
 export class PrintCore {
   private readonly logger = new Logger(PrintCore.name);
@@ -80,6 +89,8 @@ export class PrintCore {
     private readonly emitter: MopEventEmitter,
     private readonly readOrder: (orderId: number) => Promise<OrderProjection | null>,
     private readonly clock: () => Date = () => new Date(),
+    /** 预览样本数据源；不注入时使用通用 placeholder */
+    private readonly sampleProvider?: PreviewSampleProvider,
   ) {}
 
   // ============================================================
@@ -415,29 +426,51 @@ export class PrintCore {
    */
   async previewTemplate(id: number, sample?: PrintPayload): Promise<{ escpos: string; html: string }> {
     const tpl = await this.getTemplate(id);
-    const payload: PrintPayload = sample ?? this.makeSamplePayload(tpl);
+    const payload: PrintPayload = sample ?? await this.buildPreviewPayload(tpl);
     return {
       escpos: PrintCore.renderEscPos(tpl, { ...payload, fields: tpl.fields_json, width: tpl.width }),
       html: PrintCore.renderHtml(tpl, payload),
     };
   }
 
-  private makeSamplePayload(tpl: TemplateRow): PrintPayload {
+  /**
+   * 优先用真实 store + 真实菜品做样本；任何步骤失败则退回通用占位
+   * （这样预览反映真实业务，不会出现"宫保鸡丁"这种与业务无关的硬编码）
+   */
+  private async buildPreviewPayload(tpl: TemplateRow): Promise<PrintPayload> {
+    let storeName: string | null = null;
+    let items: Array<{ name: string; spec: string | null; quantity: number; subtotal: number }> = [];
+    if (this.sampleProvider) {
+      try { storeName = await this.sampleProvider.getStoreName(); } catch { /* fall through */ }
+      try { items = await this.sampleProvider.getSampleItems(); } catch { /* fall through */ }
+    }
+    if (items.length === 0) {
+      // 通用占位，不绑定任何具体业态
+      items = [
+        { name: '示例商品 A', spec: null, quantity: 1, subtotal: 0 },
+        { name: '示例商品 B', spec: null, quantity: 1, subtotal: 0 },
+      ];
+    }
+    const total = items.reduce((sum, it) => sum + (it.subtotal || 0), 0);
     return {
       width: tpl.width,
       fields: tpl.fields_json,
-      store_name: '伊美轩',
+      store_name: storeName ?? '示例店铺',
       table_number: '8',
-      order_no: 'OD20260524-001',
+      order_no: 'OD-PREVIEW-001',
       order_time: this.fmtDateTime(this.clock()),
-      items: [
-        { name: '宫保鸡丁', spec: '辣', quantity: 2, subtotal: 40 },
-        { name: '米饭', spec: null, quantity: 1, subtotal: 3 },
-      ],
-      total: 43,
-      remark: '不要香菜',
+      items,
+      total,
+      remark: '（这是模板预览，实际打印按订单数据渲染）',
       operator: '示例操作员',
     };
+  }
+
+  /**
+   * 试打印的样本：与预览共享同一构造器
+   */
+  private async buildSamplePayloadForTest(tpl: TemplateRow): Promise<PrintPayload> {
+    return await this.buildPreviewPayload(tpl);
   }
 
   /**
@@ -454,9 +487,7 @@ export class PrintCore {
     const tplId = printer.template_id ?? 1;
     const tpl = await this.repo.findTemplateById(tplId);
     if (!tpl) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND', msg: '默认模板不存在' });
-    const payload: PrintPayload = {
-      ...this.makeSamplePayload(tpl),
-    };
+    const payload: PrintPayload = await this.buildSamplePayloadForTest(tpl);
 
     const driver = this.drivers.get(printer.provider);
     if (!driver) {

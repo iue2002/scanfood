@@ -339,17 +339,6 @@ export default function TableBoard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl sm:text-2xl font-semibold text-[#0F172A]">桌台看板</h2>
-        <button
-          onClick={() => navigate('/tables')}
-          className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] active:bg-[#1E40AF] transition-colors cursor-pointer"
-        >
-          <PlusCircle size={16} />
-          新增桌台
-        </button>
-      </div>
-
       <div className="flex items-center gap-2 sm:gap-3 mb-5 overflow-x-auto">
         <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm flex-shrink-0">
           <span className="text-xs text-[#64748B]">全部</span>

@@ -14,6 +14,22 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [lastLoginInfo, setLastLoginInfo] = useState<{ at: string; ip: string } | null>(null)
 
+  // 重定向原因横幅（来自 axios 拦截器写入的 sessionStorage）
+  const [redirectReason, setRedirectReason] = useState<{ code: string; reason: string } | null>(null)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('login_redirect_reason')
+      if (raw) {
+        const parsed = JSON.parse(raw) as { code: string; reason: string; at: number }
+        // 只显示 5 分钟内的原因（避免老 banner 一直挂着）
+        if (parsed.at && Date.now() - parsed.at < 5 * 60 * 1000) {
+          setRedirectReason({ code: parsed.code, reason: parsed.reason })
+        }
+        sessionStorage.removeItem('login_redirect_reason')
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   // 验证码状态：captchaRequired 由后端响应决定，captcha 是当前图形 token+svg
   const [captchaRequired, setCaptchaRequired] = useState(false)
   const [captcha, setCaptcha] = useState<CaptchaResp | null>(null)
@@ -161,6 +177,29 @@ export default function Login() {
           <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A]">扫码点餐管理系统</h1>
           <p className="text-xs sm:text-sm text-[#94A3B8] mt-2">商家后台登录</p>
         </div>
+
+        {/* 重定向原因横幅：仅当用户因会话失效被拦下时显示 */}
+        {redirectReason && (
+          <div
+            className={`mb-4 p-3 rounded-lg flex items-start gap-2.5 border ${
+              redirectReason.code === 'ACCOUNT_DISABLED'
+                ? 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+                : 'bg-[#FFFBEB] border-[#FDE68A] text-[#92400E]'
+            }`}
+          >
+            <ShieldAlert size={18} className="flex-shrink-0 mt-0.5" />
+            <div className="text-sm leading-snug">
+              <p className="font-medium">
+                {redirectReason.code === 'TOKEN_EXPIRED' && '登录已过期'}
+                {redirectReason.code === 'TOKEN_INVALID' && '登录信息已失效'}
+                {redirectReason.code === 'SESSION_REVOKED' && '会话已被注销'}
+                {redirectReason.code === 'ACCOUNT_DISABLED' && '账号已被禁用'}
+                {!['TOKEN_EXPIRED', 'TOKEN_INVALID', 'SESSION_REVOKED', 'ACCOUNT_DISABLED'].includes(redirectReason.code) && '需要重新登录'}
+              </p>
+              <p className="text-xs mt-0.5 opacity-90">{redirectReason.reason}</p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           <div>

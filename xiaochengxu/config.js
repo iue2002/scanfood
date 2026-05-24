@@ -12,8 +12,8 @@ const ENV = {
   },
   // 内网穿透环境（开发版/体验版测试用，使用 cpolar/natapp 等工具）
   TUNNEL: {
-    SERVER_URL: 'https://4f7050c.r9.cpolar.cn',
-    desc: '内网穿透环境'
+    SERVER_URL: 'https://116ca2f8.r19.cpolar.top',
+    desc: '阿里云穿透（cpolar）'
   },
   // 生产环境
   PROD: {
@@ -27,7 +27,7 @@ const ENV = {
 // - 开发者工具本地调试：使用 'LOCAL'
 // - 真机开发版/体验版测试：使用 'TUNNEL'（需要先配置内网穿透）
 // - 正式发布：使用 'PROD'
-const CURRENT_ENV = 'LOCAL';
+const CURRENT_ENV = 'TUNNEL';
 
 const config = {
   // 当前环境信息

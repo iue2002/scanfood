@@ -20,7 +20,7 @@ import {
 import request from '@/api/request'
 import { useModal } from '@/components/ModalProvider'
 
-type Provider = 'FEIE' | 'BLUETOOTH' | 'BROWSER'
+type Provider = 'FEIE' | 'YLY' | 'ZYY' | 'XPRINTER' | 'BLUETOOTH' | 'BROWSER'
 type RoleType = 'CASHIER' | 'KITCHEN' | 'BOTH'
 type Width = '58mm' | '80mm'
 
@@ -41,9 +41,15 @@ const FIELD_LABEL: Record<Field, string> = {
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   FEIE: '飞鹅云',
+  YLY: '易联云',
+  ZYY: '中易云 / 365 云打印',
+  XPRINTER: '芯烨云',
   BLUETOOTH: '蓝牙',
   BROWSER: '浏览器',
 }
+
+/** 哪些 provider 是云打印（需要填 SN + 密钥） */
+const CLOUD_PROVIDERS: ReadonlyArray<Provider> = ['FEIE', 'YLY', 'ZYY', 'XPRINTER']
 
 const ROLE_LABEL: Record<RoleType, string> = {
   CASHIER: '前台收银',
@@ -202,7 +208,7 @@ export default function PrinterManage() {
           </div>
           <div>
             <h1 className="text-lg lg:text-xl font-semibold text-[#0F172A]">打印设置</h1>
-            <p className="text-xs text-[#94A3B8] mt-0.5">飞鹅云 / 浏览器打印 · 模板编辑 · 自动打印 · 离线重试</p>
+            <p className="text-xs text-[#94A3B8] mt-0.5">飞鹅 / 易联 / 中易 / 芯烨云 + 浏览器打印 · 模板编辑 · 自动打印 · 离线重试</p>
           </div>
         </div>
         <button
@@ -344,7 +350,7 @@ function PrinterCard({
   onToggleAutoPrint: (k: 'auto_print' | 'auto_print_add_more', v: boolean) => void
   onViewJobs: () => void
 }) {
-  const Icon = printer.provider === 'FEIE' ? Cloud : printer.provider === 'BROWSER' ? Monitor : Printer
+  const Icon = CLOUD_PROVIDERS.includes(printer.provider) ? Cloud : printer.provider === 'BROWSER' ? Monitor : Printer
   return (
     <div className="p-4 rounded-lg border border-[#E2E8F0] bg-white">
       <div className="flex items-start justify-between mb-3">
@@ -446,8 +452,8 @@ function PrinterEditDialog({
 
   const handleSave = async () => {
     if (!name.trim()) { showToast('名称不能为空', 'warning'); return }
-    if (provider === 'FEIE' && !deviceSn.trim()) { showToast('飞鹅打印机必须填 SN', 'warning'); return }
-    if (provider === 'FEIE' && isNew && !deviceKey.trim()) { showToast('飞鹅打印机必须填密钥', 'warning'); return }
+    if (CLOUD_PROVIDERS.includes(provider) && !deviceSn.trim()) { showToast(`${PROVIDER_LABEL[provider]}必须填终端号 (SN)`, 'warning'); return }
+    if (CLOUD_PROVIDERS.includes(provider) && isNew && !deviceKey.trim()) { showToast(`${PROVIDER_LABEL[provider]}必须填密钥`, 'warning'); return }
     setSaving(true)
     try {
       const body: any = {
@@ -485,8 +491,15 @@ function PrinterEditDialog({
         <div className="grid grid-cols-2 gap-3">
           <Field label="品牌">
             <select value={provider} onChange={(e) => setProvider(e.target.value as Provider)} className={inputCls}>
-              <option value="FEIE">飞鹅云</option>
-              <option value="BROWSER">浏览器（备用）</option>
+              <optgroup label="云打印（互联网，无需电脑）">
+                <option value="FEIE">飞鹅云</option>
+                <option value="YLY">易联云</option>
+                <option value="ZYY">中易云 / 365 云打印</option>
+                <option value="XPRINTER">芯烨云</option>
+              </optgroup>
+              <optgroup label="本地打印">
+                <option value="BROWSER">浏览器（USB / 共享打印机）</option>
+              </optgroup>
             </select>
           </Field>
           <Field label="角色">
@@ -497,21 +510,34 @@ function PrinterEditDialog({
             </select>
           </Field>
         </div>
-        {provider === 'FEIE' && (
+        {CLOUD_PROVIDERS.includes(provider) && (
           <>
-            <Field label="飞鹅 SN">
-              <input value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)} className={inputCls} placeholder="飞鹅打印机背面 SN" />
+            <Field label="终端号 (SN / 机器号)">
+              <input value={deviceSn} onChange={(e) => setDeviceSn(e.target.value)} className={inputCls} placeholder={`${PROVIDER_LABEL[provider]}打印机背面 SN`} />
             </Field>
-            <Field label={isNew ? '飞鹅密钥' : '飞鹅密钥（留空保持不变）'}>
+            <Field label={isNew ? '终端密钥 (KEY)' : '终端密钥（留空保持不变）'}>
               <input
                 type="password"
                 value={deviceKey}
                 onChange={(e) => setDeviceKey(e.target.value)}
                 className={inputCls}
-                placeholder={isNew ? '飞鹅打印机背面 KEY' : (initial?.has_device_key ? '已设置' : '未设置')}
+                placeholder={isNew ? `${PROVIDER_LABEL[provider]}打印机背面 KEY` : (initial?.has_device_key ? '已设置' : '未设置')}
               />
             </Field>
+            <p className="text-xs text-[#94A3B8] -mt-1">
+              {provider === 'FEIE' && '需在 server/.env 配置 FEIE_USER 和 FEIE_UKEY。注册：feieyun.com'}
+              {provider === 'YLY' && '需在 server/.env 配置 YLY_CLIENT_ID 和 YLY_CLIENT_SECRET。注册：10ss.net'}
+              {provider === 'ZYY' && '需在 server/.env 配置 ZYY_MEMBER_CODE 和 ZYY_API_KEY。注册：365cup.com'}
+              {provider === 'XPRINTER' && '需在 server/.env 配置 XPRINTER_USER 和 XPRINTER_USER_KEY。注册：open.xpyun.net'}
+            </p>
           </>
+        )}
+        {provider === 'BROWSER' && (
+          <p className="text-xs text-[#94A3B8] p-3 bg-[#F8FAFC] rounded-lg">
+            <strong>浏览器打印</strong>说明：后端会通过 WebSocket 推送 HTML 小票到本管理页，自动打开打印预览窗，调用电脑连接的打印机（USB 直连或网络共享）。
+            <br /><br />
+            适用：商家电脑接了 USB 小票打印机，或局域网内有共享打印机。<strong>无需任何 SN/KEY</strong>。
+          </p>
         )}
         <Field label="使用模板">
           <select

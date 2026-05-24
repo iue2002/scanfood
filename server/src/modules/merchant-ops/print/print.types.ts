@@ -2,7 +2,13 @@
  * 打印领域类型
  */
 
-export type PrinterProvider = 'FEIE' | 'BLUETOOTH' | 'BROWSER';
+export type PrinterProvider =
+  | 'FEIE'        // 飞鹅云（国内市占率高）
+  | 'YLY'         // 易联云（国内主流，跟飞鹅双雄）
+  | 'ZYY'         // 中易云 / 365 云打印（商超餐饮常用）
+  | 'XPRINTER'    // 芯烨云（硬件厂商自营云服务）
+  | 'BLUETOOTH'   // 蓝牙（移动端）
+  | 'BROWSER';    // 浏览器（局域网 USB / 网络共享打印机）
 export type PrinterRole = 'CASHIER' | 'KITCHEN' | 'BOTH';
 
 export type TemplateField =

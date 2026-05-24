@@ -27,6 +27,9 @@ import { PrintCore } from './print/print.core';
 import { DrizzlePrintRepo } from './print/print-repo.drizzle';
 import { PrintOrderReader } from './print/readonly-order.drizzle';
 import { FeiePrinterDriver } from './print/drivers/feie.driver';
+import { YlyPrinterDriver } from './print/drivers/yly.driver';
+import { ZyyPrinterDriver } from './print/drivers/zyy.driver';
+import { XPrinterDriver } from './print/drivers/xprinter.driver';
 import { BrowserPrinterDriver } from './print/drivers/browser.driver';
 import { AesEncryptorService } from './print/aes-encryptor';
 import { MopEventBus } from './print/mop-event-bus';
@@ -56,6 +59,9 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
     PermissionsGuard,
     AesEncryptorService,
     FeiePrinterDriver,
+    YlyPrinterDriver,
+    ZyyPrinterDriver,
+    XPrinterDriver,
     BrowserPrinterDriver,
     MopEventBus,
     PrintOrderReader,
@@ -119,6 +125,9 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
       useFactory: (
         repo,
         feie: FeiePrinterDriver,
+        yly: YlyPrinterDriver,
+        zyy: ZyyPrinterDriver,
+        xprinter: XPrinterDriver,
         browser: BrowserPrinterDriver,
         aes: AesEncryptorService,
         bus: MopEventBus,
@@ -126,6 +135,9 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
       ) => {
         const drivers = new Map<string, any>([
           ['FEIE', feie],
+          ['YLY', yly],
+          ['ZYY', zyy],
+          ['XPRINTER', xprinter],
           ['BROWSER', browser],
         ]);
         // BrowserDriver 需要事件总线注入
@@ -138,7 +150,7 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
           (orderId: number) => reader.readOrder(orderId),
         );
       },
-      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader],
+      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, YlyPrinterDriver, ZyyPrinterDriver, XPrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader],
     },
     {
       provide: EmployeeCore,

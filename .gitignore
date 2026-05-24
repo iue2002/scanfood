@@ -3,13 +3,13 @@ node_modules/
 .pnpm-store/
 node-compile-cache/
 
-# Production
+# Production / Build outputs
 dist/
 build/
 dist-*/
+lib/
 
-# Misc
-.DS_Store
+# Environments
 .env
 # .env.local
 .env.development.local
@@ -21,6 +21,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+debug.log
 
 # Editor directories and files
 .idea/
@@ -30,16 +31,27 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
-
-# Taro specific
-.taro/
-
-# OS X
 .DS_Store
 
-# Key
-# key/
+# Taro / 历史死代码（保留 .gitignore 防止意外重新引入）
+.taro/
+patches/
+src/
+config/
+types/
+babel.config.js
+tsconfig.json
+eslint.config.mjs
+stylelint.config.mjs
+pnpm-lock.yaml
+pnpm-workspace.yaml
 
+# OS
+.DS_Store
+
+# Private keys / 本地开发证书
+key/
+*.pem
 
 # 后端运行时上传的图片（用户头像、二维码等）
 server/uploads/

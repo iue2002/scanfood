@@ -554,3 +554,180 @@ describe('Feature: merchant-ops-center, Property 22: mop:* event whitelist', () 
     expect(bridged).toBe(1);
   });
 });
+
+
+// ============================================================
+// Property 29: 加餐自动打印 diff —— 只打新加的菜，不重复打首次点的菜
+// ============================================================
+describe('Feature: merchant-ops-center, Property 29: ADD_MORE prints only new items', () => {
+  function makeOrder(items: Array<{ id: number; phase: 'order' | 'add_more'; round?: number; cat?: number; name?: string; subtotal?: number }>): OrderProjection {
+    return {
+      order_id: 999,
+      order_no: 'OD-T-001',
+      table_number: '5',
+      order_type: 'dine_in',
+      store_name: 'Test',
+      created_at: new Date('2026-05-24T12:00:00Z'),
+      total_amount: items.reduce((s, it) => s + (it.subtotal ?? 10), 0),
+      remark: null,
+      operator: null,
+      items: items.map((it) => ({
+        order_item_id: it.id,
+        category_id: it.cat ?? 1,
+        name: it.name ?? `Dish-${it.id}`,
+        spec: null,
+        quantity: 1,
+        subtotal: it.subtotal ?? 10,
+        phase: it.phase,
+        add_more_round: it.round ?? (it.phase === 'add_more' ? 1 : 0),
+      })),
+    };
+  }
+
+  function makeCore(repo: StubPrintRepo, currentOrder: OrderProjection): PrintCore {
+    const driver = new StubDriver();
+    const bus = new StubEventBus();
+    return new PrintCore(
+      repo,
+      new Map([['FEIE', driver as any], ['BROWSER', driver as any]]),
+      TEST_AES,
+      bus,
+      async () => currentOrder,
+    );
+  }
+
+  function setupRepo(): StubPrintRepo {
+    const repo = new StubPrintRepo();
+    // 系统默认模板
+    repo.templates.push({ id: 1, name: 'sys', fields_json: ['STORE_NAME', 'TABLE_NUMBER', 'ITEMS', 'TOTAL', 'TIME', 'ORDER_NO'], width: '80mm', created_at: new Date(), updated_at: new Date() });
+    repo.templates.push({ id: 2, name: 'kit', fields_json: ['TABLE_NUMBER', 'ITEMS', 'TIME', 'ORDER_NO'], width: '80mm', created_at: new Date(), updated_at: new Date() });
+    // 一台 enabled + auto_print + auto_print_add_more 的打印机
+    repo.printers.push({
+      id: 1,
+      name: 'p1',
+      provider: 'FEIE',
+      device_sn: 'sn',
+      device_key: undefined,
+      role: 'BOTH',
+      enabled: true,
+      auto_print: true,
+      auto_print_add_more: true,
+      template_id: 1,
+      last_online_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+    return repo;
+  }
+
+  it('NEW_ORDER 打全单 → 紧接的 ADD_MORE 只打加餐项，不重复打首次点的菜', async () => {
+    const repo = setupRepo();
+    // 第一阶段：首次提交 3 道首次点餐菜
+    const order1 = makeOrder([
+      { id: 101, phase: 'order' },
+      { id: 102, phase: 'order' },
+      { id: 103, phase: 'order' },
+    ]);
+    const core1 = makeCore(repo, order1);
+    await core1.onOrderEvent(999, 'NEW_ORDER');
+    const newOrderJobs = repo.jobs.filter((j) => j.trigger === 'NEW_ORDER');
+    expect(newOrderJobs.length).toBeGreaterThan(0);
+
+    // 第二阶段：商家加餐 2 道菜（id=201, 202）
+    const order2 = makeOrder([
+      { id: 101, phase: 'order' },
+      { id: 102, phase: 'order' },
+      { id: 103, phase: 'order' },
+      { id: 201, phase: 'add_more', round: 1 },
+      { id: 202, phase: 'add_more', round: 1 },
+    ]);
+    const core2 = makeCore(repo, order2);
+    await core2.onOrderEvent(999, 'ADD_MORE');
+
+    const addMoreJobs = repo.jobs.filter((j) => j.trigger === 'ADD_MORE');
+    expect(addMoreJobs.length).toBeGreaterThan(0);
+    // 每个 ADD_MORE job 的 payload.items 必须只含 add_more 的菜
+    for (const job of addMoreJobs) {
+      const itemNames = (job.payload_json.items ?? []).map((i) => i.name);
+      // 不应包含任何首次点餐的菜
+      expect(itemNames).not.toContain('Dish-101');
+      expect(itemNames).not.toContain('Dish-102');
+      expect(itemNames).not.toContain('Dish-103');
+      // 必须包含加餐菜
+      expect(itemNames).toContain('Dish-201');
+      expect(itemNames).toContain('Dish-202');
+      // order_no 必须含"加餐"标记
+      expect(job.payload_json.order_no ?? '').toContain('加餐');
+    }
+  });
+
+  it('重复 ADD_MORE 事件（同一批菜不变）：第二次不再产生新 job', async () => {
+    const repo = setupRepo();
+    // 先 NEW_ORDER
+    const o1 = makeOrder([{ id: 1, phase: 'order' }]);
+    await makeCore(repo, o1).onOrderEvent(999, 'NEW_ORDER');
+    // 第一次加餐
+    const o2 = makeOrder([
+      { id: 1, phase: 'order' },
+      { id: 2, phase: 'add_more', round: 1 },
+    ]);
+    await makeCore(repo, o2).onOrderEvent(999, 'ADD_MORE');
+    const after1 = repo.jobs.filter((j) => j.trigger === 'ADD_MORE').length;
+    expect(after1).toBeGreaterThan(0);
+
+    // 第二次相同事件（订单状态没变 / 上菜状态触发）：不应再产生 ADD_MORE job
+    await makeCore(repo, o2).onOrderEvent(999, 'ADD_MORE');
+    const after2 = repo.jobs.filter((j) => j.trigger === 'ADD_MORE').length;
+    expect(after2).toBe(after1);
+  });
+
+  it('多轮加餐：每轮只打该轮的菜，且每轮 order_no 含 "加餐 #N"', async () => {
+    const repo = setupRepo();
+    // 首单：1 道菜
+    await makeCore(repo, makeOrder([{ id: 1, phase: 'order' }])).onOrderEvent(999, 'NEW_ORDER');
+
+    // 第 1 轮加餐
+    await makeCore(repo, makeOrder([
+      { id: 1, phase: 'order' },
+      { id: 11, phase: 'add_more', round: 1 },
+    ])).onOrderEvent(999, 'ADD_MORE');
+
+    // 第 2 轮加餐
+    await makeCore(repo, makeOrder([
+      { id: 1, phase: 'order' },
+      { id: 11, phase: 'add_more', round: 1 },
+      { id: 21, phase: 'add_more', round: 2 },
+    ])).onOrderEvent(999, 'ADD_MORE');
+
+    const round1Jobs = repo.jobs.filter((j) =>
+      j.trigger === 'ADD_MORE' && (j.payload_json.order_no ?? '').includes('加餐 #1'),
+    );
+    const round2Jobs = repo.jobs.filter((j) =>
+      j.trigger === 'ADD_MORE' && (j.payload_json.order_no ?? '').includes('加餐 #2'),
+    );
+    expect(round1Jobs.length).toBeGreaterThan(0);
+    expect(round2Jobs.length).toBeGreaterThan(0);
+
+    // 第 1 轮的 job 不应包含 id=21（第 2 轮的菜）
+    for (const job of round1Jobs) {
+      const names = (job.payload_json.items ?? []).map((i) => i.name);
+      expect(names).not.toContain('Dish-21');
+    }
+    // 第 2 轮的 job 不应包含 id=11（第 1 轮的菜）
+    for (const job of round2Jobs) {
+      const names = (job.payload_json.items ?? []).map((i) => i.name);
+      expect(names).not.toContain('Dish-11');
+    }
+  });
+
+  it('普通 orderUpdated（没有新加餐项）触发 ADD_MORE：不产生 job', async () => {
+    const repo = setupRepo();
+    // 首单
+    await makeCore(repo, makeOrder([{ id: 1, phase: 'order' }])).onOrderEvent(999, 'NEW_ORDER');
+    const jobsBefore = repo.jobs.length;
+
+    // 模拟"上菜状态变化 / 删菜 / 改数量"等普通 orderUpdated（没有新加餐项目）
+    await makeCore(repo, makeOrder([{ id: 1, phase: 'order' }])).onOrderEvent(999, 'ADD_MORE');
+    expect(repo.jobs.length).toBe(jobsBefore);
+  });
+});

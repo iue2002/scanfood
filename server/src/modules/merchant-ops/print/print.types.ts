@@ -165,6 +165,10 @@ export interface OrderProjection {
     spec: string | null;
     quantity: number;
     subtotal: number;
+    /** 'order' = 首次点餐, 'add_more' = 加餐（用于自动加餐打印 diff） */
+    phase: 'order' | 'add_more';
+    /** 加餐轮次：0 = 首次点餐, 1/2/3.. = 第 N 轮加餐 */
+    add_more_round: number;
   }>;
 }
 

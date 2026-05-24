@@ -532,8 +532,9 @@ export class PrintCore {
    *
    * 走 plan 模型：
    *   1. 解析 order_type 对应的默认 plan（无则系统默认）
-   *   2. plan.splitOrderByPlan(order.items) 拆成多张票
-   *   3. 每张票按"打印机的 auto_print/auto_print_add_more 标记"过滤后入队
+   *   2. **加餐时只取本轮新增的 items**（diff = 未在历史 jobs 的 selected_item_ids 中出现的 add_more items）
+   *   3. plan.splitOrderByPlan(items) 拆成多张票
+   *   4. 每张票按"打印机的 auto_print/auto_print_add_more 标记"过滤后入队
    */
   async onOrderEvent(orderId: number, trigger: 'NEW_ORDER' | 'ADD_MORE'): Promise<void> {
     try {
@@ -548,13 +549,31 @@ export class PrintCore {
       if (autoPrinters.length === 0) return;
       const autoPrinterIds = new Set(autoPrinters.map((p) => p.id));
 
+      // 1.5) 加餐路径：只取"未被任何历史 job 打印过"的 add_more 菜品
+      //      普通 orderUpdated（改数量/上菜状态/删菜）会被去重为 0，自然跳过
+      let itemsToPrint = order.items;
+      let addMoreRound = 0;
+      let printLabel: string | null = null;
+      if (trigger === 'ADD_MORE') {
+        const diff = await this.computeAddMoreDiff(order);
+        if (diff.items.length === 0) {
+          // 没有新加餐项目（可能是上菜/删菜/改数量等普通更新），不打印
+          this.logger.debug(`[print] order ${orderId} ADD_MORE: 无新加餐项目，跳过`);
+          return;
+        }
+        itemsToPrint = diff.items;
+        addMoreRound = diff.maxRound;
+        printLabel = `加餐 #${addMoreRound}`;
+        this.logger.log(`[print] order ${orderId} ADD_MORE: 打印 ${diff.items.length} 道新菜（轮次 ${addMoreRound}）`);
+      }
+
       // 2) 走 plan（如果可用）
       if (this.planCore) {
         try {
           const orderType = (order.order_type === 'takeaway' ? 'takeaway' : 'dine_in') as 'takeaway' | 'dine_in';
           const plan = await this.planCore.resolvePlanForOrder(orderType);
           const { PrintPlanCore } = await import('./plan.core');
-          const split = PrintPlanCore.splitOrderByPlan(plan, order.items.map((it) => ({
+          const split = PrintPlanCore.splitOrderByPlan(plan, itemsToPrint.map((it) => ({
             order_item_id: it.order_item_id,
             category_id: it.category_id,
             name: it.name,
@@ -565,8 +584,9 @@ export class PrintCore {
 
           // 系统默认 plan 是空 slices（迁移时只插了 plan 行没插 slices）→ 退化路径
           if (plan.slices.length === 0) {
+            const onlyIds = trigger === 'ADD_MORE' ? itemsToPrint.map((it) => it.order_item_id) : undefined;
             for (const p of autoPrinters) {
-              await this.enqueueJobForPrinter(p, order, trigger).catch((err) => {
+              await this.enqueueJobForPrinter(p, order, trigger, onlyIds, printLabel).catch((err) => {
                 this.logger.error(`[print] enqueue failed for printer ${p.id}: ${(err as Error).message}`);
               });
             }
@@ -576,7 +596,11 @@ export class PrintCore {
               if (!autoPrinterIds.has(dispatch.printer_id)) continue;
               const printer = autoPrinters.find((p) => p.id === dispatch.printer_id);
               if (!printer) continue;
-              await this.enqueueDispatch(printer, order, dispatch, plan.id, trigger).catch((err) => {
+              // 把"加餐 #N"叠加到切片标签上（如果切片本身有 label，则连接）
+              const dispatchWithLabel = printLabel
+                ? { ...dispatch, label: dispatch.label ? `${printLabel} · ${dispatch.label}` : printLabel }
+                : dispatch;
+              await this.enqueueDispatch(printer, order, dispatchWithLabel, plan.id, trigger).catch((err) => {
                 this.logger.error(`[print] enqueue dispatch failed for printer ${dispatch.printer_id}: ${(err as Error).message}`);
               });
             }
@@ -594,7 +618,7 @@ export class PrintCore {
               this.logger.warn(`[print] order ${orderId} 有 ${split.uncovered.length} 个 items 未被 plan ${plan.id} 切片覆盖，发警告事件`);
               // 兜底：未覆盖的 items 仍发到所有 auto_print 打印机
               for (const p of autoPrinters) {
-                await this.enqueueJobForPrinter(p, order, trigger, split.uncovered.map((u) => u.order_item_id)).catch((err) => {
+                await this.enqueueJobForPrinter(p, order, trigger, split.uncovered.map((u) => u.order_item_id), printLabel).catch((err) => {
                   this.logger.warn(`[print] uncovered fallback enqueue failed: ${(err as Error).message}`);
                 });
               }
@@ -607,9 +631,10 @@ export class PrintCore {
         }
       }
 
-      // 3) 退化路径：planCore 不可用 → 每台 auto_print 打印机各打整单一份
+      // 3) 退化路径：planCore 不可用 → 每台 auto_print 打印机各打整单（或加餐 diff）一份
+      const onlyIdsFallback = trigger === 'ADD_MORE' ? itemsToPrint.map((it) => it.order_item_id) : undefined;
       for (const p of autoPrinters) {
-        await this.enqueueJobForPrinter(p, order, trigger).catch((err) => {
+        await this.enqueueJobForPrinter(p, order, trigger, onlyIdsFallback, printLabel).catch((err) => {
           this.logger.error(`[print] enqueue failed for printer ${p.id}: ${(err as Error).message}`);
         });
       }
@@ -617,6 +642,79 @@ export class PrintCore {
       // R19.5 / Property 19：core 边界吞错误
       this.logger.error(`[print] onOrderEvent error: ${(err as Error).message}`);
     }
+  }
+
+  /**
+   * 计算"加餐 diff"：返回未在历史 print_jobs 的 selected_item_ids 中出现的 add_more items
+   *
+   * 历史覆盖的判定（保守、不重打）：
+   *   - 任何 status ∈ {PENDING, SENT, SUCCESS} 的 job
+   *     - selected_item_ids 非空：覆盖这些具体 item id
+   *     - selected_item_ids 为空（NULL）：trigger=NEW_ORDER 视为覆盖全部 phase='order' 项；
+   *                                       trigger=ADD_MORE 视为已经打过当时所有 add_more 项；
+   *                                       trigger=REPRINT/SELECTIVE 不参与（会写 selected_item_ids）
+   *
+   * 失败的 job (status=FAILED) 不算覆盖（让加餐 diff 仍包含它们 → 商家可手动补打）
+   */
+  private async computeAddMoreDiff(order: OrderProjection): Promise<{ items: OrderProjection['items']; maxRound: number }> {
+    let printedIds = new Set<number>();
+    let coversAllPhaseOrder = false;
+    let coversAllAddMoreSnapshot: Date | null = null;
+    let allOrderItemsSnapshot = new Set<number>(); // 在历史 NEW_ORDER 时已存在的 phase='order' items
+    try {
+      const pastJobs = await this.repo.listJobsByOrder(order.order_id);
+      for (const job of pastJobs) {
+        if (job.status === 'FAILED') continue;
+        if (job.selected_item_ids && job.selected_item_ids.length > 0) {
+          for (const id of job.selected_item_ids) printedIds.add(id);
+        } else {
+          // 整单 job（selected_item_ids 为 null/空）
+          if (job.trigger === 'NEW_ORDER') {
+            coversAllPhaseOrder = true;
+          } else if (job.trigger === 'ADD_MORE') {
+            // 旧版本（升级前）的 ADD_MORE 整单 job：保守视为覆盖到 job.created_at 之前的所有 add_more 项
+            if (!coversAllAddMoreSnapshot || job.created_at > coversAllAddMoreSnapshot) {
+              coversAllAddMoreSnapshot = job.created_at as Date;
+            }
+          }
+        }
+      }
+      if (coversAllPhaseOrder) {
+        for (const it of order.items) {
+          if (it.phase === 'order') allOrderItemsSnapshot.add(it.order_item_id);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`[print] computeAddMoreDiff: listJobsByOrder failed (${(err as Error).message})，保守按全部 add_more 处理`);
+    }
+
+    const diff = order.items.filter((it) => {
+      if (it.phase !== 'add_more') return false;
+      if (printedIds.has(it.order_item_id)) return false;
+      if (allOrderItemsSnapshot.has(it.order_item_id)) return false;
+      // 旧版本兼容：如果存在 ADD_MORE 整单 job，且 item 是它打印之前就有的，视为已打过
+      // 这里没有 item 创建时间，但 add_more_round 可作为代理：旧 round 的视为已打
+      // 保守起见，若有 coversAllAddMoreSnapshot 但当前 round 是已知最大轮 + 0/-，视为可能已打 → 仅当 round 为最大时才认为新增
+      return true;
+    });
+
+    let maxRound = 0;
+    for (const it of diff) {
+      if (it.add_more_round > maxRound) maxRound = it.add_more_round;
+    }
+
+    // 旧整单 ADD_MORE 兼容：如果有快照覆盖时间，且 diff 中存在 add_more_round 比"快照之前最大轮"还小的 item，过滤掉
+    // 实际上 round 会单调递增，所以最简单的策略：找出"快照覆盖前的最大 round"
+    if (coversAllAddMoreSnapshot && diff.length > 0) {
+      // 因为没有 item 的 created_at，我们只能保守：跳过 round 严格小于 maxRound 的项（仅打最新一轮）
+      // 这避免了重复打印过去几轮的问题（升级前的状态）
+      const latestRoundOnly = diff.filter((it) => it.add_more_round === maxRound);
+      if (latestRoundOnly.length > 0) {
+        return { items: latestRoundOnly, maxRound };
+      }
+    }
+
+    return { items: diff, maxRound };
   }
 
   /**
@@ -674,6 +772,7 @@ export class PrintCore {
     order: OrderProjection,
     trigger: PrintJobTrigger,
     onlyItemIds?: number[],
+    printLabel?: string | null,
   ): Promise<PrintJobRow> {
     let templateId = printer.template_id;
     if (!templateId) {
@@ -704,7 +803,7 @@ export class PrintCore {
       store_name: order.store_name,
       table_number: order.table_number,
       order_type: order.order_type,
-      order_no: order.order_no,
+      order_no: printLabel ? `${order.order_no} · ${printLabel}` : order.order_no,
       order_time: this.fmtDateTime(order.created_at),
       items: usedItems.map((it) => ({ name: it.name, quantity: it.quantity, spec: it.spec, subtotal: it.subtotal })),
       total: totalAmount,

@@ -5,6 +5,7 @@
  * 关键字段：
  *  - items[].order_item_id：选购打印用
  *  - items[].category_id：plan slice 分类过滤用（join dishes 拿）
+ *  - items[].phase / add_more_round：加餐自动打印 diff 用
  *  - order_type：渲染时区分堂食/外带
  *  - operator：始终 null（业务库里没"操作员"字段；不要拿顾客昵称冒充）
  */
@@ -49,6 +50,8 @@ export class PrintOrderReader {
         quantity: order_items.quantity,
         subtotal: order_items.subtotal,
         category_id: dishes.category_id,
+        phase: order_items.phase,
+        add_more_round: order_items.add_more_round,
       })
       .from(order_items)
       .leftJoin(dishes, eq(dishes.id, order_items.dish_id))
@@ -79,6 +82,8 @@ export class PrintOrderReader {
         spec: it.spec ?? null,
         quantity: it.quantity,
         subtotal: Number(it.subtotal ?? 0),
+        phase: (it.phase === 'add_more' ? 'add_more' : 'order') as 'order' | 'add_more',
+        add_more_round: it.add_more_round ?? 0,
       })),
     };
   }

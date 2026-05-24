@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { db } from '@/storage/database/mysql-client';
 import { orders, order_items, tables, users, carts, cart_items } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
-import { eq, and, inArray, desc, sql } from 'drizzle-orm';
+import { eq, and, inArray, desc, sql, like } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
 
 @Injectable()
@@ -206,7 +206,7 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string, page: number = 1, pageSize: number = 20, skipDraft = false) {
+  async getOrders(status?: string, tableId?: number, dateFrom?: string, dateTo?: string, tag?: string, page: number = 1, pageSize: number = 20, skipDraft = false, search?: string) {
     const conditions: any[] = [];
     if (skipDraft) {
       conditions.push(sql`${orders.status} != 'draft'`);
@@ -222,6 +222,11 @@ export class OrdersService {
       const toDate = new Date(dateTo);
       toDate.setHours(23, 59, 59, 999);
       conditions.push(sql`${orders.created_at} <= ${toDate}`);
+    }
+    // 订单号模糊搜索：去除空白 + 防止 SQL 通配符注入（% _ \）
+    if (search && search.trim().length > 0) {
+      const escaped = search.trim().replace(/[\\%_]/g, (m) => '\\' + m);
+      conditions.push(like(orders.order_number, `%${escaped}%`));
     }
 
     const offset = (page - 1) * pageSize;

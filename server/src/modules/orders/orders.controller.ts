@@ -61,13 +61,13 @@ export class OrdersController {
     @Query('tag') tag?: string,
     @Query('page') page?: string,
     @Query('page_size') pageSize?: string,
+    @Query('search') search?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const size = pageSize ? parseInt(pageSize, 10) : 20;
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
     const skipDraft = !status && excludeDraft === 'true';
-    console.log('[GET /api/orders]', JSON.parse(JSON.stringify({ status, excludeDraft, tableId: tableIdNum, dateFrom, dateTo, tag, page: pageNum, page_size: size })));
-    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft);
+    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft, search);
     const settings = await this.storeSettingsService.getStoreSettings();
     return {
       data,

@@ -99,6 +99,18 @@ export default function OrderManage() {
   const [hasMore, setHasMore] = useState(true)
   // 打印操作弹窗
   const [printOrder, setPrintOrder] = useState<Order | null>(null)
+  // 订单号搜索（输入框值 + 防抖后用于查询的值）
+  const [orderSearchInput, setOrderSearchInput] = useState('')
+  const [orderSearch, setOrderSearch] = useState('')
+  // 输入 300ms 后才真发请求，避免每个字符都查
+  useEffect(() => {
+    const t = setTimeout(() => setOrderSearch(orderSearchInput.trim()), 300)
+    return () => clearTimeout(t)
+  }, [orderSearchInput])
+  // 搜索条件变化时回到第 1 页（避免在第 N 页搜出 0 条但其实第 1 页有结果）
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [orderSearch])
 
   const fetchOrders = useCallback(() => {
     const params: any = {
@@ -113,6 +125,7 @@ export default function OrderManage() {
     if (dateFrom) params.date_from = dateFrom
     if (dateTo) params.date_to = dateTo
     if (activeTag) params.tag = activeTag
+    if (orderSearch) params.search = orderSearch
     request.get('/orders', { params }).then((res: any) => {
       let data: Order[] = []
       if (Array.isArray(res)) {
@@ -125,7 +138,7 @@ export default function OrderManage() {
       const orderIds = data.map((o: Order) => o.id)
       setExpandedOrders(new Set(orderIds))
     })
-  }, [filterStatus, dateFrom, dateTo, currentPage, pageSize])
+  }, [filterStatus, dateFrom, dateTo, currentPage, pageSize, orderSearch])
 
   useEffect(() => {
     fetchOrders()
@@ -414,6 +427,27 @@ export default function OrderManage() {
 
       {/* 筛选区域 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5">
+        {/* 订单号搜索（独占一行，移动端友好） */}
+        <div className="mb-3 relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+          <input
+            type="text"
+            value={orderSearchInput}
+            onChange={(e) => setOrderSearchInput(e.target.value)}
+            placeholder="按订单号搜索（支持部分匹配，如 OD-001）"
+            className="w-full pl-9 pr-9 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+          />
+          {orderSearchInput && (
+            <button
+              type="button"
+              onClick={() => setOrderSearchInput('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#EF4444] cursor-pointer"
+              title="清除"
+            >
+              <XCircle size={16} />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
             <Filter size={16} className="text-[#64748B]" />
@@ -468,9 +502,9 @@ export default function OrderManage() {
             ))}
           </div>
 
-          {(dateFrom || dateTo || filterStatus) && (
+          {(dateFrom || dateTo || filterStatus || orderSearchInput) && (
             <button
-              onClick={() => { setDateFrom(''); setDateTo(''); setFilterStatus(''); setActiveTag('') }}
+              onClick={() => { setDateFrom(''); setDateTo(''); setFilterStatus(''); setActiveTag(''); setOrderSearchInput('') }}
               className="px-3 py-1.5 text-sm text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
             >
               清除筛选

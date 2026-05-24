@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Download, X, Loader, ImageOff } from 'lucide-react'
+import { resolveImageUrl } from '@/utils/image-url'
 
 interface TablePosterModalProps {
   open: boolean
   table: { id: number; table_number: string; qr_code_url: string | null } | null
-  qrBaseUrl: string // 服务器 base URL，用于拼接 qr_code_url 相对路径
   storeName?: string
   onClose: () => void
 }
@@ -22,7 +22,6 @@ const QR_SIZE = 480
 export default function TablePosterModal({
   open,
   table,
-  qrBaseUrl,
   storeName = '伊美轩',
   onClose,
 }: TablePosterModalProps) {
@@ -126,9 +125,7 @@ export default function TablePosterModal({
     ctx.fillText('请扫描下方二维码点餐', POSTER_W / 2, lineY + 30)
 
     // 7. 二维码
-    const qrUrl = table.qr_code_url
-      ? (table.qr_code_url.startsWith('http') ? table.qr_code_url : `${qrBaseUrl}${table.qr_code_url}`)
-      : ''
+    const qrUrl = resolveImageUrl(table.qr_code_url)
     const qrX = (POSTER_W - QR_SIZE) / 2
     const qrY = lineY + 80
 

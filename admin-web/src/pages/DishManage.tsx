@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import request from '@/api/request'
 import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
+import { resolveImageUrl } from '@/utils/image-url'
 
 interface Category {
   id: number
@@ -31,8 +32,6 @@ interface CompressionResult {
   message?: string
   allowOriginalUpload?: boolean
 }
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000'
 
 export default function DishManage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -133,8 +132,8 @@ export default function DishManage() {
       const res: any = await request.post('/upload/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      const url = res?.url ? `${API_BASE}${res.url}` : ''
-      setForm(prev => ({ ...prev, image_url: url }))
+      const url = res?.url ? resolveImageUrl(res.url) : ''
+      setForm(prev => ({ ...prev, image_url: res?.url || '' }))
       setPreviewUrl(url)
       showToast('图片上传成功', 'success')
     } catch (err: any) {
@@ -174,9 +173,9 @@ export default function DishManage() {
 
       if (res.success && res.data) {
         setCompressionResult(res)
-        const url = `${API_BASE}${res.data.url}`
-        setForm(prev => ({ ...prev, image_url: url }))
-        setPreviewUrl(url)
+        // 数据库存相对路径，img src 用 resolveImageUrl 转 dev/prod 友好 URL
+        setForm(prev => ({ ...prev, image_url: res.data.url }))
+        setPreviewUrl(resolveImageUrl(res.data.url))
         const savedSize = res.data.originalSize - res.data.compressedSize
         showToast(`图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`, 'success')
       } else {
@@ -308,7 +307,7 @@ export default function DishManage() {
                     <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                       {dish.image_url ? 
                         <img 
-                          src={dish.image_url.startsWith('http') ? dish.image_url : API_BASE + dish.image_url} 
+                          src={resolveImageUrl(dish.image_url)} 
                           className="w-full h-full object-cover" 
                           alt="" 
                         /> : 
@@ -372,7 +371,7 @@ export default function DishManage() {
                   <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
                     {dish.image_url ? (
                       <img
-                        src={dish.image_url.startsWith('http') ? dish.image_url : API_BASE + dish.image_url}
+                        src={resolveImageUrl(dish.image_url)}
                         className="w-full h-full object-cover"
                         alt=""
                       />

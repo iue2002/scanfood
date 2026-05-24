@@ -2,8 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import request from '@/api/request';
 import { useModal } from '@/components/ModalProvider';
 import { Upload, Save, ImageIcon, Loader2, CheckCircle, XCircle } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000';
+import { resolveImageUrl } from '@/utils/image-url';
 
 interface CompressionResult {
   success: boolean;
@@ -45,7 +44,7 @@ export default function StoreSettings() {
         setStoreName(data.store_name || '');
         const avatar = data.store_avatar || '';
         setStoreAvatar(avatar);
-        setPreviewUrl(avatar && avatar.startsWith('http') ? avatar : (avatar ? `${API_BASE}${avatar}` : ''));
+        setPreviewUrl(resolveImageUrl(avatar));
         setImgBroken(false);
       }
     } catch (err) {
@@ -71,7 +70,7 @@ export default function StoreSettings() {
       });
       const url = res?.url || '';
       setStoreAvatar(url);
-      setPreviewUrl(url ? `${API_BASE}${url}` : '');
+      setPreviewUrl(resolveImageUrl(url));
       setImgBroken(false);
       showToast('图片上传成功', 'success');
     } catch (err: any) {
@@ -113,7 +112,7 @@ export default function StoreSettings() {
         setCompressionResult(res);
         const url = res.data.url;
         setStoreAvatar(url);
-        setPreviewUrl(`${API_BASE}${url}`);
+        setPreviewUrl(resolveImageUrl(url));
         setImgBroken(false);
         const savedSize = res.data.originalSize - res.data.compressedSize;
         showToast(`图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`, 'success');

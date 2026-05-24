@@ -3,11 +3,7 @@ import request from '@/api/request'
 import { Plus, QrCode, Trash2, Edit2, Image as ImageIcon } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import TablePosterModal from '@/components/TablePosterModal'
-
-// 获取服务器基础地址
-const getServerBaseURL = () => {
-  return import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3000'
-}
+import { resolveImageUrl } from '@/utils/image-url'
 
 interface Table {
   id: number
@@ -31,7 +27,6 @@ export default function TableManage() {
   const [posterTable, setPosterTable] = useState<Table | null>(null)
   const [storeName, setStoreName] = useState('伊美轩')
   const { showToast, showConfirm } = useModal()
-  const qrBaseUrl = getServerBaseURL()
 
   const fetchTables = () => {
     request.get('/tables').then((res: any) => setTables(res || []))
@@ -149,11 +144,7 @@ export default function TableManage() {
               {table.qr_code_url && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <img 
-                    src={
-                      table.qr_code_url.startsWith('http') 
-                        ? table.qr_code_url 
-                        : getServerBaseURL() + table.qr_code_url
-                    } 
+                    src={resolveImageUrl(table.qr_code_url)} 
                     alt="二维码" 
                     className="w-24 h-24 mx-auto" 
                   />
@@ -189,7 +180,6 @@ export default function TableManage() {
       <TablePosterModal
         open={!!posterTable}
         table={posterTable}
-        qrBaseUrl={qrBaseUrl}
         storeName={storeName}
         onClose={() => setPosterTable(null)}
       />

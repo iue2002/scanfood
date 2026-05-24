@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
-import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Printer, Search, ShoppingCart, ShoppingBag } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Printer, Search, ShoppingCart, ShoppingBag, X } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent } from '@/components/WebSocketProvider'
 import { useUnread } from '@/components/UnreadProvider'
@@ -102,6 +102,8 @@ export default function OrderManage() {
   // 订单号搜索（输入框值 + 防抖后用于查询的值）
   const [orderSearchInput, setOrderSearchInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
+  // 日期/时段筛选抽屉（< lg 用；桌面端直接平铺）
+  const [dateDrawerOpen, setDateDrawerOpen] = useState(false)
   // 输入 300ms 后才真发请求，避免每个字符都查
   useEffect(() => {
     const t = setTimeout(() => setOrderSearch(orderSearchInput.trim()), 300)
@@ -427,29 +429,53 @@ export default function OrderManage() {
 
       {/* 筛选区域 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5 space-y-3">
-        {/* 第 1 行：订单号搜索 */}
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
-          <input
-            type="text"
-            value={orderSearchInput}
-            onChange={(e) => setOrderSearchInput(e.target.value)}
-            placeholder="按订单号搜索（支持部分匹配，如 OD-001）"
-            className="w-full pl-9 pr-9 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-          />
-          {orderSearchInput && (
-            <button
-              type="button"
-              onClick={() => setOrderSearchInput('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#EF4444] cursor-pointer"
-              title="清除"
-            >
-              <XCircle size={16} />
-            </button>
-          )}
+        {/* 第 1 行：订单号搜索 + 日期按钮（< lg 显示按钮） */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
+            <input
+              type="text"
+              value={orderSearchInput}
+              onChange={(e) => setOrderSearchInput(e.target.value)}
+              placeholder="按订单号搜索（支持部分匹配）"
+              className="w-full pl-9 pr-9 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            />
+            {orderSearchInput && (
+              <button
+                type="button"
+                onClick={() => setOrderSearchInput('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#EF4444] cursor-pointer"
+                title="清除"
+              >
+                <XCircle size={16} />
+              </button>
+            )}
+          </div>
+          {/* 日期按钮：仅 < lg 显示（桌面端有完整日期/时段行） */}
+          <button
+            type="button"
+            onClick={() => setDateDrawerOpen(true)}
+            className={`lg:hidden shrink-0 inline-flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-colors cursor-pointer ${
+              activeTag || dateFrom || dateTo
+                ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]'
+                : 'bg-white border-gray-200 text-[#475569] hover:bg-gray-50'
+            }`}
+          >
+            <Calendar size={16} />
+            <span>
+              {activeTag
+                ? presetTags.find(t => t.key === activeTag)?.label
+                : (dateFrom || dateTo)
+                  ? '日期'
+                  : '日期'}
+            </span>
+            {(activeTag || dateFrom || dateTo) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+            )}
+          </button>
         </div>
 
-        {/* 第 2 行：状态胶囊（横向滚动，覆盖所有状态；取代之前重复的下拉） */}
+        {/* 第 2 行：状态胶囊（所有屏幕显示，高频功能） */}
         <div>
           <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
             <Filter size={12} />
@@ -481,53 +507,53 @@ export default function OrderManage() {
           </div>
         </div>
 
-        {/* 第 3 行：时段预设（高频，所有屏幕都显示） */}
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
-            <Tag size={12} />
-            <span>时段</span>
+        {/* 第 3 / 4 行：时段 + 自定义日期（仅 lg 桌面端平铺；移动/平板进抽屉） */}
+        <div className="hidden lg:block space-y-3">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
+              <Tag size={12} />
+              <span>时段</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {presetTags.map(tag => (
+                <button
+                  key={tag.key}
+                  onClick={() => applyTag(tag.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    activeTag === tag.key
+                      ? 'bg-[#2563EB] text-white'
+                      : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1">
-            {presetTags.map(tag => (
-              <button
-                key={tag.key}
-                onClick={() => applyTag(tag.key)}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                  activeTag === tag.key
-                    ? 'bg-[#2563EB] text-white'
-                    : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
-                }`}
-              >
-                {tag.label}
-              </button>
-            ))}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
+              <Calendar size={12} />
+              <span>自定义日期</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setActiveTag('') }}
+                className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              />
+              <span className="text-[#94A3B8] text-sm shrink-0">至</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setActiveTag('') }}
+                className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              />
+            </div>
           </div>
         </div>
 
-        {/* 第 4 行：日期范围（独占，input 不再挤压） */}
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
-            <Calendar size={12} />
-            <span>自定义日期</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setActiveTag('') }}
-              className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            />
-            <span className="text-[#94A3B8] text-sm shrink-0">至</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setActiveTag('') }}
-              className="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            />
-          </div>
-        </div>
-
-        {/* 第 5 行（条件）：清除按钮 + 生效条件提示 */}
+        {/* 条件行：清除全部筛选 */}
         {(dateFrom || dateTo || filterStatus || orderSearchInput || activeTag) && (
           <div className="flex items-center justify-end pt-1 border-t border-gray-100">
             <button
@@ -540,6 +566,101 @@ export default function OrderManage() {
           </div>
         )}
       </div>
+
+      {/* 日期/时段抽屉（仅 < lg 触发） */}
+      {dateDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setDateDrawerOpen(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl flex flex-col max-h-[85vh]">
+            {/* 抽屉头 */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+              <h3 className="text-base font-semibold text-[#0F172A] inline-flex items-center gap-2">
+                <Calendar size={18} className="text-[#2563EB]" />
+                日期筛选
+              </h3>
+              <button
+                onClick={() => setDateDrawerOpen(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F5F9] cursor-pointer"
+                aria-label="关闭"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* 抽屉内容 */}
+            <div className="flex-1 overflow-y-auto px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-4">
+              {/* 时段预设 */}
+              <div>
+                <p className="text-xs font-medium text-[#94A3B8] mb-2">时段</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {presetTags.map(tag => (
+                    <button
+                      key={tag.key}
+                      onClick={() => applyTag(tag.key)}
+                      className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer min-h-[44px] ${
+                        activeTag === tag.key
+                          ? 'bg-[#2563EB] text-white'
+                          : 'bg-[#F8FAFC] text-[#475569] hover:bg-[#F1F5F9]'
+                      }`}
+                    >
+                      {tag.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 自定义日期 */}
+              <div>
+                <p className="text-xs font-medium text-[#94A3B8] mb-2">自定义日期</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">开始日期</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => { setDateFrom(e.target.value); setActiveTag('') }}
+                      className="w-full px-3 py-2.5 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] min-h-[44px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">结束日期</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => { setDateTo(e.target.value); setActiveTag('') }}
+                      className="w-full px-3 py-2.5 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] min-h-[44px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 抽屉底部操作 */}
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                <button
+                  onClick={() => {
+                    setDateFrom('')
+                    setDateTo('')
+                    setActiveTag('')
+                  }}
+                  disabled={!dateFrom && !dateTo && !activeTag}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer min-h-[44px]"
+                >
+                  清除日期筛选
+                </button>
+                <button
+                  onClick={() => setDateDrawerOpen(false)}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2563EB] text-white hover:bg-[#1D4ED8] transition-colors cursor-pointer min-h-[44px]"
+                >
+                  完成
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 订单列表 - 桌面端表格 */}
       <div className="hidden xl:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

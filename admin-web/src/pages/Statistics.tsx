@@ -124,9 +124,21 @@ export default function Statistics() {
     const title = type === 'day' ? '日报' : '月报'
     const totalAmount = data.reduce((sum: number, d: any) => sum + (d.total_amount || 0), 0)
     const totalCount = data.reduce((sum: number, d: any) => sum + (d.order_count || 0), 0)
-    const content = `${title}统计\n营业额: ¥${totalAmount.toFixed(2)}\n订单数: ${totalCount}\n统计区间: ${startDate} 至 ${endDate}`
-    request.post('/print/report', { title, content }).then(() => {
-      showToast('打印任务已提交', 'success')
+    const lines = [
+      `${title}统计`,
+      `营业额: ¥${totalAmount.toFixed(2)}`,
+      `订单数: ${totalCount}`,
+      `统计区间: ${startDate} 至 ${endDate}`,
+    ]
+    request.post('/merchant-ops/print-reports', { title, lines }).then((res: any) => {
+      const enqueued = res?.data?.enqueued ?? res?.enqueued ?? 0
+      if (enqueued > 0) {
+        showToast(`已派发 ${enqueued} 台打印机`, 'success')
+      } else {
+        showToast('没有可用打印机，请先在打印设置中配置', 'warning')
+      }
+    }).catch((err: any) => {
+      showToast(err?.message || '打印失败', 'error')
     })
   }
 

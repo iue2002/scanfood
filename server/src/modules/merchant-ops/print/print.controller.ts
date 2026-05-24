@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '@/modules/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Audit, Permissions, Roles } from '../auth/decorators';
 import { PrintCore } from './print.core';
-import { CreatePrinterDto, UpdatePrinterDto, CreateTemplateDto, UpdateTemplateDto } from './print.dto';
+import { CreatePrinterDto, UpdatePrinterDto, CreateTemplateDto, UpdateTemplateDto, PrintReportDto } from './print.dto';
 import type { TemplateField, PrintWidth } from './print.types';
 
 /**
@@ -174,5 +174,21 @@ export class PrintController {
     const isTakeaway = scenario === 'takeaway';
     const data = await this.core.previewTemplate(id, undefined, isTakeaway);
     return { data };
+  }
+
+  // ============ 报表打印（替代旧 /api/print/report） ============
+  /**
+   * 打印日报/月报小票
+   *
+   * 走 mop 真打印链路：选 CASHIER/BOTH + auto_print 打印机入队，
+   * 失败有重试调度，3 次失败发 mop:printer-error
+   */
+  @Post('print-reports')
+  @Permissions('PRINTER_TEST')
+  @Audit('PRINTER_TEST', { targetType: 'print_report' })
+  @HttpCode(HttpStatus.OK)
+  async printReport(@Body() dto: PrintReportDto) {
+    const result = await this.core.printReport(dto.title, dto.lines);
+    return { data: result };
   }
 }

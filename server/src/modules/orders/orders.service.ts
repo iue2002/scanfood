@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
-import { orders, order_items, tables, users, print_records, carts, cart_items } from '@/storage/database/shared/schema';
+import { orders, order_items, tables, users, carts, cart_items } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { eq, and, inArray, desc, sql } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
@@ -194,9 +194,7 @@ export class OrdersService {
       updated_at: new Date(),
     }).where(eq(orders.id, orderId));
 
-    this.printReceipt(orderId).catch(err => {
-      console.error('打印小票失败:', err);
-    });
+    void this.markOrderAsPrinted(orderId);
 
     const updatedOrder = await this.getOrderById(orderId);
     // 通知桌台订阅者
@@ -339,9 +337,7 @@ export class OrdersService {
       await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, finalTableId));
     }
 
-    this.printReceipt(orderId).catch(err => {
-      console.error('打印小票失败:', err);
-    });
+    void this.markOrderAsPrinted(orderId);
 
     const order = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(finalTableId, order);
@@ -376,9 +372,7 @@ export class OrdersService {
     const newTotal = parseFloat(order.total_amount as any) + subtotal;
     await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
 
-    this.printReceipt(orderId).catch(err => {
-      console.error('打印小票失败:', err);
-    });
+    void this.markOrderAsPrinted(orderId);
 
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
@@ -487,36 +481,27 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  private async printReceipt(orderId: number) {
-    const order = await this.getOrderById(orderId);
-    const insertResult = await db.insert(print_records).values({
-      order_id: orderId,
-      status: 'pending',
-    });
-    const printId = (insertResult as any)[0].insertId;
-
+  /**
+   * 标记订单为"已打印"
+   *
+   * 历史背景：早期是 fake 打印 stub（console.log + print_records 假成功），
+   * 真打印由 mop print 模块负责。这个方法现在只承担状态机职责：
+   *   - submitted → printed
+   *   - 设置 printed_at
+   *
+   * 调用时机：createOrder / 加菜（addOrderItem / syncAddMore）
+   * 真打印链路：mop PrintEventHook 监听 OrdersGateway.notifyAllAdmins 事件，
+   *            自动触发 PrintCore.onOrderEvent (NEW_ORDER / ADD_MORE)
+   */
+  private async markOrderAsPrinted(orderId: number): Promise<void> {
     try {
-      console.log('打印小票:', {
-        order_number: order.order_number,
-        table_number: order.tables?.table_number,
-        items: order.order_items,
-        total: order.total_amount,
-      });
-
-      await db.update(print_records).set({
-        status: 'success',
-        printed_at: new Date(),
-      }).where(eq(print_records.id, printId));
-
       await db.update(orders).set({
         status: 'printed',
         printed_at: new Date(),
       }).where(eq(orders.id, orderId));
     } catch (err) {
-      await db.update(print_records).set({
-        status: 'failed',
-        error_message: String(err),
-      }).where(eq(print_records.id, printId));
+      // 状态标记失败不影响主流程；mop 真打印走独立路径不依赖此状态
+      console.error('[orders] markOrderAsPrinted failed:', (err as Error).message);
     }
   }
 

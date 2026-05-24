@@ -10,7 +10,6 @@ import { OrdersModule } from '@/modules/orders/orders.module';
 import { CartsModule } from '@/modules/carts/carts.module';
 import { StatisticsModule } from '@/modules/statistics/statistics.module';
 import { RefundsModule } from '@/modules/refunds/refunds.module';
-import { PrintModule } from '@/modules/print/print.module';
 import { UploadModule } from '@/modules/upload/upload.module';
 import { MerchantOpsModule } from '@/modules/merchant-ops/merchant-ops.module';
 
@@ -28,7 +27,6 @@ import { MerchantOpsModule } from '@/modules/merchant-ops/merchant-ops.module';
     CartsModule,
     StatisticsModule,
     RefundsModule,
-    PrintModule,
     UploadModule,
     MerchantOpsModule,
   ],

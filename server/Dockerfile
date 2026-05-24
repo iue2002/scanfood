@@ -1,46 +1,40 @@
 # 构建阶段
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 复制依赖文件
-COPY package.json ./
+# 复制依赖锁定文件（npm，不是 pnpm；项目锁定 npm + Node 20）
+COPY package.json package-lock.json ./
 
-# 安装 pnpm
-RUN npm install -g pnpm@9.0.0
-
-# 安装依赖（不使用 lockfile，因为 monorepo 结构）
-RUN pnpm install
+# 用 npm ci 严格按 lockfile 安装（与本地一致，避免漂移）
+RUN npm ci
 
 # 复制源代码
 COPY . .
 
-# 构建
-RUN pnpm build
+# 构建（NestJS 输出到 dist/src/）
+RUN npm run build
 
 # ===== 生产阶段 =====
-FROM node:22-alpine AS production
+FROM node:20-alpine AS production
 
-# 安全加固: 创建非 root 用户
+# 安全加固: 非 root 用户运行
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
 WORKDIR /app
 
-# 安装 pnpm
-RUN npm install -g pnpm@9.0.0
+# 复制依赖锁定文件
+COPY package.json package-lock.json ./
 
-# 复制依赖文件
-COPY package.json ./
+# 只装生产依赖
+RUN npm ci --omit=dev && npm cache clean --force
 
-# 只安装生产依赖
-RUN pnpm install --production
-
-# 从构建阶段复制构建产物
+# 从构建阶段复制产物
 COPY --from=builder /app/dist/src ./dist
 COPY --from=builder /app/drizzle ./drizzle
 
-# 创建上传、日志目录并设置权限
+# 创建上传 / 日志目录并设置权限
 RUN mkdir -p uploads logs && \
     chown -R appuser:appgroup /app
 

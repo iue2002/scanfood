@@ -174,3 +174,18 @@ export class SelectivePrintDto {
 
   @IsOptional() @IsString() @MaxLength(100) label?: string;
 }
+
+
+export class PrintReportDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  title!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(200, { each: true })
+  lines!: string[];
+}

@@ -959,6 +959,78 @@ export class PrintCore {
   }
 
   /**
+   * 打印日报/月报：把统计内容当作"items 行"入队到 1..N 台 CASHIER/BOTH 打印机
+   *
+   * 行为：
+   *   - 不走 plan（报表不属于订单维度）
+   *   - 选 enabled + auto_print + role IN (CASHIER, BOTH) 的所有打印机
+   *   - 没匹配到时退化为：所有 enabled 打印机
+   *   - 失败用 mop 现有的重试调度（30s / 2min / 10min）
+   *
+   * @param title 报表标题（如 "日报" / "月报"）
+   * @param lines 报表行数组（如 ["营业额: ¥1234.56", "订单数: 42", "统计区间: 2026-05-01 至 2026-05-24"]）
+   * @returns 入队的 job 数量
+   */
+  async printReport(title: string, lines: string[]): Promise<{ enqueued: number }> {
+    if (!title || title.trim().length === 0) {
+      throw new BadRequestException({ code: 'REPORT_TITLE_EMPTY', msg: '报表标题不能为空' });
+    }
+    if (!Array.isArray(lines) || lines.length === 0) {
+      throw new BadRequestException({ code: 'REPORT_LINES_EMPTY', msg: '报表内容不能为空' });
+    }
+    // 选打印机：优先 CASHIER + BOTH 且 auto_print 启用
+    const all = await this.repo.listPrinters();
+    let targets = all.filter((p) => p.enabled && p.auto_print && (p.role === 'CASHIER' || p.role === 'BOTH'));
+    if (targets.length === 0) {
+      // 退化：所有 enabled 打印机各打一份
+      targets = all.filter((p) => p.enabled);
+    }
+    if (targets.length === 0) {
+      throw new BadRequestException({ code: 'NO_PRINTER_AVAILABLE', msg: '没有可用打印机' });
+    }
+    // 用系统默认前台模板 id=1
+    const tpl = await this.repo.findTemplateById(1);
+    if (!tpl) throw new Error('default template (id=1) missing');
+
+    let enqueued = 0;
+    for (const printer of targets) {
+      try {
+        // 字段：STORE_NAME + TIME + ITEMS（每行作为一个虚拟 item，quantity=1 / subtotal=0）
+        const fields = (tpl.fields_json.includes('ITEMS') ? tpl.fields_json : ['STORE_NAME', 'TIME', 'ITEMS']) as TemplateField[];
+        const payload: PrintPayload = {
+          width: tpl.width,
+          fields,
+          store_name: title,
+          order_no: title,
+          order_time: this.fmtDateTime(this.clock()),
+          items: lines.map((line) => ({ name: line, quantity: 1, spec: null, subtotal: 0 })),
+          total: 0,
+          remark: null,
+          operator: null,
+        };
+        await this.repo.insertJob({
+          printer_id: printer.id,
+          template_id: tpl.id,
+          plan_id: null,
+          order_id: null,
+          trigger: 'REPRINT', // 复用 REPRINT trigger（语义最接近：手动触发，非订单首发）
+          payload_json: payload,
+          selected_item_ids: null,
+          status: 'PENDING',
+          attempt: 0,
+          last_error: null,
+          next_retry_at: null,
+          provider_job_id: null,
+        });
+        enqueued += 1;
+      } catch (err) {
+        this.logger.warn(`[print] printReport enqueue failed for printer ${printer.id}: ${(err as Error).message}`);
+      }
+    }
+    return { enqueued };
+  }
+
+  /**
    * 重试 tick：每 30 秒由 scheduler 调用
    *
    * - 离线打印机不下发（Property 21.a）

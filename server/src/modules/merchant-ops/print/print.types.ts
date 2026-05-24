@@ -25,8 +25,21 @@ export const ALL_TEMPLATE_FIELDS: ReadonlyArray<TemplateField> = [
   'STORE_NAME', 'TABLE_NUMBER', 'ITEMS', 'TOTAL', 'TIME', 'ORDER_NO', 'REMARK', 'OPERATOR',
 ];
 
-/** I15: fields_json 必须包含的最小集 */
-export const REQUIRED_TEMPLATE_FIELDS: ReadonlyArray<TemplateField> = ['TABLE_NUMBER', 'ITEMS', 'TOTAL'];
+/**
+ * I15: 任意模板都必须包含的最小集（TABLE_NUMBER + ITEMS）
+ *
+ * 这两个字段是"打印什么 + 给哪桌"的最低信息，前台/后厨都不能没有。
+ * 注意 TOTAL 不在这里：后厨小票按设计就不打金额（顾客隐私 + 后厨无需金额信息），
+ * 全票场景的 TOTAL 必选由 REQUIRED_FOR_FULL_RECEIPT 单独检查。
+ */
+export const REQUIRED_TEMPLATE_FIELDS: ReadonlyArray<TemplateField> = ['TABLE_NUMBER', 'ITEMS'];
+
+/**
+ * 全票（CASHIER / BOTH）场景必含字段。后厨模板（仅 KITCHEN 角色用）可不含。
+ * 当模板被任何 CASHIER/BOTH 打印机引用时，必须含此集；保存模板时本身放宽，
+ * 仅在打印机绑定模板时实施。
+ */
+export const REQUIRED_FOR_FULL_RECEIPT: ReadonlyArray<TemplateField> = ['TABLE_NUMBER', 'ITEMS', 'TOTAL'];
 
 /** R16.2: KITCHEN 角色允许的字段（不含金额、店名等） */
 export const KITCHEN_ALLOWED_FIELDS: ReadonlyArray<TemplateField> = ['TABLE_NUMBER', 'ITEMS', 'ORDER_NO', 'REMARK', 'TIME'];

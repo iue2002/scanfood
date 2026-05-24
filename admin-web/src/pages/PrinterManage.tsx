@@ -25,7 +25,11 @@ type RoleType = 'CASHIER' | 'KITCHEN' | 'BOTH'
 type Width = '58mm' | '80mm'
 
 const ALL_FIELDS = ['STORE_NAME', 'TABLE_NUMBER', 'ITEMS', 'TOTAL', 'TIME', 'ORDER_NO', 'REMARK', 'OPERATOR'] as const
-const REQUIRED_FIELDS = ['TABLE_NUMBER', 'ITEMS', 'TOTAL'] as const
+// 任何模板都必须包含的最小集（前台/后厨皆然）
+// TOTAL 不在此列：后厨小票按设计不打金额（顾客隐私 + 后厨无需）
+const REQUIRED_FIELDS = ['TABLE_NUMBER', 'ITEMS'] as const
+// 全票场景推荐勾选（CASHIER / BOTH 角色打印机引用此模板时建议有 TOTAL）
+const RECOMMENDED_FOR_FULL = ['TOTAL'] as const
 type Field = typeof ALL_FIELDS[number]
 
 const FIELD_LABEL: Record<Field, string> = {
@@ -665,11 +669,15 @@ function TemplateEditDialog({
             </select>
           </Field>
           <div>
-            <label className="block text-xs text-[#64748B] mb-2">勾选字段（{REQUIRED_FIELDS.join('、')} 必选）</label>
+            <label className="block text-xs text-[#64748B] mb-2">
+              勾选字段（<span className="text-[#DC2626]">{REQUIRED_FIELDS.join('、')}</span> 必选 ·
+              <span className="ml-1 text-[#16A34A]">{RECOMMENDED_FOR_FULL.join('、')}</span> 推荐前台用）
+            </label>
             <div className="grid grid-cols-2 gap-2">
               {ALL_FIELDS.map((f) => {
                 const checked = fields.has(f)
                 const required = (REQUIRED_FIELDS as ReadonlyArray<string>).includes(f)
+                const recommended = (RECOMMENDED_FOR_FULL as ReadonlyArray<string>).includes(f)
                 return (
                   <label
                     key={f}
@@ -684,7 +692,8 @@ function TemplateEditDialog({
                       className="w-4 h-4 rounded border-[#CBD5E1] text-[#2563EB] focus:ring-[#2563EB]"
                     />
                     <span className="text-sm text-[#334155]">{FIELD_LABEL[f]}</span>
-                    {required && <span className="text-xs text-[#94A3B8]">必选</span>}
+                    {required && <span className="text-xs text-[#DC2626]">必选</span>}
+                    {!required && recommended && <span className="text-xs text-[#16A34A]">推荐</span>}
                   </label>
                 )
               })}

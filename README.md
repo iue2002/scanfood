@@ -99,4 +99,17 @@ git reset --hard backup-before-root-cleanup     # 根目录治理前
 
 - `DEPS_HEALTH.md` - 依赖治理记录
 - `AGENTS.md` - AI 协作开发规范（小程序端样式 / 网络请求 / 组件库 / 跨端兼容性等）
+- `内网穿透配置指南.md` - 微信小程序开发期访问后端 API 的 cpolar / natapp / ngrok 方案
 - `.kiro/specs/merchant-ops-center/` - 商家运营中心产品规格
+
+## HTTPS 开发证书（admin-web）
+
+如果需要 admin-web 用 HTTPS（PWA 测试 / 微信开发者工具调用 web-view），用 `mkcert` 生成本地 CA：
+
+```bash
+choco install mkcert     # 或 scoop install mkcert
+mkcert -install
+cd admin-web
+mkcert localhost 127.0.0.1 ::1   # 生成 localhost+2.pem 和 localhost+2-key.pem
+npm run dev                       # vite 自动检测启用 HTTPS
+```

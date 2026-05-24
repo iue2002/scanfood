@@ -35,6 +35,8 @@ debug.log
 
 # Taro / 历史死代码（保留 .gitignore 防止意外重新引入）
 .taro/
+.coze
+.cozeproj/
 patches/
 src/
 config/
@@ -45,6 +47,10 @@ eslint.config.mjs
 stylelint.config.mjs
 pnpm-lock.yaml
 pnpm-workspace.yaml
+design_guidelines.md
+# 误放在根的微信小程序配置（真实在 xiaochengxu/）
+project.config.json
+project.private.config.json
 
 # OS
 .DS_Store

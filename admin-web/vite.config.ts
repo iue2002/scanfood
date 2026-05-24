@@ -4,8 +4,22 @@ import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'fs'
 import path from 'path'
 
-const certPath = path.resolve(__dirname, 'localhost.pem')
-const keyPath = path.resolve(__dirname, 'localhost-key.pem')
+// HTTPS 开发证书：优先使用 mkcert 生成的 localhost+2.pem（推荐），
+// 兼容旧的 localhost.pem 命名。两个都没有时启动 HTTP。
+const certCandidates = [
+  ['localhost+2.pem', 'localhost+2-key.pem'],
+  ['localhost.pem', 'localhost-key.pem'],
+] as const
+const httpsCert = (() => {
+  for (const [certName, keyName] of certCandidates) {
+    const certFile = path.resolve(__dirname, certName)
+    const keyFile = path.resolve(__dirname, keyName)
+    if (fs.existsSync(certFile) && fs.existsSync(keyFile)) {
+      return { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) }
+    }
+  }
+  return false
+})()
 
 export default defineConfig({
   plugins: [
@@ -84,7 +98,7 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
     port: 5173,
-    https: fs.existsSync(certPath) ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) } : false,
+    https: httpsCert,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

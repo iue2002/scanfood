@@ -15,6 +15,8 @@ interface Dish {
   price: string
   image_url?: string
   status: 'available' | 'unavailable'
+  is_required?: boolean
+  min_quantity?: number
   dish_specs?: Array<{ id: number; spec_name: string; price: string }>
 }
 
@@ -38,7 +40,7 @@ export default function DishManage() {
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Dish | null>(null)
-  const [form, setForm] = useState({ name: '', price: '', category_id: 0, image_url: '' })
+  const [form, setForm] = useState({ name: '', price: '', category_id: 0, image_url: '', is_required: false, min_quantity: 1 })
   const { showToast, showConfirm } = useModal()
 
   const [showCatModal, setShowCatModal] = useState(false)
@@ -63,7 +65,11 @@ export default function DishManage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const data = { ...form, price: parseFloat(form.price) }
+    const data = {
+      ...form,
+      price: parseFloat(form.price),
+      min_quantity: Math.max(1, Number(form.min_quantity) || 1),
+    }
     if (editing) {
       await request.put(`/dishes/${editing.id}`, data)
     } else {
@@ -71,7 +77,7 @@ export default function DishManage() {
     }
     setShowModal(false)
     setEditing(null)
-    setForm({ name: '', price: '', category_id: categories[0]?.id || 0, image_url: '' })
+    setForm({ name: '', price: '', category_id: categories[0]?.id || 0, image_url: '', is_required: false, min_quantity: 1 })
     setPreviewUrl('')
     setCompressionResult(null)
     fetchData()
@@ -220,7 +226,7 @@ export default function DishManage() {
 
   const openAddModal = () => {
     setEditing(null)
-    setForm({ name: '', price: '', category_id: categories[0]?.id || 0, image_url: '' })
+    setForm({ name: '', price: '', category_id: categories[0]?.id || 0, image_url: '', is_required: false, min_quantity: 1 })
     setPreviewUrl('')
     setCompressionResult(null)
     setShowModal(true)
@@ -229,7 +235,14 @@ export default function DishManage() {
   const openEditModal = (dish: Dish) => {
     setEditing(dish)
     const img = dish.image_url || ''
-    setForm({ name: dish.name, price: dish.price, category_id: dish.category_id, image_url: img })
+    setForm({
+      name: dish.name,
+      price: dish.price,
+      category_id: dish.category_id,
+      image_url: img,
+      is_required: !!dish.is_required,
+      min_quantity: dish.min_quantity ?? 1,
+    })
     setPreviewUrl(img)
     setCompressionResult(null)
     setShowModal(true)
@@ -300,7 +313,17 @@ export default function DishManage() {
                         <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
                       }
                     </div>
-                    <span className="font-medium">{dish.name}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">{dish.name}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {dish.is_required && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#B91C1C] font-medium">必选</span>
+                        )}
+                        {dish.min_quantity && dish.min_quantity > 1 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">≥ {dish.min_quantity} 份</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3">{categories.find(c => c.id === dish.category_id)?.name || '-'}</td>
@@ -352,6 +375,36 @@ export default function DishManage() {
                 <label className="block text-sm text-[#334155] mb-1">价格</label>
                 <input type="number" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" required />
               </div>
+
+              {/* 必选 + 最少数量（订单提交时校验，加菜不受限） */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-[#F8FAFC] rounded-lg border border-gray-100">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.is_required}
+                    onChange={(e) => setForm({ ...form, is_required: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB]"
+                  />
+                  <div>
+                    <div className="text-sm text-[#334155]">必选菜品</div>
+                    <div className="text-xs text-[#94A3B8]">顾客下单未点会被拒</div>
+                  </div>
+                </label>
+                <div>
+                  <label className="text-sm text-[#334155]">最少点餐数量</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={999}
+                    step={1}
+                    value={form.min_quantity}
+                    onChange={(e) => setForm({ ...form, min_quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                    className="mt-1 w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                  />
+                  <div className="text-xs text-[#94A3B8] mt-1">选了该菜则数量需 ≥ 此值</div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm text-[#334155] mb-1">图片</label>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />

@@ -45,6 +45,56 @@ Component({
   },
 
   methods: {
+    /**
+     * 客户端预校验：必选菜品 + 最少数量
+     * 后端有同样校验做兜底（防绕过），这里只是提早拦下避免空跑请求 + 给具体引导
+     */
+    _validateRequiredAndMinQty(items, allDishes) {
+      // 1) 最少数量：合并同 dish 的所有 quantity
+      const qtyByDishId = new Map();
+      for (const it of items) {
+        qtyByDishId.set(it.dish_id, (qtyByDishId.get(it.dish_id) || 0) + (it.quantity || 0));
+      }
+      const dishMap = new Map(allDishes.map(d => [d.id, d]));
+      const minViolations = [];
+      for (const [dishId, qty] of qtyByDishId) {
+        const d = dishMap.get(dishId);
+        if (!d) continue;
+        const minQ = Number(d.min_quantity || 1);
+        if (minQ > 1 && qty < minQ) {
+          minViolations.push({ id: dishId, name: d.name, required: minQ, actual: qty });
+        }
+      }
+      if (minViolations.length > 0) {
+        const detail = minViolations
+          .map(v => `${v.name}（至少 ${v.required} 份，当前 ${v.actual} 份）`)
+          .join('\n');
+        return {
+          ok: false,
+          title: '部分菜品数量不够',
+          content: detail,
+          firstMissingDishId: minViolations[0].id,
+        };
+      }
+
+      // 2) 必选：所有 is_required=true && status=available 的菜都必须在订单里
+      const orderDishIdSet = new Set(items.map(it => it.dish_id));
+      const required = allDishes.filter(d =>
+        d && d.is_required && d.status === 'available'
+      );
+      const missing = required.filter(d => !orderDishIdSet.has(d.id));
+      if (missing.length > 0) {
+        return {
+          ok: false,
+          title: '请先点必选菜品',
+          content: missing.map(m => `· ${m.name}`).join('\n'),
+          firstMissingDishId: missing[0].id,
+        };
+      }
+
+      return { ok: true };
+    },
+
     handleOpen() {
       this.setData({
         sheetIn: false,
@@ -206,6 +256,32 @@ Component({
           }
         }
 
+        // 客户端预校验：必选菜品 + 最少数量（提前拦下，避免空跑请求）
+        const validation = this._validateRequiredAndMinQty(items, allDishes);
+        if (!validation.ok) {
+          wx.showModal({
+            title: validation.title,
+            content: validation.content,
+            confirmText: '去选择',
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                // 关闭确认页，让用户回到菜品列表去补选必选/调整数量
+                this.setData({ sheetIn: false });
+                setTimeout(() => {
+                  this.triggerEvent('close');
+                  // 通知父级（order 页）：定位到第一个待补菜品
+                  if (validation.firstMissingDishId) {
+                    this.triggerEvent('focusdish', { dishId: validation.firstMissingDishId });
+                  }
+                }, 220);
+              }
+            }
+          });
+          this.setData({ isSubmitting: false });
+          return;
+        }
+
         const result = await request({
           url: '/orders',
           method: 'POST',
@@ -242,7 +318,38 @@ Component({
         }
       } catch (err) {
         console.error('提交订单失败', err);
-        wx.showToast({ title: '提交失败', icon: 'none' });
+        // 后端校验失败（绕过客户端时兜底）
+        const data = err && (err.data || err);
+        const code = data && data.code;
+        if (code === 'REQUIRED_DISH_MISSING') {
+          const missing = (data.missing || []).map(m => `· ${m.name}`).join('\n');
+          wx.showModal({
+            title: '请先点必选菜品',
+            content: missing || '订单缺少必选菜品',
+            confirmText: '去选择',
+            showCancel: false,
+            success: () => {
+              this.setData({ sheetIn: false });
+              setTimeout(() => this.triggerEvent('close'), 220);
+            }
+          });
+        } else if (code === 'MIN_QUANTITY_NOT_MET') {
+          const detail = (data.violations || [])
+            .map(v => `${v.name}（至少 ${v.required} 份，当前 ${v.actual} 份）`)
+            .join('\n');
+          wx.showModal({
+            title: '部分菜品数量不够',
+            content: detail,
+            confirmText: '去调整',
+            showCancel: false,
+            success: () => {
+              this.setData({ sheetIn: false });
+              setTimeout(() => this.triggerEvent('close'), 220);
+            }
+          });
+        } else {
+          wx.showToast({ title: '提交失败', icon: 'none' });
+        }
       } finally {
         this.setData({ isSubmitting: false });
       }

@@ -85,6 +85,10 @@ export const dishes = mysqlTable(
     image_url: varchar("image_url", { length: 500 }),
     price: decimal("price", { precision: 10, scale: 2 }).notNull(), // 基础价格
     status: varchar("status", { length: 20 }).notNull().default('available'), // available/unavailable
+    /** 是否必选：true 时顾客下单未点会被拒（订单提交期校验，加菜不校验） */
+    is_required: boolean("is_required").notNull().default(false),
+    /** 最少点餐数量：选了该菜则数量必须 ≥ min_quantity（默认 1） */
+    min_quantity: int("min_quantity").notNull().default(1),
     sort_order: int("sort_order").notNull().default(0),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
@@ -92,6 +96,7 @@ export const dishes = mysqlTable(
   (table) => [
     index("dishes_category_id_idx").on(table.category_id),
     index("dishes_status_idx").on(table.status),
+    index("dishes_is_required_idx").on(table.is_required),
     index("dishes_sort_order_idx").on(table.sort_order),
   ]
 );

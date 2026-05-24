@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
-import { orders, order_items, tables, users, carts, cart_items } from '@/storage/database/shared/schema';
+import { orders, order_items, tables, users, carts, cart_items, dishes } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { eq, and, inArray, desc, sql, like } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
@@ -288,6 +288,9 @@ export class OrdersService {
   }
 
   async createOrder(dto: CreateOrderDto) {
+    // 必选 / 最少数量校验（仅订单首次提交时校验，加菜不受限）
+    await this.assertRequiredAndMinQuantity(dto.items);
+
     let totalAmount = 0;
     const orderItemsData = dto.items.map(item => {
       const subtotal = item.price * item.quantity;
@@ -507,6 +510,87 @@ export class OrdersService {
     } catch (err) {
       // 状态标记失败不影响主流程；mop 真打印走独立路径不依赖此状态
       console.error('[orders] markOrderAsPrinted failed:', (err as Error).message);
+    }
+  }
+
+  /**
+   * 提交订单时的必选 / 最少数量校验
+   *
+   * 规则：
+   *   - 商家把某菜标记 is_required=true：顾客下单必须包含此菜（status=available 才计入必选）
+   *   - 选了某菜则数量必须 ≥ min_quantity
+   *
+   * 不变量：
+   *   - 仅 createOrder 时校验，加菜（addOrderItem / syncAddMore）不受限
+   *   - 下架（status=unavailable）的菜即使标记必选也不强制（避免商家忘下架某必选菜导致全店无法下单）
+   *
+   * 失败时抛 BadRequestException，前端据 code 给具体引导文案：
+   *   - REQUIRED_DISH_MISSING：必选菜未点
+   *   - MIN_QUANTITY_NOT_MET：选了某菜但数量低于 min_quantity
+   */
+  private async assertRequiredAndMinQuantity(
+    items: Array<{ dish_id: number; quantity: number }>,
+  ): Promise<void> {
+    if (!items || items.length === 0) {
+      throw new BadRequestException({ code: 'EMPTY_CART', message: '购物车不能为空' });
+    }
+
+    // 1) 拿订单中所有涉及的 dish 信息（去重）
+    const orderDishIds = Array.from(new Set(items.map((it) => it.dish_id).filter((id) => id != null)));
+    const orderDishes = orderDishIds.length > 0
+      ? await db.select({
+          id: dishes.id,
+          name: dishes.name,
+          status: dishes.status,
+          is_required: dishes.is_required,
+          min_quantity: dishes.min_quantity,
+        }).from(dishes).where(inArray(dishes.id, orderDishIds))
+      : [];
+
+    // 2) 校验：每个被选菜品的数量 ≥ min_quantity
+    const dishMap = new Map(orderDishes.map((d) => [d.id, d]));
+    // 把同一 dish_id 多份合并（不同规格也算同一菜）
+    const qtyByDishId = new Map<number, number>();
+    for (const it of items) {
+      qtyByDishId.set(it.dish_id, (qtyByDishId.get(it.dish_id) ?? 0) + (it.quantity || 0));
+    }
+    const minQtyViolations: Array<{ name: string; required: number; actual: number }> = [];
+    for (const [dishId, qty] of qtyByDishId) {
+      const d = dishMap.get(dishId);
+      if (!d) continue;
+      if (d.min_quantity > 1 && qty < d.min_quantity) {
+        minQtyViolations.push({ name: d.name, required: d.min_quantity, actual: qty });
+      }
+    }
+    if (minQtyViolations.length > 0) {
+      const detail = minQtyViolations
+        .map((v) => `${v.name}（至少 ${v.required} 份，当前 ${v.actual} 份）`)
+        .join('、');
+      throw new BadRequestException({
+        code: 'MIN_QUANTITY_NOT_MET',
+        message: `以下菜品未达到最少数量：${detail}`,
+        violations: minQtyViolations,
+      });
+    }
+
+    // 3) 校验：必选菜品（is_required + status=available）必须都被点
+    const requiredDishes = await db.select({
+      id: dishes.id,
+      name: dishes.name,
+      min_quantity: dishes.min_quantity,
+    }).from(dishes).where(and(
+      eq(dishes.is_required, true),
+      eq(dishes.status, 'available'),
+    ));
+
+    const orderDishIdSet = new Set(orderDishIds);
+    const missing = requiredDishes.filter((d) => !orderDishIdSet.has(d.id));
+    if (missing.length > 0) {
+      throw new BadRequestException({
+        code: 'REQUIRED_DISH_MISSING',
+        message: `请先点必选菜品：${missing.map((m) => m.name).join('、')}`,
+        missing: missing.map((m) => ({ id: m.id, name: m.name, min_quantity: m.min_quantity })),
+      });
     }
   }
 

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsNotEmpty, Min, Max, MaxLength, Matches } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty, IsBoolean, IsInt, Min, Max, MaxLength, Matches } from 'class-validator';
 
 const NO_XSS = /^[^<>]*$/;
 
@@ -27,6 +27,18 @@ export class CreateDishDto {
   @IsOptional()
   @MaxLength(512)
   image_url?: string;
+
+  /** 必选菜品：true 时顾客下单未点会被拒 */
+  @IsBoolean()
+  @IsOptional()
+  is_required?: boolean;
+
+  /** 最少点餐数量：≥ 1（默认 1） */
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Max(999)
+  min_quantity?: number;
 }
 
 export class UpdateDishDto {
@@ -60,6 +72,16 @@ export class UpdateDishDto {
   @IsString()
   @IsOptional()
   status?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  is_required?: boolean;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Max(999)
+  min_quantity?: number;
 }
 
 export class CreateDishSpecDto {

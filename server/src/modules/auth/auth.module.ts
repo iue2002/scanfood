@@ -5,11 +5,12 @@ import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { JwtStrategy } from './jwt.strategy';
 import { LoginRateLimitMiddleware } from './login-rate-limit.middleware';
+import { getJwtSecret } from './jwt-secret';
 
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'default-secret',
+      secret: getJwtSecret(),
       signOptions: { expiresIn: '7d' },
     }),
   ],

@@ -230,8 +230,9 @@ export class MerchantOpsModule implements OnModuleInit {
 
     // 启动期巡检：清理 print_plan_slices 中的悬空分类引用
     try {
-      const { db } = await import('@/storage/database/mysql-client');
-      const { dish_categories } = await import('@/storage/database/shared/schema');
+      // 注意：用相对路径而非 @/ alias，因为 tsc 编译后 alias 不会被运行期解析
+      const { db } = await import('../../storage/database/mysql-client');
+      const { dish_categories } = await import('../../storage/database/shared/schema');
       const cats = await db.select({ id: dish_categories.id }).from(dish_categories);
       const validIds = cats.map((c) => c.id);
       const r = await this.planCore.pruneOrphanCategoryRefs(validIds);

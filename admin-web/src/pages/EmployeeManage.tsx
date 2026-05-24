@@ -233,7 +233,9 @@ export default function EmployeeManage() {
 
       {/* 列表 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
+        {/* 桌面端：完整表格（≥ md 显示） */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-[#F8FAFC] text-[#334155]">
             <tr>
               <th className="text-left px-4 py-3 font-medium">用户名</th>
@@ -305,7 +307,74 @@ export default function EmployeeManage() {
               )
             })}
           </tbody>
-        </table>
+          </table>
+        </div>
+
+        {/* 手机/小平板：卡片视图（< md 显示） */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading && !list && (
+            <div className="text-center py-12 text-[#94A3B8]"><Loader2 className="animate-spin inline mr-2" size={16} /> 加载中...</div>
+          )}
+          {list && list.data.length === 0 && (
+            <div className="text-center py-12 text-[#94A3B8]">暂无员工</div>
+          )}
+          {list?.data.map((emp) => {
+            const isSelf = emp.id === myId
+            const status = STATUS_LABEL[emp.status]
+            return (
+              <div key={emp.id} className="p-4 hover:bg-gray-50 transition-colors">
+                {/* 第一行：用户名 + 状态徽章 */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <UserCircle2 size={18} className="text-[#94A3B8] shrink-0" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium text-[#0F172A] truncate">{emp.username}</span>
+                        {isSelf && <span className="text-xs px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB] shrink-0">我自己</span>}
+                      </div>
+                      {emp.nickname && <div className="text-xs text-[#64748B] truncate">{emp.nickname}</div>}
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full shrink-0 ${status.cls}`}>{status.label}</span>
+                </div>
+
+                {/* 第二行：角色 + 创建时间 */}
+                <div className="flex items-center gap-2 flex-wrap mb-3">
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${ROLE_BADGE[emp.role]}`}>
+                    {ROLE_LABEL[emp.role]}
+                  </span>
+                  {emp.must_change_password && <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">需改密</span>}
+                  <span className="text-xs text-[#94A3B8] ml-auto">{formatDate(emp.created_at)}</span>
+                </div>
+
+                {/* 第三行：操作按钮（每个 ≥ 44x44px 触摸目标） */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditTarget(emp)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-sm text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] rounded-lg transition-colors cursor-pointer min-h-[40px]"
+                  >
+                    <Pencil size={15} /> 编辑
+                  </button>
+                  <button
+                    onClick={() => handleResetPassword(emp)}
+                    disabled={isSelf}
+                    className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-sm rounded-lg transition-colors min-h-[40px] ${isSelf ? 'text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed' : 'text-[#F59E0B] bg-amber-50 hover:bg-amber-100 cursor-pointer'}`}
+                  >
+                    <KeyRound size={15} /> 重置密码
+                  </button>
+                  <button
+                    onClick={() => handleDelete(emp)}
+                    disabled={isSelf}
+                    className={`inline-flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${isSelf ? 'text-[#CBD5E1] bg-[#F8FAFC] cursor-not-allowed' : 'text-[#EF4444] bg-red-50 hover:bg-red-100 cursor-pointer'}`}
+                    title={isSelf ? '不能删除自己' : '删除'}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
 
         {/* 分页 */}
         {list && list.total > 0 && (

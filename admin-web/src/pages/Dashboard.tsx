@@ -200,9 +200,9 @@ export default function Dashboard() {
       </div>
 
       {/* 中部双栏：左趋势 + 右饼图 */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* 近 7 日趋势 - 占 2/3 */}
-        <div className="xl:col-span-2 bg-white rounded-xl p-4 sm:p-5 shadow-sm border border-gray-100">
+        <div className="lg:col-span-2 bg-white rounded-xl p-4 sm:p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <h3 className="text-sm sm:text-base font-semibold text-[#0F172A]">近 7 日营业趋势</h3>
             <span className="text-xs text-[#94A3B8]">共 ¥{overview?.week_amount || '0.00'} · {overview?.week_count ?? 0} 单</span>
@@ -268,7 +268,7 @@ export default function Dashboard() {
       </div>
 
       {/* 下部双栏：分时 + 热销 */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 24 小时分时 */}
         <div className="bg-white rounded-xl p-4 sm:p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3 sm:mb-4">

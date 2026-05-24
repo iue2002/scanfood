@@ -526,12 +526,12 @@ function PlanEditor({
 
           {/* 切片列表 */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <h3 className="text-sm font-semibold text-[#0F172A]">切片配置（{slices.length}/20）</h3>
               <button
                 onClick={addSlice}
                 disabled={slices.length >= 20}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 text-xs font-medium disabled:opacity-50"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 text-xs font-medium disabled:opacity-50 shrink-0"
               >
                 <Plus className="w-3 h-3" />
                 添加切片

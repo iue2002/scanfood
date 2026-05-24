@@ -178,7 +178,7 @@ export default function PrintActionModal({
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {/* Mode 切换 */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <ModeButton
               active={mode === 'default'}
               icon={<Printer className="w-4 h-4" />}

@@ -102,7 +102,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       <div className="h-14 lg:h-16 flex items-center justify-between px-4 lg:px-6 border-b border-gray-100">
         <div className="flex items-center">
           <div className="w-7 h-7 lg:w-8 lg:h-8 bg-[#2563EB] rounded-lg flex items-center justify-center mr-2 lg:mr-3">
-            <UtensilsCrossed size={16} md:size={18} className="text-white" />
+            <UtensilsCrossed className="text-white w-4 h-4 lg:w-[18px] lg:h-[18px]" />
           </div>
           <span className="text-base lg:text-lg font-semibold text-[#0F172A]">扫码点餐</span>
         </div>

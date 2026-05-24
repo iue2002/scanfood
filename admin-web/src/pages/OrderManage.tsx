@@ -449,8 +449,9 @@ export default function OrderManage() {
           )}
         </div>
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
-            <Filter size={16} className="text-[#64748B]" />
+          {/* 状态下拉（始终显示，但 < lg 时隐藏 Filter 图标节省空间） */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Filter size={16} className="hidden lg:inline text-[#64748B]" />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -466,13 +467,14 @@ export default function OrderManage() {
             </select>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
-            <Calendar size={16} className="text-[#64748B]" />
+          {/* 日期范围（始终显示，<sm 时图标隐藏） */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Calendar size={16} className="hidden sm:inline text-[#64748B]" />
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => { setDateFrom(e.target.value); setActiveTag('') }}
-              className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="px-2 sm:px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               placeholder="开始日期"
             />
             <span className="text-[#94A3B8]">至</span>
@@ -480,12 +482,13 @@ export default function OrderManage() {
               type="date"
               value={dateTo}
               onChange={(e) => { setDateTo(e.target.value); setActiveTag('') }}
-              className="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              className="px-2 sm:px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               placeholder="结束日期"
             />
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+          {/* 时段预设标签（>= md 显示） */}
+          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             <Tag size={16} className="text-[#64748B]" />
             {presetTags.map(tag => (
               <button
@@ -1080,14 +1083,14 @@ export default function OrderManage() {
 
             {/* 操作按钮（固定在底部） */}
             <div className="p-4 border-t border-gray-100 bg-white">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setDetail(null)} className="flex-1 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => setDetail(null)} className="flex-1 min-w-[80px] py-2.5 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer min-h-[40px]">
                   关闭
                 </button>
                 {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
                   <button
                     onClick={() => openAddDish(detail)}
-                    className="flex-1 py-2 bg-[#F8FAFC] text-[#334155] rounded-lg text-xs font-medium hover:bg-[#F1F5F9] transition-colors cursor-pointer flex items-center justify-center gap-1"
+                    className="flex-1 min-w-[80px] py-2.5 bg-[#F8FAFC] text-[#334155] rounded-lg text-xs font-medium hover:bg-[#F1F5F9] transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[40px]"
                     disabled={loading}
                   >
                     <PlusCircle size={14} />
@@ -1096,10 +1099,11 @@ export default function OrderManage() {
                 )}
                 {detail.status === 'submitted' || detail.status === 'printed' ? (
                   <>
-                    <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="flex-1 py-2 bg-[#EF4444] text-white rounded-lg text-xs font-medium hover:bg-[#DC2626] transition-colors cursor-pointer">
+                    {/* 取消订单是危险操作：在小屏单独占一行避免误触确认结账 */}
+                    <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="basis-full sm:basis-auto sm:flex-1 sm:min-w-[80px] py-2.5 bg-[#EF4444] text-white rounded-lg text-xs font-medium hover:bg-[#DC2626] transition-colors cursor-pointer min-h-[40px] order-3 sm:order-none">
                       取消订单
                     </button>
-                    <button onClick={() => { handleSettle(detail.id); setDetail(null) }} className="flex-1 py-2 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer">
+                    <button onClick={() => { handleSettle(detail.id); setDetail(null) }} className="flex-1 min-w-[80px] py-2.5 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer min-h-[40px]">
                       确认结账
                     </button>
                   </>
@@ -1132,7 +1136,7 @@ export default function OrderManage() {
       {/* 加餐弹窗 */}
       {addDishOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setAddDishOrder(null)}>
-          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[70vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-[#0F172A]">选择菜品加餐</h3>

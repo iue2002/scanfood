@@ -378,7 +378,7 @@ function PrinterCard({
           <IconBtn onClick={onDelete} title="删除" red><Trash2 className="w-4 h-4" /></IconBtn>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <ToggleRow
           label="新单自动打印"
           checked={printer.auto_print}
@@ -492,7 +492,7 @@ function PrinterEditDialog({
         <Field label="名称">
           <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="例：前台收银 / 后厨" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="品牌">
             <select value={provider} onChange={(e) => setProvider(e.target.value as Provider)} className={inputCls}>
               <optgroup label="云打印（互联网，无需电脑）">
@@ -555,7 +555,7 @@ function PrinterEditDialog({
             ))}
           </select>
         </Field>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <ToggleRow label="启用" checked={enabled} onChange={setEnabled} />
           <ToggleRow label="新单自动打印" checked={autoPrint} disabled={!enabled} onChange={setAutoPrint} />
           <ToggleRow label="加餐自动打印" checked={autoPrintAdd} disabled={!enabled} onChange={setAutoPrintAdd} />
@@ -675,7 +675,7 @@ function TemplateEditDialog({
               勾选字段（<span className="text-[#DC2626]">{REQUIRED_FIELDS.join('、')}</span> 必选 ·
               <span className="ml-1 text-[#16A34A]">{RECOMMENDED_FOR_FULL.join('、')}</span> 推荐前台用）
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 gap-2">
               {ALL_FIELDS.map((f) => {
                 const checked = fields.has(f)
                 const required = (REQUIRED_FIELDS as ReadonlyArray<string>).includes(f)
@@ -809,13 +809,13 @@ function JobsDialog({ printer, onClose }: { printer: Printer; onClose: () => voi
           <RefreshCw className="w-3 h-3" /> 刷新
         </button>
       </div>
-      <div className="max-h-[60vh] overflow-y-auto">
+      <div className="max-h-[60vh] overflow-y-auto overflow-x-auto">
         {loading ? (
           <div className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#2563EB] inline" /></div>
         ) : jobs.length === 0 ? (
           <div className="text-center py-12 text-[#94A3B8] text-sm">暂无任务</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-[#F8FAFC] text-[#475569] text-xs">
               <tr>
                 <th className="text-left p-2">时间</th>

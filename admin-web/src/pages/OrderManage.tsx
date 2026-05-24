@@ -577,22 +577,22 @@ export default function OrderManage() {
                   <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-1 rounded-full ${s.color}`}>{s.label}</span></td>
                   <td className="px-4 py-3 text-[#94A3B8]">{formatFullDateTime(order.created_at)}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openDetail(order)} className="p-1.5 text-[#2563EB] hover:bg-[#EFF6FF] rounded transition-colors cursor-pointer" title="查看详情">
-                        <Eye size={16} />
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => openDetail(order)} className="inline-flex items-center justify-center w-9 h-9 text-[#2563EB] bg-[#EFF6FF] hover:bg-[#DBEAFE] rounded-lg transition-colors cursor-pointer" title="查看详情">
+                        <Eye size={18} />
                       </button>
                       {order.status === 'submitted' || order.status === 'printed' ? (
                         <>
-                          <button onClick={() => handleSettle(order.id)} className="p-1.5 text-[#10B981] hover:bg-[#D1FAE5] rounded transition-colors cursor-pointer" title="标记结账">
-                            <CheckCircle size={16} />
+                          <button onClick={() => handleSettle(order.id)} className="inline-flex items-center justify-center w-9 h-9 text-[#10B981] bg-[#D1FAE5] hover:bg-[#A7F3D0] rounded-lg transition-colors cursor-pointer" title="标记结账">
+                            <CheckCircle size={18} />
                           </button>
-                          <button onClick={() => openAddDish(order)} className="p-1.5 text-[#F59E0B] hover:bg-amber-50 rounded transition-colors cursor-pointer" title="加餐">
-                            <PlusCircle size={16} />
+                          <button onClick={() => openAddDish(order)} className="inline-flex items-center justify-center w-9 h-9 text-[#F59E0B] bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer" title="加餐">
+                            <PlusCircle size={18} />
                           </button>
                         </>
                       ) : null}
-                      <button onClick={() => handleReprint(order.id)} className="p-1.5 text-[#9333EA] hover:bg-purple-50 rounded transition-colors cursor-pointer" title="补打小票">
-                        <Printer size={16} />
+                      <button onClick={() => handleReprint(order.id)} className="inline-flex items-center justify-center w-9 h-9 text-[#9333EA] bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors cursor-pointer" title="补打小票">
+                        <Printer size={18} />
                       </button>
                     </div>
                   </td>

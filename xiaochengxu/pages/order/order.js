@@ -785,7 +785,29 @@ Page({
     const { id, type } = e.currentTarget.dataset;
     const { cartCount, allDishes, isAddMore, tableId, showCartPanel } = this.data;
     const count = cartCount[id] || 0;
-    const nextCount = type === 'plus' ? count + 1 : Math.max(0, count - 1);
+    let nextCount = type === 'plus' ? count + 1 : Math.max(0, count - 1);
+
+    // 首次添加该菜品时，如果设置了最低购买数量，则自动使用最低数量
+    if (type === 'plus' && count === 0) {
+      const dish = allDishes.find(d => d.id == id);
+      if (dish) {
+        const minQty = Number(dish.min_quantity || 1);
+        if (minQty > 1) {
+          nextCount = minQty;
+        }
+      }
+    }
+
+    // 减少该菜品时，如果当前数量不高于最低购买数量，则直接清空
+    if (type === 'minus' && count > 0 && nextCount > 0) {
+      const dish = allDishes.find(d => d.id == id);
+      if (dish) {
+        const minQty = Number(dish.min_quantity || 1);
+        if (minQty > 1 && count <= minQty) {
+          nextCount = 0;
+        }
+      }
+    }
 
     // ① 计算下一帧的 cartCount（不可变拷贝，避免 setData diff 失效）
     const nextCartCount = { ...cartCount };
@@ -1172,6 +1194,20 @@ Page({
         }
       }
 
+      // 客户端预校验：必选菜品（提前拦下，避免空跑请求并给出引导）
+      const missingRequired = this._checkMissingRequired(items, allDishes);
+      if (missingRequired) {
+        wx.hideLoading();
+        this._submittingTakeaway = false;
+        wx.showModal({
+          title: '请先点必选菜品',
+          content: missingRequired.map(m => '· ' + m.name).join('\n'),
+          confirmText: '知道了',
+          showCancel: false
+        });
+        return;
+      }
+
       const result = await request({
         url: '/orders',
         method: 'POST',
@@ -1192,10 +1228,46 @@ Page({
     } catch (err) {
       wx.hideLoading();
       console.error('提交外带订单失败', err);
-      wx.showToast({ title: '提交失败', icon: 'none' });
+      // 后端校验失败（兜底提示，正常情况下客户端已有预校验）
+      const data = err && (err.data || err);
+      const code = data && data.code;
+      if (code === 'REQUIRED_DISH_MISSING') {
+        const missing = (data.missing || []).map(m => '· ' + m.name).join('\n');
+        wx.showModal({
+          title: '请先点必选菜品',
+          content: missing || '订单缺少必选菜品',
+          confirmText: '知道了',
+          showCancel: false
+        });
+      } else if (code === 'MIN_QUANTITY_NOT_MET') {
+        const detail = (data.violations || [])
+          .map(v => v.name + '（至少 ' + v.required + ' 份，当前 ' + v.actual + ' 份）')
+          .join('\n');
+        wx.showModal({
+          title: '部分菜品数量不够',
+          content: detail,
+          confirmText: '知道了',
+          showCancel: false
+        });
+      } else {
+        wx.showToast({ title: '提交失败', icon: 'none' });
+      }
     } finally {
       this._submittingTakeaway = false;
     }
+  },
+
+  /**
+   * 检查必选菜品是否缺失（客户端预校验
+   * 返回缺少的必选菜品列表，如果没有缺少则返回 null
+   */
+  _checkMissingRequired(items, allDishes) {
+    const orderDishIdSet = new Set(items.map(it => it.dish_id));
+    const required = allDishes.filter(d =>
+      d && d.is_required && d.status === 'available'
+    );
+    const missing = required.filter(d => !orderDishIdSet.has(d.id));
+    return missing.length > 0 ? missing : null;
   },
 
   goToConfirm() {

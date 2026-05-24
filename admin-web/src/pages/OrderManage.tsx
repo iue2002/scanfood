@@ -890,6 +890,9 @@ export default function OrderManage() {
                   <button onClick={() => openDetail(order)} className="px-4 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1">
                     <Eye size={14} /> 详情
                   </button>
+                  <button onClick={() => handleReprint(order.id)} className="px-4 py-2 bg-purple-50 text-[#9333EA] rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-1" title="补打小票">
+                    <Printer size={14} /> 打印
+                  </button>
                   {order.status === 'submitted' || order.status === 'printed' ? (
                     <>
                       <button onClick={() => handleSettle(order.id)} className="px-4 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1">
@@ -1017,6 +1020,13 @@ export default function OrderManage() {
                       className="h-8 px-3 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1"
                     >
                       <Eye size={12} /> 详情
+                    </button>
+                    <button
+                      onClick={() => handleReprint(order.id)}
+                      className="h-8 px-3 bg-purple-50 text-[#9333EA] rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-1"
+                      title="补打小票"
+                    >
+                      <Printer size={12} /> 打印
                     </button>
                     {canSettle && (
                       <>

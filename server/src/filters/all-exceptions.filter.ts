@@ -34,8 +34,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.error(
         `[${request.method}] ${request.url} → ${status}: ${typeof message === 'object' ? JSON.stringify(message) : message}`,
       );
+    } else if (status >= 400 && status < 500) {
+      // 开发环境：4xx 客户端错误是业务正常情况（认证失败/参数错/未找到），
+      // 只打一行简洁日志，不打 stack（避免 stack 噪音淹没真正的 500 异常）
+      console.warn(`[${status}] ${request.method} ${request.url} → ${typeof message === 'object' ? JSON.stringify(message) : message}`);
     } else {
-      // 开发环境记录完整信息便于调试
+      // 开发环境 5xx 或其他：完整信息便于调试
       console.error('全局异常捕获:', {
         status,
         message,

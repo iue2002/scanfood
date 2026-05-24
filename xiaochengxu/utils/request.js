@@ -40,12 +40,26 @@ const request = (options) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data);
         } else if (res.statusCode === 401) {
+          // 清理本地登录态（token + userInfo + 全局缓存）
+          // 服务器密钥 rotate 或会话被踢都会到这里
           wx.removeStorageSync('token');
-          wx.showToast({
-            title: '登录已过期，请重新登录',
-            icon: 'none',
-            duration: 2000
-          });
+          wx.removeStorageSync('userInfo');
+          try {
+            const app = getApp();
+            if (app && app.globalData) {
+              app.globalData.userInfo = null;
+              app.globalData.token = null;
+            }
+          } catch (e) { /* getApp 在某些时机可能不可用 */ }
+          // 仅在"用户之前登录过"才提示登录过期；首次未登录访问受保护接口不打扰用户
+          // 判断依据：刚才请求时带了 token（已经被清了，但 token 变量在闭包里）
+          if (token) {
+            wx.showToast({
+              title: '登录已过期，请重新登录',
+              icon: 'none',
+              duration: 2000
+            });
+          }
           reject(res);
         } else if (res.statusCode === 404) {
           wx.showToast({

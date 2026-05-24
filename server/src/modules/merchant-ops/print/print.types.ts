@@ -46,7 +46,7 @@ export const KITCHEN_ALLOWED_FIELDS: ReadonlyArray<TemplateField> = ['TABLE_NUMB
 
 export type PrintWidth = '58mm' | '80mm';
 
-export type PrintJobTrigger = 'NEW_ORDER' | 'ADD_MORE' | 'REPRINT' | 'TEST';
+export type PrintJobTrigger = 'NEW_ORDER' | 'ADD_MORE' | 'REPRINT' | 'TEST' | 'SELECTIVE';
 export type PrintJobStatus = 'PENDING' | 'SENT' | 'SUCCESS' | 'FAILED';
 
 export interface PrinterRow {
@@ -99,9 +99,13 @@ export interface PrintJobRow {
   id: number;
   printer_id: number;
   template_id: number | null;
+  /** 触发该 job 的方案 id（NULL = 系统默认 / TEST / SELECTIVE 等不与 plan 关联） */
+  plan_id: number | null;
   order_id: number | null;
   trigger: PrintJobTrigger;
   payload_json: PrintPayload;
+  /** 选购打印的 order_items.id 集合（NULL = 整单；非空 = 仅这些菜） */
+  selected_item_ids: number[] | null;
   status: PrintJobStatus;
   attempt: number;
   last_error: string | null;
@@ -152,7 +156,16 @@ export interface OrderProjection {
    * 不要把订单的 user_id（顾客）当 operator——那是顾客微信昵称，打到小票上是错的。
    */
   operator: string | null;
-  items: Array<{ name: string; spec: string | null; quantity: number; subtotal: number }>;
+  items: Array<{
+    /** order_items.id（用于选购打印 selected_item_ids 引用） */
+    order_item_id: number;
+    /** dish_categories.id（用于 plan 切片过滤） */
+    category_id: number;
+    name: string;
+    spec: string | null;
+    quantity: number;
+    subtotal: number;
+  }>;
 }
 
 /** 拆单计划：每个 enabled+auto_print 打印机一条 */
@@ -188,3 +201,123 @@ export const SEND_TIMEOUT_MS = 5_000;
 export const RETRY_TICK_BATCH_PER_PRINTER = 50;
 /** R17.6：print_jobs 保留 7 天 */
 export const JOB_RETENTION_DAYS = 7;
+
+
+// ============================================================
+// 高度定制化打印方案（Print Plan）
+// ============================================================
+
+/**
+ * 打印方案行（print_plans 表）
+ *
+ * 业务唯一性：
+ *   - is_default_dine_in：所有 enabled 方案中至多 1 个
+ *   - is_default_takeaway：所有 enabled 方案中至多 1 个
+ *   - is_system_default：全局唯一（id=1，不可删）
+ */
+export interface PrintPlanRow {
+  id: number;
+  name: string;
+  enabled: boolean;
+  is_default_dine_in: boolean;
+  is_default_takeaway: boolean;
+  is_system_default: boolean;
+  description: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
+ * 打印方案切片（print_plan_slices 表）
+ *
+ * 一个 plan 由 N 个切片组成，每个切片 = 一张票。
+ * 切片决定：哪台打印机 + 哪个模板 + 打哪些分类的菜品。
+ */
+export interface PrintPlanSliceRow {
+  id: number;
+  plan_id: number;
+  printer_id: number;
+  template_id: number | null;
+  printer_role_snapshot: PrinterRole;
+  /** NULL/[] = catch-all 接收所有分类（兜底切片，建议每个 plan 至少有一个） */
+  category_ids: number[] | null;
+  label: string;
+  sort_order: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
+ * 完整 plan 投影（含 slices）
+ */
+export interface PrintPlanWithSlices extends PrintPlanRow {
+  slices: PrintPlanSliceRow[];
+}
+
+/**
+ * 创建/更新 plan 用的 DTO
+ */
+export interface PrintPlanUpsertDto {
+  name: string;
+  enabled?: boolean;
+  is_default_dine_in?: boolean;
+  is_default_takeaway?: boolean;
+  description?: string | null;
+  slices: Array<{
+    printer_id: number;
+    template_id: number | null;
+    /** 创建/更新时从 printer 当前 role 拷贝 */
+    printer_role_snapshot?: PrinterRole;
+    category_ids: number[] | null;
+    label?: string;
+    sort_order?: number;
+  }>;
+}
+
+/**
+ * 选购打印参数（手动勾选 items）
+ */
+export interface SelectivePrintRequest {
+  order_id: number;
+  printer_id: number;
+  template_id?: number | null;
+  /** 必填非空：order_items.id 集合 */
+  selected_item_ids: number[];
+  label?: string;
+}
+
+/**
+ * 拆分计算结果（PrintPlanCore.splitOrder 输出）
+ *
+ * 每个元素 = 一张要发出的票
+ */
+export interface PlanDispatchResult {
+  printer_id: number;
+  template_id: number | null;
+  printer_role_snapshot: PrinterRole;
+  label: string;
+  /** 分类 id 数组（catch-all 时为 null，渲染时不限） */
+  category_ids: number[] | null;
+  /** 该切片实际要打的 items（按 plan slice 过滤后） */
+  items: Array<{
+    order_item_id: number;
+    name: string;
+    spec: string | null;
+    quantity: number;
+    subtotal: number;
+    category_id: number;
+  }>;
+}
+
+/** 用于 splitOrder 输入的 OrderItem 投影（含 category_id） */
+export interface OrderItemForSplit {
+  order_item_id: number;
+  category_id: number;
+  name: string;
+  spec: string | null;
+  quantity: number;
+  subtotal: number;
+}
+
+/** 系统默认 plan id（迁移时插入，不可删） */
+export const SYSTEM_DEFAULT_PLAN_ID = 1;

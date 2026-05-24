@@ -63,13 +63,27 @@ export class DrizzlePrintRepo implements PrintRepoPort {
         payload = r.payload_json as PrintPayload;
       }
     }
+    let selectedItemIds: number[] | null = null;
+    if (r.selected_item_ids != null) {
+      const raw: any = r.selected_item_ids;
+      if (Array.isArray(raw)) {
+        selectedItemIds = raw.filter((x: any) => Number.isInteger(x)) as number[];
+      } else if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) selectedItemIds = parsed.filter((x: any) => Number.isInteger(x)) as number[];
+        } catch { /* keep null */ }
+      }
+    }
     return {
       id: r.id,
       printer_id: r.printer_id,
       template_id: r.template_id ?? null,
+      plan_id: r.plan_id ?? null,
       order_id: r.order_id ?? null,
       trigger: r.trigger as PrintJobTrigger,
       payload_json: payload,
+      selected_item_ids: selectedItemIds,
       status: r.status as PrintJobStatus,
       attempt: r.attempt ?? 0,
       last_error: r.last_error ?? null,
@@ -189,9 +203,13 @@ export class DrizzlePrintRepo implements PrintRepoPort {
     const r: any = await db.insert(print_jobs).values({
       printer_id: row.printer_id,
       template_id: row.template_id ?? null,
+      plan_id: row.plan_id ?? null,
       order_id: row.order_id ?? null,
       trigger: row.trigger,
       payload_json: row.payload_json as any,
+      selected_item_ids: (row.selected_item_ids && row.selected_item_ids.length > 0
+        ? row.selected_item_ids
+        : null) as any,
       status: row.status,
       attempt: row.attempt,
       last_error: row.last_error ?? null,

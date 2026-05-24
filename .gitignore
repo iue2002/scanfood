@@ -34,20 +34,21 @@ debug.log
 .DS_Store
 
 # Taro / 历史死代码（保留 .gitignore 防止意外重新引入）
+# 注意：这些规则只针对【项目根目录】（用 / 前缀），不要匹配子项目里的 src/
 .taro/
 .coze
 .cozeproj/
 patches/
-src/
-config/
-types/
-babel.config.js
-tsconfig.json
-eslint.config.mjs
-stylelint.config.mjs
-pnpm-lock.yaml
-pnpm-workspace.yaml
-design_guidelines.md
+/src/
+/config/
+/types/
+/babel.config.js
+/tsconfig.json
+/eslint.config.mjs
+/stylelint.config.mjs
+/pnpm-lock.yaml
+/pnpm-workspace.yaml
+/design_guidelines.md
 # 误放在根的微信小程序配置（真实在 xiaochengxu/）
 project.config.json
 project.private.config.json

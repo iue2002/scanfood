@@ -1,6 +1,12 @@
 /**
  * 独立的订单只读投影（仅服务于 PrintCore）
  * DI-7：不依赖 OrdersService；纯 SQL JOIN
+ *
+ * 关键字段：
+ *  - items[].order_item_id：选购打印用
+ *  - items[].category_id：plan slice 分类过滤用（join dishes 拿）
+ *  - order_type：渲染时区分堂食/外带
+ *  - operator：始终 null（业务库里没"操作员"字段；不要拿顾客昵称冒充）
  */
 import { Injectable } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
@@ -8,6 +14,7 @@ import {
   orders,
   order_items,
   tables,
+  dishes,
   store_settings,
 } from '@/storage/database/shared/schema';
 import { asc, eq } from 'drizzle-orm';
@@ -32,14 +39,19 @@ export class PrintOrderReader {
       .limit(1);
     if (head.length === 0) return null;
     const h = head[0];
+
+    // join dishes 拿 category_id（dish 删了也能 fallback 到 0/null，由 PrintCore 兜底）
     const items = await db
       .select({
+        order_item_id: order_items.id,
         name: order_items.dish_name,
         spec: order_items.spec_name,
         quantity: order_items.quantity,
         subtotal: order_items.subtotal,
+        category_id: dishes.category_id,
       })
       .from(order_items)
+      .leftJoin(dishes, eq(dishes.id, order_items.dish_id))
       .where(eq(order_items.order_id, orderId))
       .orderBy(asc(order_items.id));
 
@@ -58,11 +70,11 @@ export class PrintOrderReader {
       created_at: h.created_at as Date,
       total_amount: Number(h.total_amount ?? 0),
       remark: h.remark ?? null,
-      // 当前库里没有"哪个员工处理订单"的字段；
-      // 不要把订单的 user_id（顾客）当 operator —— 那是顾客微信昵称，打到小票上是错的。
-      // 等以后 orders 表加 settled_by_employee_id 等字段再 join 真正的员工 nickname。
+      // 不要把顾客 user_id 当 operator —— 那是微信昵称，会泄漏顾客身份
       operator: null,
       items: items.map((it) => ({
+        order_item_id: it.order_item_id,
+        category_id: it.category_id ?? 0,  // dish 已删（外键 NO ACTION 实际不会发生）：用 0 标识，PrintCore 走兜底
         name: it.name,
         spec: it.spec ?? null,
         quantity: it.quantity,

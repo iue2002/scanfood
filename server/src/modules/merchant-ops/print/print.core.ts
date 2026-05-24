@@ -102,6 +102,8 @@ export class PrintCore {
     private readonly clock: () => Date = () => new Date(),
     /** 预览样本数据源；不注入时使用通用 placeholder */
     private readonly sampleProvider?: PreviewSampleProvider,
+    /** 打印方案 core；不注入时退化为旧行为（每台 enabled 打印机各打整单一份） */
+    private readonly planCore?: import('./plan.core').PrintPlanCore,
   ) {}
 
   // ============================================================
@@ -527,6 +529,11 @@ export class PrintCore {
   /**
    * 自动打印入口（订单事件触发）
    * Property 19：永远不抛错给调用者；失败转化为 print_jobs.last_error + mop:printer-error
+   *
+   * 走 plan 模型：
+   *   1. 解析 order_type 对应的默认 plan（无则系统默认）
+   *   2. plan.splitOrderByPlan(order.items) 拆成多张票
+   *   3. 每张票按"打印机的 auto_print/auto_print_add_more 标记"过滤后入队
    */
   async onOrderEvent(orderId: number, trigger: 'NEW_ORDER' | 'ADD_MORE'): Promise<void> {
     try {
@@ -535,11 +542,73 @@ export class PrintCore {
         this.logger.warn(`[print] order ${orderId} not found, skip auto print`);
         return;
       }
-      const printers = await this.repo.listAutoPrinters(trigger);
-      if (printers.length === 0) return;
 
-      // 默认模板：每个打印机 template_id；缺省用 id=1（默认全票）/ id=2（后厨简化）
-      for (const p of printers) {
+      // 1) 拿到 auto_print 打印机集合（按 trigger 过滤）
+      const autoPrinters = await this.repo.listAutoPrinters(trigger);
+      if (autoPrinters.length === 0) return;
+      const autoPrinterIds = new Set(autoPrinters.map((p) => p.id));
+
+      // 2) 走 plan（如果可用）
+      if (this.planCore) {
+        try {
+          const orderType = (order.order_type === 'takeaway' ? 'takeaway' : 'dine_in') as 'takeaway' | 'dine_in';
+          const plan = await this.planCore.resolvePlanForOrder(orderType);
+          const { PrintPlanCore } = await import('./plan.core');
+          const split = PrintPlanCore.splitOrderByPlan(plan, order.items.map((it) => ({
+            order_item_id: it.order_item_id,
+            category_id: it.category_id,
+            name: it.name,
+            spec: it.spec,
+            quantity: it.quantity,
+            subtotal: it.subtotal,
+          })));
+
+          // 系统默认 plan 是空 slices（迁移时只插了 plan 行没插 slices）→ 退化路径
+          if (plan.slices.length === 0) {
+            for (const p of autoPrinters) {
+              await this.enqueueJobForPrinter(p, order, trigger).catch((err) => {
+                this.logger.error(`[print] enqueue failed for printer ${p.id}: ${(err as Error).message}`);
+              });
+            }
+          } else {
+            // 按 plan 切片入队（过滤掉非 auto_print 的打印机）
+            for (const dispatch of split.dispatches) {
+              if (!autoPrinterIds.has(dispatch.printer_id)) continue;
+              const printer = autoPrinters.find((p) => p.id === dispatch.printer_id);
+              if (!printer) continue;
+              await this.enqueueDispatch(printer, order, dispatch, plan.id, trigger).catch((err) => {
+                this.logger.error(`[print] enqueue dispatch failed for printer ${dispatch.printer_id}: ${(err as Error).message}`);
+              });
+            }
+            // uncovered：发警告，但仍按"系统默认"兜底打印
+            if (split.uncovered.length > 0) {
+              try {
+                this.emitter.emit('mop:print-uncovered', {
+                  orderId: order.order_id,
+                  orderNo: order.order_no,
+                  planId: plan.id,
+                  planName: plan.name,
+                  uncoveredItems: split.uncovered.map((u) => ({ name: u.name, category_id: u.category_id })),
+                });
+              } catch { /* ignore */ }
+              this.logger.warn(`[print] order ${orderId} 有 ${split.uncovered.length} 个 items 未被 plan ${plan.id} 切片覆盖，发警告事件`);
+              // 兜底：未覆盖的 items 仍发到所有 auto_print 打印机
+              for (const p of autoPrinters) {
+                await this.enqueueJobForPrinter(p, order, trigger, split.uncovered.map((u) => u.order_item_id)).catch((err) => {
+                  this.logger.warn(`[print] uncovered fallback enqueue failed: ${(err as Error).message}`);
+                });
+              }
+            }
+          }
+          return;
+        } catch (err) {
+          // 走 plan 失败：退化到旧行为（每台 enabled+auto_print 打印机各打一份）
+          this.logger.warn(`[print] plan dispatch failed, fallback to per-printer: ${(err as Error).message}`);
+        }
+      }
+
+      // 3) 退化路径：planCore 不可用 → 每台 auto_print 打印机各打整单一份
+      for (const p of autoPrinters) {
         await this.enqueueJobForPrinter(p, order, trigger).catch((err) => {
           this.logger.error(`[print] enqueue failed for printer ${p.id}: ${(err as Error).message}`);
         });
@@ -550,10 +619,61 @@ export class PrintCore {
     }
   }
 
+  /**
+   * 把 plan 切片转成 print_job：仅打 dispatch.items 中的菜品
+   */
+  private async enqueueDispatch(
+    printer: PrinterRow,
+    order: OrderProjection,
+    dispatch: import('./print.types').PlanDispatchResult,
+    planId: number,
+    trigger: PrintJobTrigger,
+  ): Promise<PrintJobRow> {
+    const templateId = dispatch.template_id ?? printer.template_id ?? (printer.role === 'KITCHEN' ? 2 : 1);
+    const tpl = await this.repo.findTemplateById(templateId) ?? await this.repo.findTemplateById(1);
+    if (!tpl) throw new Error('no template available');
+
+    // 构造 payload：item 列表来自 dispatch（按 plan 切片过滤后的）
+    // 角色字段过滤：用 splitJobsByRole 的逻辑
+    const plans = PrintCore.splitJobsByRole([printer], tpl);
+    const fields = plans[0] ? plans[0].fields : tpl.fields_json;
+
+    const payload: PrintPayload = {
+      width: tpl.width,
+      fields,
+      store_name: order.store_name,
+      table_number: order.table_number,
+      order_type: order.order_type,
+      order_no: dispatch.label
+        ? `${order.order_no} · ${dispatch.label}`
+        : order.order_no,
+      order_time: this.fmtDateTime(order.created_at),
+      items: dispatch.items.map((it) => ({ name: it.name, quantity: it.quantity, spec: it.spec, subtotal: it.subtotal })),
+      total: dispatch.items.reduce((sum, it) => sum + it.subtotal, 0),
+      remark: order.remark,
+      operator: order.operator,
+    };
+    return await this.repo.insertJob({
+      printer_id: printer.id,
+      template_id: tpl.id,
+      plan_id: planId,
+      order_id: order.order_id,
+      trigger,
+      payload_json: payload,
+      selected_item_ids: dispatch.items.map((it) => it.order_item_id),
+      status: 'PENDING',
+      attempt: 0,
+      last_error: null,
+      next_retry_at: null,
+      provider_job_id: null,
+    });
+  }
+
   private async enqueueJobForPrinter(
     printer: PrinterRow,
     order: OrderProjection,
     trigger: PrintJobTrigger,
+    onlyItemIds?: number[],
   ): Promise<PrintJobRow> {
     let templateId = printer.template_id;
     if (!templateId) {
@@ -568,6 +688,16 @@ export class PrintCore {
     const plans = PrintCore.splitJobsByRole([printer], tpl);
     const plan = plans[0];
     const fields = plan ? plan.fields : tpl.fields_json;
+
+    // 过滤 items（选购打印用）
+    const itemSet = onlyItemIds && onlyItemIds.length > 0 ? new Set(onlyItemIds) : null;
+    const usedItems = itemSet
+      ? order.items.filter((it) => itemSet.has(it.order_item_id))
+      : order.items;
+    const totalAmount = itemSet
+      ? usedItems.reduce((sum, it) => sum + it.subtotal, 0)
+      : order.total_amount;
+
     const payload: PrintPayload = {
       width: tpl.width,
       fields,
@@ -576,17 +706,19 @@ export class PrintCore {
       order_type: order.order_type,
       order_no: order.order_no,
       order_time: this.fmtDateTime(order.created_at),
-      items: order.items.map((it) => ({ name: it.name, quantity: it.quantity, spec: it.spec, subtotal: it.subtotal })),
-      total: order.total_amount,
+      items: usedItems.map((it) => ({ name: it.name, quantity: it.quantity, spec: it.spec, subtotal: it.subtotal })),
+      total: totalAmount,
       remark: order.remark,
       operator: order.operator,
     };
     return await this.repo.insertJob({
       printer_id: printer.id,
       template_id: tpl.id,
+      plan_id: null,
       order_id: order.order_id,
       trigger,
       payload_json: payload,
+      selected_item_ids: itemSet ? Array.from(itemSet) : null,
       status: 'PENDING',
       attempt: 0,
       last_error: null,
@@ -597,10 +729,60 @@ export class PrintCore {
 
   /**
    * 手动重打/补打（owner / manager）
+   *
+   * @param planId 可选；指定 plan 时按方案拆单；不传时用订单类型的默认方案
+   *               传 'system_default' 强制走系统默认（每台 enabled 打印机各打整单一份）
    */
-  async reprintOrder(orderId: number): Promise<{ enqueued: number }> {
+  async reprintOrder(orderId: number, planId?: number | null): Promise<{ enqueued: number }> {
     const order = await this.readOrder(orderId);
     if (!order) throw new NotFoundException({ code: 'ORDER_NOT_FOUND', msg: '订单不存在' });
+
+    if (this.planCore) {
+      try {
+        const orderType = (order.order_type === 'takeaway' ? 'takeaway' : 'dine_in') as 'takeaway' | 'dine_in';
+        const plan = await this.planCore.resolvePlanForOrder(orderType, planId ?? null);
+        if (plan.slices.length > 0) {
+          const { PrintPlanCore } = await import('./plan.core');
+          const split = PrintPlanCore.splitOrderByPlan(plan, order.items.map((it) => ({
+            order_item_id: it.order_item_id,
+            category_id: it.category_id,
+            name: it.name,
+            spec: it.spec,
+            quantity: it.quantity,
+            subtotal: it.subtotal,
+          })));
+          let count = 0;
+          const allPrinters = (await this.repo.listPrinters()).filter((p) => p.enabled);
+          const printerMap = new Map(allPrinters.map((p) => [p.id, p]));
+          for (const dispatch of split.dispatches) {
+            const printer = printerMap.get(dispatch.printer_id);
+            if (!printer) continue;
+            try {
+              await this.enqueueDispatch(printer, order, dispatch, plan.id, 'REPRINT');
+              count += 1;
+            } catch (err) {
+              this.logger.warn(`[print] reprint dispatch failed for printer ${dispatch.printer_id}: ${(err as Error).message}`);
+            }
+          }
+          // uncovered：兜底全打印机
+          if (split.uncovered.length > 0) {
+            this.logger.warn(`[print] reprint order ${orderId} 有 ${split.uncovered.length} 个 items 未被 plan ${plan.id} 覆盖，兜底全打`);
+            for (const p of allPrinters) {
+              try {
+                await this.enqueueJobForPrinter(p, order, 'REPRINT', split.uncovered.map((u) => u.order_item_id));
+                count += 1;
+              } catch { /* swallow */ }
+            }
+          }
+          return { enqueued: count };
+        }
+        // plan.slices 为空（系统默认 plan）→ 走退化
+      } catch (err) {
+        this.logger.warn(`[print] reprint via plan failed, fallback: ${(err as Error).message}`);
+      }
+    }
+
+    // 退化：每台 enabled 打印机各打整单一份
     const printers = (await this.repo.listPrinters()).filter((p) => p.enabled);
     let count = 0;
     for (const p of printers) {
@@ -612,6 +794,69 @@ export class PrintCore {
       }
     }
     return { enqueued: count };
+  }
+
+  /**
+   * 选购打印：商家手动勾选 items + 选打印机，单台单张票
+   * 不走 plan，直接按 selected_item_ids 入队
+   */
+  async selectivePrint(req: import('./print.types').SelectivePrintRequest): Promise<{ jobId: number }> {
+    if (!req.selected_item_ids || req.selected_item_ids.length === 0) {
+      throw new BadRequestException({ code: 'SELECTIVE_EMPTY', msg: '至少选 1 道菜' });
+    }
+    const order = await this.readOrder(req.order_id);
+    if (!order) throw new NotFoundException({ code: 'ORDER_NOT_FOUND', msg: '订单不存在' });
+    const printer = await this.repo.findPrinterById(req.printer_id);
+    if (!printer || !printer.enabled) {
+      throw new NotFoundException({ code: 'PRINTER_NOT_FOUND', msg: '打印机不存在或已禁用' });
+    }
+    // 校验 selected_item_ids 都属于该订单
+    const orderItemIdSet = new Set(order.items.map((it) => it.order_item_id));
+    for (const id of req.selected_item_ids) {
+      if (!orderItemIdSet.has(id)) {
+        throw new BadRequestException({ code: 'SELECTIVE_INVALID_ITEM', msg: `item ${id} 不属于订单 ${req.order_id}` });
+      }
+    }
+    // 用指定模板覆盖（如果传了）
+    const tplId = req.template_id ?? printer.template_id ?? (printer.role === 'KITCHEN' ? 2 : 1);
+    const tpl = await this.repo.findTemplateById(tplId) ?? await this.repo.findTemplateById(1);
+    if (!tpl) throw new Error('no template available');
+
+    const itemSet = new Set(req.selected_item_ids);
+    const usedItems = order.items.filter((it) => itemSet.has(it.order_item_id));
+    const total = usedItems.reduce((sum, it) => sum + it.subtotal, 0);
+
+    const plans = PrintCore.splitJobsByRole([printer], tpl);
+    const fields = plans[0] ? plans[0].fields : tpl.fields_json;
+
+    const payload: PrintPayload = {
+      width: tpl.width,
+      fields,
+      store_name: order.store_name,
+      table_number: order.table_number,
+      order_type: order.order_type,
+      order_no: req.label ? `${order.order_no} · ${req.label}` : `${order.order_no} · 选购`,
+      order_time: this.fmtDateTime(order.created_at),
+      items: usedItems.map((it) => ({ name: it.name, quantity: it.quantity, spec: it.spec, subtotal: it.subtotal })),
+      total,
+      remark: order.remark,
+      operator: order.operator,
+    };
+    const job = await this.repo.insertJob({
+      printer_id: printer.id,
+      template_id: tpl.id,
+      plan_id: null,
+      order_id: order.order_id,
+      trigger: 'SELECTIVE',
+      payload_json: payload,
+      selected_item_ids: Array.from(itemSet),
+      status: 'PENDING',
+      attempt: 0,
+      last_error: null,
+      next_retry_at: null,
+      provider_job_id: null,
+    });
+    return { jobId: job.id };
   }
 
   /**

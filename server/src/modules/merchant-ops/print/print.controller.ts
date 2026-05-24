@@ -101,13 +101,21 @@ export class PrintController {
     return { data: jobs };
   }
 
-  /** 手动重打/补打：owner / manager 触发，对所有 enabled 打印机入队 REPRINT */
+  /** 手动重打/补打：owner / manager 触发，按方案对相关打印机入队 REPRINT */
   @Post('orders/:orderId/reprint')
   @Permissions('PRINTER_TEST')
   @Audit('PRINTER_TEST', { targetType: 'order' })
   @HttpCode(HttpStatus.OK)
-  async reprintOrder(@Param('orderId', ParseIntPipe) orderId: number) {
-    const result = await this.core.reprintOrder(orderId);
+  async reprintOrder(
+    @Param('orderId', ParseIntPipe) orderId: number,
+    @Query('planId') planIdRaw?: string,
+  ) {
+    let planId: number | null = null;
+    if (planIdRaw !== undefined && planIdRaw !== '' && planIdRaw !== 'default') {
+      const n = parseInt(planIdRaw, 10);
+      if (!Number.isNaN(n) && n > 0) planId = n;
+    }
+    const result = await this.core.reprintOrder(orderId, planId);
     return { data: result };
   }
 

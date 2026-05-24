@@ -5,6 +5,7 @@ import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent } from '@/components/WebSocketProvider'
 import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
+import PrintActionModal from '@/components/PrintActionModal'
 
 // 外带订单标识
 const isTakeawayOrder = (order: { order_type?: string }) => order.order_type === 'takeaway'
@@ -96,6 +97,8 @@ export default function OrderManage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [hasMore, setHasMore] = useState(true)
+  // 打印操作弹窗
+  const [printOrder, setPrintOrder] = useState<Order | null>(null)
 
   const fetchOrders = useCallback(() => {
     const params: any = {
@@ -149,18 +152,14 @@ export default function OrderManage() {
     })
   }
 
-  const handleReprint = async (orderId: number) => {
-    try {
-      const res: any = await request.post(`/merchant-ops/orders/${orderId}/reprint`)
-      const data = res?.data ?? res
-      if (data?.enqueued > 0) {
-        showToast(`已派发 ${data.enqueued} 台打印机补打`, 'success')
-      } else {
-        showToast('没有可用打印机，请先在打印设置中配置', 'warning')
-      }
-    } catch (err: any) {
-      showToast(err?.message || '补打失败', 'error')
+  const handleReprint = (orderId: number) => {
+    // 进入"打印操作"高定制化弹窗：默认补打 / 选方案 / 选购打印
+    const order = orders.find((o) => o.id === orderId)
+    if (!order) {
+      showToast('订单不存在', 'error')
+      return
     }
+    setPrintOrder(order)
   }
 
   const handleCancel = async (id: number) => {
@@ -1075,6 +1074,25 @@ export default function OrderManage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 打印操作弹窗 */}
+      {printOrder && (
+        <PrintActionModal
+          order={{
+            id: printOrder.id,
+            order_number: printOrder.order_number,
+            order_type: printOrder.order_type,
+            order_items: printOrder.order_items?.map((it) => ({
+              id: it.id,
+              dish_name: it.dish_name,
+              spec_name: it.spec_name,
+              quantity: it.quantity,
+              subtotal: it.subtotal,
+            })),
+          }}
+          onClose={() => setPrintOrder(null)}
+        />
       )}
 
       {/* 加餐弹窗 */}

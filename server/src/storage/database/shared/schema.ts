@@ -435,10 +435,14 @@ export const print_jobs = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     printer_id: int("printer_id").notNull().references(() => printer_configs.id, { onDelete: 'cascade' }),
     template_id: int("template_id").references(() => print_templates.id, { onDelete: 'set null' }),
+    /** plan_id：触发该 job 的方案 id（追溯用，可选） */
+    plan_id: int("plan_id"),
     order_id: int("order_id"),
-    /** 'NEW_ORDER' | 'ADD_MORE' | 'REPRINT' | 'TEST' */
+    /** 'NEW_ORDER' | 'ADD_MORE' | 'REPRINT' | 'TEST' | 'SELECTIVE' */
     trigger: varchar("trigger", { length: 20 }).notNull().default('NEW_ORDER'),
     payload_json: json("payload_json").notNull(),
+    /** 选购打印的 item ids（NULL = 整单；非空 = 仅打这些 order_items.id 的菜） */
+    selected_item_ids: json("selected_item_ids").$type<number[]>(),
     status: varchar("status", { length: 16 }).notNull().default('PENDING'), // PENDING|SENT|SUCCESS|FAILED
     attempt: int("attempt").notNull().default(0),
     last_error: varchar("last_error", { length: 500 }),
@@ -453,5 +457,54 @@ export const print_jobs = mysqlTable(
     index("print_jobs_status_retry_idx").on(t.status, t.next_retry_at),
     index("print_jobs_order_idx").on(t.order_id),
     index("print_jobs_created_idx").on(t.created_at),
+  ]
+);
+
+
+// merchant-ops M5 增量：高度定制化打印方案
+// 一个 plan 可以由多个 slice 组成（每张票 = 一个 slice）
+// 同一个分类可以出现在多个 slice（如"酒水"既给烧烤档也给主食档）
+export const print_plans = mysqlTable(
+  "print_plans",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    /** 堂食订单的默认方案（业务唯一） */
+    is_default_dine_in: boolean("is_default_dine_in").notNull().default(false),
+    /** 外带订单的默认方案（业务唯一） */
+    is_default_takeaway: boolean("is_default_takeaway").notNull().default(false),
+    /** 系统自动建的"整单全票"方案（不可删） */
+    is_system_default: boolean("is_system_default").notNull().default(false),
+    description: varchar("description", { length: 500 }),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => [
+    index("print_plans_default_dine_in_idx").on(t.is_default_dine_in),
+    index("print_plans_default_takeaway_idx").on(t.is_default_takeaway),
+    index("print_plans_system_idx").on(t.is_system_default),
+  ]
+);
+
+export const print_plan_slices = mysqlTable(
+  "print_plan_slices",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    plan_id: int("plan_id").notNull().references(() => print_plans.id, { onDelete: 'cascade' }),
+    printer_id: int("printer_id").notNull().references(() => printer_configs.id, { onDelete: 'cascade' }),
+    template_id: int("template_id").references(() => print_templates.id, { onDelete: 'set null' }),
+    /** 角色快照（创建时从 printer_configs.role 拷贝；之后 printer 改 role 不影响 slice） */
+    printer_role_snapshot: varchar("printer_role_snapshot", { length: 16 }).notNull().default('BOTH'),
+    /** 分类过滤：JSON int[]，NULL/[] = catch-all 接收所有分类（兜底切片） */
+    category_ids: json("category_ids"),
+    label: varchar("label", { length: 100 }).notNull().default(''),
+    sort_order: int("sort_order").notNull().default(0),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => [
+    index("print_plan_slices_plan_idx").on(t.plan_id),
+    index("print_plan_slices_printer_idx").on(t.printer_id),
   ]
 );

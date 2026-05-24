@@ -4,10 +4,14 @@ import { dishes, dish_categories, dish_specs } from '@/storage/database/shared/s
 import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
 import { eq, asc, and } from 'drizzle-orm';
 import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
+import { PrintPlanCore } from '@/modules/merchant-ops/print/plan.core';
 
 @Injectable()
 export class DishesService {
-  constructor(private readonly imageCleanup: LocalImageCleanupService) {}
+  constructor(
+    private readonly imageCleanup: LocalImageCleanupService,
+    private readonly printPlanCore: PrintPlanCore,
+  ) {}
   async getCategories() {
     return await db.select().from(dish_categories).orderBy(asc(dish_categories.sort_order));
   }
@@ -27,6 +31,8 @@ export class DishesService {
 
   async deleteCategory(id: number) {
     await db.delete(dish_categories).where(eq(dish_categories.id, id));
+    // 删除分类后，把所有打印方案 slice 中的引用清理掉（fire-and-forget；失败不影响主删除）
+    void this.printPlanCore.onCategoryDeleted(id).catch(() => undefined);
     return { message: '删除成功' };
   }
 

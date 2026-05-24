@@ -17,6 +17,7 @@ import AuditLogs from './pages/AuditLogs'
 import NotifSettings from './pages/NotifSettings'
 import DataExport from './pages/DataExport'
 import PrinterManage from './pages/PrinterManage'
+import PrintPlanManage from './pages/PrintPlanManage'
 import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import { ModalProvider } from './components/ModalProvider'
@@ -171,6 +172,11 @@ export default function App() {
               <Route path="printers" element={
                 <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
                   <PrinterManage />
+                </RoleGuard>
+              } />
+              <Route path="print-plans" element={
+                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
+                  <PrintPlanManage />
                 </RoleGuard>
               } />
               <Route path="notif-settings" element={<NotifSettings />} />

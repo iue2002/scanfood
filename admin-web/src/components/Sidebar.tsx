@@ -13,6 +13,7 @@ import {
   Bell,
   Download,
   Printer,
+  Layers,
   X,
 } from 'lucide-react'
 import { useUnread } from './UnreadProvider'
@@ -47,6 +48,7 @@ const menuItems: MenuItem[] = [
   // 运营中心（mop）
   { path: '/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'mop' },
   { path: '/printers', label: '打印设置', icon: Printer, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
+  { path: '/print-plans', label: '打印方案', icon: Layers, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
   { path: '/audit-logs', label: '审计日志', icon: ScrollText, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
   // 个人偏好（全员）
   { path: '/notif-settings', label: '通知偏好', icon: Bell, badgeKey: null, visibleFor: null, group: 'personal' },

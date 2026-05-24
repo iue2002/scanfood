@@ -23,8 +23,11 @@ import { DrizzleReadOnlyOrdersRepo } from './export/readonly-orders.drizzle';
 import { ExcelPdfArtifactAdapter } from './export/export-artifact.adapter';
 import { ExportCleanupScheduler } from './export/export-cleanup.scheduler';
 import { PrintController } from './print/print.controller';
+import { PrintPlanController } from './print/plan.controller';
 import { PrintCore } from './print/print.core';
+import { PrintPlanCore } from './print/plan.core';
 import { DrizzlePrintRepo } from './print/print-repo.drizzle';
+import { DrizzlePrintPlanRepo } from './print/plan-repo.drizzle';
 import { PrintOrderReader } from './print/readonly-order.drizzle';
 import { FeiePrinterDriver } from './print/drivers/feie.driver';
 import { YlyPrinterDriver } from './print/drivers/yly.driver';
@@ -52,10 +55,11 @@ const EXPORT_REPO_TOKEN = 'ExportRepoPort';
 const READONLY_ORDERS_TOKEN = 'ReadOnlyOrdersPort';
 const EXPORT_ARTIFACT_TOKEN = 'ExportArtifactPort';
 const PRINT_REPO_TOKEN = 'PrintRepoPort';
+const PRINT_PLAN_REPO_TOKEN = 'PrintPlanRepoPort';
 
 @Module({
   imports: [AuthModule, OrdersModule, StoreSettingsModule, ScheduleModule.forRoot()],
-  controllers: [EmployeeController, AuditController, NotifPrefController, ExportController, PrintController],
+  controllers: [EmployeeController, AuditController, NotifPrefController, ExportController, PrintController, PrintPlanController],
   providers: [
     PermissionsGuard,
     AesEncryptorService,
@@ -96,6 +100,10 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
       useClass: DrizzlePrintRepo,
     },
     {
+      provide: PRINT_PLAN_REPO_TOKEN,
+      useClass: DrizzlePrintPlanRepo,
+    },
+    {
       provide: AuditCore,
       useFactory: (repo) => new AuditCore(repo),
       inject: [AUDIT_REPO_TOKEN],
@@ -123,6 +131,11 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
       inject: [EXPORT_REPO_TOKEN, READONLY_ORDERS_TOKEN, EXPORT_ARTIFACT_TOKEN, StoreSettingsService],
     },
     {
+      provide: PrintPlanCore,
+      useFactory: (planRepo, printerRepo) => new PrintPlanCore(planRepo, printerRepo),
+      inject: [PRINT_PLAN_REPO_TOKEN, PRINT_REPO_TOKEN],
+    },
+    {
       provide: PrintCore,
       useFactory: (
         repo,
@@ -135,6 +148,7 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
         bus: MopEventBus,
         reader: PrintOrderReader,
         sampleProvider: DrizzlePreviewSampleProvider,
+        planCore: PrintPlanCore,
       ) => {
         const drivers = new Map<string, any>([
           ['FEIE', feie],
@@ -153,9 +167,10 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
           (orderId: number) => reader.readOrder(orderId),
           () => new Date(),
           sampleProvider,
+          planCore,
         );
       },
-      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, YlyPrinterDriver, ZyyPrinterDriver, XPrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader, DrizzlePreviewSampleProvider],
+      inject: [PRINT_REPO_TOKEN, FeiePrinterDriver, YlyPrinterDriver, ZyyPrinterDriver, XPrinterDriver, BrowserPrinterDriver, AesEncryptorService, MopEventBus, PrintOrderReader, DrizzlePreviewSampleProvider, PrintPlanCore],
     },
     {
       provide: EmployeeCore,
@@ -187,16 +202,18 @@ const PRINT_REPO_TOKEN = 'PrintRepoPort';
       useClass: MerchantOpsRequestLogInterceptor,
     },
   ],
-  exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore, PrintCore],
+  exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore, PrintCore, PrintPlanCore],
 })
 export class MerchantOpsModule implements OnModuleInit {
   private readonly logger = new Logger(MerchantOpsModule.name);
 
+  constructor(private readonly planCore: PrintPlanCore) {}
+
   /**
    * R1.3：启动期校验权限矩阵覆盖了所有声明的 AuditAction
-   * （这一波只校验静态 ALL_AUDIT_ACTIONS；真正按路由扫描在 M2）
+   * 同时：启动期巡检打印方案中的悬空分类引用（如果迁移期间分类被删过）
    */
-  onModuleInit() {
+  async onModuleInit() {
     const missing: string[] = [];
     for (const action of ALL_AUDIT_ACTIONS) {
       if (!(action in PERMISSION_MATRIX)) {
@@ -210,5 +227,21 @@ export class MerchantOpsModule implements OnModuleInit {
       throw new Error(`Permission matrix missing entries: ${missing.join(', ')}`);
     }
     this.logger.log(`[merchant-ops] 权限矩阵已校验，覆盖 ${ALL_AUDIT_ACTIONS.length} 个 AuditAction`);
+
+    // 启动期巡检：清理 print_plan_slices 中的悬空分类引用
+    try {
+      const { db } = await import('@/storage/database/mysql-client');
+      const { dish_categories } = await import('@/storage/database/shared/schema');
+      const cats = await db.select({ id: dish_categories.id }).from(dish_categories);
+      const validIds = cats.map((c) => c.id);
+      const r = await this.planCore.pruneOrphanCategoryRefs(validIds);
+      if (r.slicesAffected > 0) {
+        this.logger.warn(`[merchant-ops] 启动期清理了 ${r.slicesAffected} 个 plan slice 中的悬空分类引用：${JSON.stringify(r.orphanIds)}`);
+      } else {
+        this.logger.log('[merchant-ops] 打印方案分类引用巡检：无悬空引用');
+      }
+    } catch (err) {
+      this.logger.warn(`[merchant-ops] 启动期分类引用巡检失败（不影响启动）：${(err as Error).message}`);
+    }
   }
 }

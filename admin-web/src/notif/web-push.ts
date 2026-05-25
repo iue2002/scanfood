@@ -10,7 +10,7 @@
  *
  * 国内可用性：
  *   - 桌面 Edge / iOS Safari PWA → 完美
- *   - 安卓浏览器 → FCM 不稳，UI 层应提示用户
+ *   - 安卓浏览器 → FCM 被墙，订阅会报 'push service error'
  */
 import request from '@/api/request'
 
@@ -19,31 +19,68 @@ export interface PushCapability {
   reason?: string
   /** 当前是否已订阅 */
   subscribed: boolean
+  /** 平台分类（用于 UI 提示） */
+  platform: 'edge-desktop' | 'chrome-desktop' | 'firefox-desktop' | 'safari-ios' | 'android' | 'other'
+  /** 是否大概率被墙（安卓 + 国内） */
+  likelyBlocked: boolean
+}
+
+/** 粗略检测平台，用于针对性提示 */
+function detectPlatform(): PushCapability['platform'] {
+  if (typeof navigator === 'undefined') return 'other'
+  const ua = navigator.userAgent
+  // iOS（iPhone / iPad / iPod）
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'safari-ios'
+  // 安卓（先于其它判断，因为安卓 Edge/Chrome 都受 FCM 限制）
+  if (/Android/i.test(ua)) return 'android'
+  // 桌面 Edge
+  if (/Edg\//i.test(ua)) return 'edge-desktop'
+  // 桌面 Firefox
+  if (/Firefox\//i.test(ua)) return 'firefox-desktop'
+  // 桌面 Chrome（不含 Edg）
+  if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return 'chrome-desktop'
+  return 'other'
 }
 
 export async function detectPushCapability(): Promise<PushCapability> {
+  const platform = detectPlatform()
+  // 安卓走 FCM，国内 99% 失败：直接给前置提示，让用户走邮件兜底
+  const likelyBlocked = platform === 'android'
+
   if (typeof window === 'undefined') {
-    return { supported: false, reason: '非浏览器环境', subscribed: false }
+    return { supported: false, reason: '非浏览器环境', subscribed: false, platform, likelyBlocked }
   }
   if (!('serviceWorker' in navigator)) {
-    return { supported: false, reason: '浏览器不支持 Service Worker', subscribed: false }
+    return { supported: false, reason: '浏览器不支持 Service Worker', subscribed: false, platform, likelyBlocked }
   }
   if (!('PushManager' in window)) {
-    return { supported: false, reason: '浏览器不支持 Web Push', subscribed: false }
+    return { supported: false, reason: '浏览器不支持 Web Push', subscribed: false, platform, likelyBlocked }
   }
   if (!('Notification' in window)) {
-    return { supported: false, reason: '浏览器不支持 Notification API', subscribed: false }
+    return { supported: false, reason: '浏览器不支持 Notification API', subscribed: false, platform, likelyBlocked }
   }
 
   try {
     const reg = await navigator.serviceWorker.getRegistration()
     if (!reg) {
-      return { supported: true, reason: 'Service Worker 尚未就绪，请刷新页面后重试', subscribed: false }
+      return {
+        supported: true,
+        reason: 'Service Worker 尚未就绪，请刷新页面后重试',
+        subscribed: false,
+        platform,
+        likelyBlocked,
+      }
     }
     const sub = await reg.pushManager.getSubscription()
-    return { supported: true, subscribed: !!sub }
+    return { supported: true, subscribed: !!sub, platform, likelyBlocked }
   } catch (err) {
-    return { supported: false, reason: '检测推送能力失败：' + (err as Error).message, subscribed: false }
+    return {
+      supported: false,
+      reason: '检测推送能力失败：' + (err as Error).message,
+      subscribed: false,
+      platform,
+      likelyBlocked,
+    }
   }
 }
 
@@ -68,10 +105,39 @@ interface VapidKeyResponse {
 }
 
 /**
+ * 把 PushManager.subscribe 的原始错误翻译成对店主友好的中文提示
+ */
+function humanizeSubscribeError(err: any, platform: PushCapability['platform']): string {
+  const msg = err?.message || String(err)
+  // 国内最常见的失败：安卓 FCM 被墙
+  if (/push service error|Registration failed/i.test(msg)) {
+    if (platform === 'android') {
+      return '安卓浏览器无法连接 Google FCM 推送服务（国内被墙），请改用「邮件兜底」接收通知，或在 iPhone Safari、电脑 Edge 上启用强力推送。'
+    }
+    return '推送服务连接失败：当前网络/浏览器无法访问推送服务（国内 Chrome/Firefox 走 Google 节点常被屏蔽）。建议改用邮件兜底，或换成 Edge 浏览器。'
+  }
+  if (/permission denied|NotAllowedError/i.test(msg)) {
+    return '通知权限被浏览器拒绝。请到浏览器设置 → 站点权限 → 允许通知后重试。'
+  }
+  if (/Already.*subscribed/i.test(msg)) {
+    return '本设备已订阅过；请先「取消订阅」再重新开启。'
+  }
+  if (/AbortError/i.test(msg)) {
+    return '订阅过程被中断，请重试一次。'
+  }
+  if (/InvalidStateError/i.test(msg)) {
+    return 'Service Worker 状态异常，请刷新整页面后重试。'
+  }
+  return 'PushManager.subscribe 失败：' + msg
+}
+
+/**
  * 订阅 Web Push
  * @returns 成功/失败 + 失败原因
  */
 export async function subscribePush(): Promise<{ ok: boolean; reason?: string }> {
+  const platform = detectPlatform()
+
   // 1. 权限
   if (Notification.permission !== 'granted') {
     return { ok: false, reason: '通知权限未授予' }
@@ -98,7 +164,7 @@ export async function subscribePush(): Promise<{ ok: boolean; reason?: string }>
       })
     }
   } catch (err: any) {
-    return { ok: false, reason: 'PushManager.subscribe 失败：' + (err?.message || '未知错误') }
+    return { ok: false, reason: humanizeSubscribeError(err, platform) }
   }
 
   // 4. 上报后端

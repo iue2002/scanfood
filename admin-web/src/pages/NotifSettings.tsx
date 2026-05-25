@@ -56,6 +56,8 @@ export default function NotifSettings() {
   const [pushSupportReason, setPushSupportReason] = useState<string | undefined>()
   const [pushSubscribed, setPushSubscribed] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
+  const [pushPlatform, setPushPlatform] = useState<'edge-desktop' | 'chrome-desktop' | 'firefox-desktop' | 'safari-ios' | 'android' | 'other'>('other')
+  const [pushLikelyBlocked, setPushLikelyBlocked] = useState(false)
 
   // 邮件测试发送
   const [testingEmail, setTestingEmail] = useState(false)
@@ -79,6 +81,8 @@ export default function NotifSettings() {
       setPushSupported(cap.supported)
       setPushSupportReason(cap.reason)
       setPushSubscribed(cap.subscribed)
+      setPushPlatform(cap.platform)
+      setPushLikelyBlocked(cap.likelyBlocked)
     })
   }, [showToast])
 
@@ -386,6 +390,33 @@ export default function NotifSettings() {
               </div>
             </div>
           </div>
+        ) : pushLikelyBlocked && !pushSubscribed ? (
+          // 安卓浏览器：FCM 国内被墙，前置劝退 + 引导到邮件兜底
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF3C7] border border-[#FCD34D]">
+            <AlertCircle className="w-4 h-4 mt-0.5 text-[#B45309] shrink-0" />
+            <div className="text-sm text-[#78350F] flex-1">
+              <div className="font-medium">安卓浏览器无法使用 Web Push</div>
+              <div className="text-xs mt-1 text-[#92400E]">
+                安卓的浏览器推送依赖 Google FCM，国内网络环境下无法连接。
+                <br />
+                推荐方案：
+                <br />
+                1️⃣ 用下方「<b>邮件兜底</b>」（订单变更通过邮件送达手机邮箱 app）
+                <br />
+                2️⃣ 桌面 Edge 浏览器开着 admin → ✅ 完美支持
+                <br />
+                3️⃣ iPhone Safari「添加到主屏幕」→ ✅ 完美支持
+              </div>
+              <button
+                onClick={() => {
+                  document.getElementById('email-fallback-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }}
+                className="mt-2 inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-[#B45309] text-white hover:bg-[#92400E]"
+              >
+                ↓ 去配置邮件兜底
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             <div className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0]">
@@ -426,17 +457,17 @@ export default function NotifSettings() {
             </div>
 
             <div className="mt-3 p-3 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E40AF] space-y-1">
-              <div className="font-medium">国内可用性提示</div>
+              <div className="font-medium">国内可用性说明</div>
               <div>• Windows / macOS Edge：✅ 完美支持（微软 WNS 国内节点）</div>
               <div>• iPhone Safari（添加到主屏后）：✅ 完美支持（Apple APNs）</div>
-              <div>• 安卓浏览器：⚠️ 国内 FCM 可能不稳定，建议同时配置邮件通知作为兜底</div>
+              <div>• 安卓浏览器：⚠️ FCM 国内基本不通，建议改用「邮件兜底」</div>
             </div>
           </>
         )}
       </section>
 
       {/* 邮件兜底 */}
-      <section className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] p-5 mt-4">
+      <section id="email-fallback-section" className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] p-5 mt-4">
         <div className="flex items-center gap-3 mb-4">
           <Mail className="w-5 h-5 text-[#2563EB]" />
           <div>

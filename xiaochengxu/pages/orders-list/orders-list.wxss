@@ -1,7 +1,7 @@
 /* pages/orders-list/orders-list.wxss
- * 订单列表真页面：�?components/orders-sheet/index.wxss 1:1 迁移
- * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
- *           入场动画交给 wx.navigateTo 原生处理（与�?220ms 动画几乎一致）
+ * 订单列表真页面：�?components/orders-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
+ *           入场动画交给 wx.navigateTo 原生处理（与�?220ms 动画几乎一致）
  */
 
 .om-page {
@@ -65,6 +65,9 @@
   padding: 20rpx 32rpx 12rpx;
   white-space: nowrap;
   flex-shrink: 0;
+  /* Skyline 下 scroll-x scroll-view 的高度需要显式指定，否则会被默认 100% 撑满覆盖列表 */
+  height: 84rpx;
+  box-sizing: content-box;
 }
 .om-tabs-inner {
   display: inline-flex;
@@ -80,6 +83,7 @@
   border-radius: 14rpx;
   font-size: 24rpx;
   font-weight: 500;
+  flex-shrink: 0;
 }
 .om-tab-active {
   background: #2563EB;
@@ -90,7 +94,8 @@
 .om-list {
   flex: 1;
   min-height: 0;
-  padding: 8rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  /* 真页面下没有 TabBar，只需安全区；最后一张卡片不被截 */
+  padding: 8rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -112,7 +117,7 @@
   transition: all 0.12s ease;
 }
 
-/* 店铺信息�?*/
+/* 店铺信息�?*/
 .om-store {
   display: flex;
   align-items: center;
@@ -483,7 +488,6 @@
   color: #64748B;
   white-space: normal;
 }
-}
 
 .om-loading {
   display: flex;
@@ -514,7 +518,7 @@
   letter-spacing: 1rpx;
 }
 
-/* 骨架�?*/
+/* 骨架�?*/
 .om-skeleton-list {
   padding: 8rpx 0 0;
 }

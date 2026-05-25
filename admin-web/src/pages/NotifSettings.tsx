@@ -8,10 +8,13 @@ import {
   Volume2,
   Monitor,
   Smartphone,
+  Mail,
+  Send,
   AlertCircle,
   CheckCircle2,
   XCircle,
 } from 'lucide-react'
+import request from '@/api/request'
 import { useModal } from '@/components/ModalProvider'
 import {
   loadNotifPref,
@@ -53,6 +56,9 @@ export default function NotifSettings() {
   const [pushSupportReason, setPushSupportReason] = useState<string | undefined>()
   const [pushSubscribed, setPushSubscribed] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
+
+  // 邮件测试发送
+  const [testingEmail, setTestingEmail] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -153,6 +159,19 @@ export default function NotifSettings() {
     })
   }
 
+  const handleToggleEmailEvent = (event: DesktopEvent, checked: boolean) => {
+    setPref((p) => {
+      const next = new Set(p.email_events)
+      if (checked) next.add(event)
+      else next.delete(event)
+      return { ...p, email_events: ALL_DESKTOP_EVENTS.filter((e) => next.has(e)) }
+    })
+  }
+
+  const handleEmailChange = (val: string) => {
+    setPref((p) => ({ ...p, email: val.length === 0 ? null : val }))
+  }
+
   const handlePreview = async (entry: SoundEntry) => {
     if (previewingId) return
     setPreviewingId(entry.id)
@@ -169,6 +188,11 @@ export default function NotifSettings() {
   }
 
   const handleSave = async () => {
+    // 邮件简单格式校验（仅在填了的情况下）
+    if (pref.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pref.email)) {
+      showToast('邮箱格式不合法', 'warning')
+      return
+    }
     setSaving(true)
     try {
       const saved = await saveNotifPref(pref)
@@ -178,6 +202,31 @@ export default function NotifSettings() {
       showToast(err?.message || '保存失败', 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!pref.email) {
+      showToast('请先填写邮箱地址', 'warning')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pref.email)) {
+      showToast('邮箱格式不合法', 'warning')
+      return
+    }
+    setTestingEmail(true)
+    try {
+      const res: any = await request.post('/notif/email/test', { to: pref.email })
+      if (res?.success !== false) {
+        showToast(res?.message || '测试邮件已发送，请检查收件箱', 'success')
+      } else {
+        showToast(res?.message || '测试邮件发送失败', 'error')
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '测试邮件发送失败'
+      showToast(msg, 'error')
+    } finally {
+      setTestingEmail(false)
     }
   }
 
@@ -198,7 +247,7 @@ export default function NotifSettings() {
           </div>
           <div>
             <h1 className="text-lg lg:text-xl font-semibold text-[#0F172A]">通知偏好</h1>
-            <p className="text-xs text-[#94A3B8] mt-0.5">声音提示、音色与桌面通知设置</p>
+            <p className="text-xs text-[#94A3B8] mt-0.5">声音、桌面通知、Web Push、邮件兜底</p>
           </div>
         </div>
         <button
@@ -384,6 +433,74 @@ export default function NotifSettings() {
             </div>
           </>
         )}
+      </section>
+
+      {/* 邮件兜底 */}
+      <section className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] p-5 mt-4">
+        <div className="flex items-center gap-3 mb-4">
+          <Mail className="w-5 h-5 text-[#2563EB]" />
+          <div>
+            <h2 className="text-base font-semibold text-[#0F172A]">邮件兜底</h2>
+            <p className="text-xs text-[#94A3B8] mt-0.5">
+              即使你不在线，订单变更也会通过邮件送达手机邮箱 app（QQ / 网易邮箱大师 / Outlook）
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-[#475569] mb-1">接收邮箱</label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={pref.email ?? ''}
+                onChange={(e) => handleEmailChange(e.target.value)}
+                placeholder="留空表示不接收邮件"
+                className="flex-1 h-10 px-3 border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] outline-none focus:border-[#2563EB] transition-colors"
+                maxLength={255}
+              />
+              <button
+                onClick={handleSendTestEmail}
+                disabled={!pref.email || testingEmail}
+                className="inline-flex items-center gap-1 px-3 h-10 rounded-lg bg-[#F1F5F9] text-[#475569] text-sm font-medium hover:bg-[#E2E8F0] disabled:opacity-50 transition-colors"
+              >
+                {testingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                测试发送
+              </button>
+            </div>
+            <p className="text-xs text-[#94A3B8] mt-1">
+              发件 SMTP 由店主在「店铺设置 → 邮件配置」处填写；推荐 QQ 邮箱授权码 / 阿里云邮件推送。
+            </p>
+          </div>
+
+          {pref.email && (
+            <div>
+              <label className="block text-xs font-medium text-[#475569] mb-2">订阅哪些事件</label>
+              <div className="space-y-2">
+                {ALL_DESKTOP_EVENTS.map((e) => {
+                  const checked = pref.email_events.includes(e)
+                  return (
+                    <label
+                      key={`email-${e}`}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-[#E2E8F0] hover:border-[#CBD5E1] cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(ev) => handleToggleEmailEvent(e, ev.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-[#CBD5E1] text-[#2563EB] focus:ring-[#2563EB]"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-[#0F172A]">{EVENT_LABEL[e]}</div>
+                        <div className="text-xs text-[#94A3B8] mt-0.5">{EVENT_DESC[e]}</div>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </section>
     </div>
   )

@@ -3,28 +3,32 @@ import { db } from '@/storage/database/mysql-client';
 import { user_preferences } from '@/storage/database/shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import type { NotifPrefRepoPort } from './notif-pref-repo.port';
-import type { DesktopEvent, NotifPrefDto, NotifPrefRow } from './notif-pref.types';
+import type { DesktopEvent, EmailEvent, NotifPrefDto, NotifPrefRow } from './notif-pref.types';
 
 @Injectable()
 export class DrizzleNotifPrefRepo implements NotifPrefRepoPort {
-  private mapRow(r: any): NotifPrefRow {
-    let events: DesktopEvent[] = [];
-    const raw = r.desktop_events;
-    if (Array.isArray(raw)) {
-      events = raw as DesktopEvent[];
-    } else if (typeof raw === 'string') {
+  private parseEvents(raw: any): DesktopEvent[] {
+    if (Array.isArray(raw)) return raw as DesktopEvent[];
+    if (typeof raw === 'string') {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) events = parsed as DesktopEvent[];
+        if (Array.isArray(parsed)) return parsed as DesktopEvent[];
       } catch {
-        events = [];
+        return [];
       }
     }
+    return [];
+  }
+
+  private mapRow(r: any): NotifPrefRow {
+    const email = typeof r.email === 'string' && r.email.length > 0 ? r.email : null;
     return {
       user_id: r.user_id,
       sound_enabled: !!r.sound_enabled,
       sound_id: r.sound_id ?? 'default',
-      desktop_events: events,
+      desktop_events: this.parseEvents(r.desktop_events),
+      email,
+      email_events: this.parseEvents(r.email_events) as EmailEvent[],
       updated_at: r.updated_at,
     };
   }
@@ -36,24 +40,41 @@ export class DrizzleNotifPrefRepo implements NotifPrefRepoPort {
   }
 
   async upsert(userId: number, dto: NotifPrefDto): Promise<NotifPrefRow> {
+    // 读取旧值（部分更新场景：dto 中未传 email/email_events 时保留旧值）
+    const existing = await this.getByUserId(userId);
+
+    const finalEmail =
+      dto.email === undefined ? existing?.email ?? null : dto.email;
+    const finalEmailEvents =
+      dto.email_events === undefined
+        ? (existing?.email_events ?? [])
+        : dto.email_events;
+
     // MySQL ON DUPLICATE KEY UPDATE 实现 upsert
+    const valuesPayload: any = {
+      user_id: userId,
+      sound_enabled: dto.sound_enabled,
+      sound_id: dto.sound_id,
+      desktop_events: dto.desktop_events as any,
+      email: finalEmail,
+      email_events: finalEmailEvents as any,
+    };
+
     await db
       .insert(user_preferences)
-      .values({
-        user_id: userId,
-        sound_enabled: dto.sound_enabled,
-        sound_id: dto.sound_id,
-        desktop_events: dto.desktop_events as any,
-      })
+      .values(valuesPayload)
       .onDuplicateKeyUpdate({
         set: {
           sound_enabled: dto.sound_enabled,
           sound_id: dto.sound_id,
           desktop_events: dto.desktop_events as any,
+          email: finalEmail,
+          email_events: finalEmailEvents as any,
           // updated_at 由列默认 ON UPDATE CURRENT_TIMESTAMP 自动维护
           updated_at: sql`CURRENT_TIMESTAMP`,
         },
       });
+
     const row = await this.getByUserId(userId);
     if (!row) {
       // 理论不可能：刚 upsert 完应能查到

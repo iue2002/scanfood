@@ -31,6 +31,9 @@ export class NotifPrefController {
       sound_enabled: dto.sound_enabled,
       sound_id: dto.sound_id,
       desktop_events: dto.desktop_events,
+      // 邮件字段可选；不传时保留旧值
+      ...(dto.email !== undefined ? { email: dto.email } : {}),
+      ...(dto.email_events !== undefined ? { email_events: dto.email_events } : {}),
     });
     return { data: row };
   }

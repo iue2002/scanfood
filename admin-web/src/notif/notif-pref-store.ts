@@ -5,13 +5,23 @@
  *  - 保存偏好（PUT 到后端 + 写 localStorage）
  *  - 拉取音色清单
  *  - 选择性订阅
+ *
+ * 多通道扩展：
+ *  - email：员工接收邮件通知的邮箱（空串/null = 关闭）
+ *  - email_events：订阅哪些事件（与 desktop_events 同集合，但独立选择）
  */
 import request from '@/api/request'
 import type { DesktopEvent, MinimalPref } from './notification-decision'
 
 const STORAGE_KEY = 'mop:notif-pref'
 
-export interface NotifPrefRow extends MinimalPref {
+/** 前端扩展版本：包含邮件字段（可选） */
+export interface ExtendedPref extends MinimalPref {
+  email: string | null
+  email_events: DesktopEvent[]
+}
+
+export interface NotifPrefRow extends ExtendedPref {
   user_id: number
   updated_at: string
 }
@@ -23,16 +33,18 @@ export interface SoundEntry {
   durationMs: number
 }
 
-const DEFAULT_PREF: MinimalPref = {
+const DEFAULT_PREF: ExtendedPref = {
   sound_enabled: true,
   sound_id: 'default',
   desktop_events: ['NEW_ORDER'],
+  email: null,
+  email_events: [],
 }
 
-let cached: MinimalPref = readFromStorage() ?? { ...DEFAULT_PREF }
+let cached: ExtendedPref = readFromStorage() ?? { ...DEFAULT_PREF }
 const subscribers = new Set<() => void>()
 
-function readFromStorage(): MinimalPref | null {
+function readFromStorage(): ExtendedPref | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
@@ -44,12 +56,21 @@ function readFromStorage(): MinimalPref | null {
       typeof obj.sound_id === 'string' &&
       Array.isArray(obj.desktop_events)
     ) {
+      const desktop_events = obj.desktop_events.filter(
+        (e: any): e is DesktopEvent => e === 'NEW_ORDER' || e === 'ADD_ITEM' || e === 'REFUND',
+      )
+      const email = typeof obj.email === 'string' && obj.email.length > 0 ? obj.email : null
+      const email_events = Array.isArray(obj.email_events)
+        ? obj.email_events.filter(
+            (e: any): e is DesktopEvent => e === 'NEW_ORDER' || e === 'ADD_ITEM' || e === 'REFUND',
+          )
+        : []
       return {
         sound_enabled: obj.sound_enabled,
         sound_id: obj.sound_id,
-        desktop_events: obj.desktop_events.filter(
-          (e: any): e is DesktopEvent => e === 'NEW_ORDER' || e === 'ADD_ITEM' || e === 'REFUND',
-        ),
+        desktop_events,
+        email,
+        email_events,
       }
     }
   } catch {
@@ -58,7 +79,7 @@ function readFromStorage(): MinimalPref | null {
   return null
 }
 
-function writeToStorage(pref: MinimalPref) {
+function writeToStorage(pref: ExtendedPref) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(pref))
   } catch {
@@ -72,7 +93,7 @@ function notify() {
   }
 }
 
-export function getNotifPref(): MinimalPref {
+export function getNotifPref(): ExtendedPref {
   return cached
 }
 
@@ -81,17 +102,23 @@ export function subscribeNotifPref(fn: () => void): () => void {
   return () => subscribers.delete(fn)
 }
 
+function normalizeRow(row: Partial<NotifPrefRow>): ExtendedPref {
+  return {
+    sound_enabled: !!row.sound_enabled,
+    sound_id: row.sound_id ?? 'default',
+    desktop_events: Array.isArray(row.desktop_events) ? row.desktop_events : [],
+    email: typeof row.email === 'string' && row.email.length > 0 ? row.email : null,
+    email_events: Array.isArray(row.email_events) ? row.email_events : [],
+  }
+}
+
 /** 从后端加载偏好；失败时使用 localStorage 兜底 */
-export async function loadNotifPref(): Promise<MinimalPref> {
+export async function loadNotifPref(): Promise<ExtendedPref> {
   try {
     const res: any = await request.get<{ data: NotifPrefRow }>('/merchant-ops/notification-preferences/me')
     const row: NotifPrefRow = res?.data ?? res
     if (row && typeof row.sound_enabled === 'boolean') {
-      const next: MinimalPref = {
-        sound_enabled: row.sound_enabled,
-        sound_id: row.sound_id,
-        desktop_events: Array.isArray(row.desktop_events) ? row.desktop_events : [],
-      }
+      const next = normalizeRow(row)
       cached = next
       writeToStorage(next)
       notify()
@@ -104,14 +131,18 @@ export async function loadNotifPref(): Promise<MinimalPref> {
 }
 
 /** 保存到后端 + localStorage */
-export async function saveNotifPref(next: MinimalPref): Promise<MinimalPref> {
-  const res: any = await request.put('/merchant-ops/notification-preferences/me', next)
+export async function saveNotifPref(next: ExtendedPref): Promise<ExtendedPref> {
+  // 后端 DTO：未传字段保留旧值，所以全量发上去最安全
+  const payload: any = {
+    sound_enabled: next.sound_enabled,
+    sound_id: next.sound_id,
+    desktop_events: next.desktop_events,
+    email: next.email ?? null,
+    email_events: next.email_events,
+  }
+  const res: any = await request.put('/merchant-ops/notification-preferences/me', payload)
   const row: NotifPrefRow | undefined = res?.data ?? res
-  const final: MinimalPref = row ? {
-    sound_enabled: row.sound_enabled,
-    sound_id: row.sound_id,
-    desktop_events: Array.isArray(row.desktop_events) ? row.desktop_events : [],
-  } : next
+  const final: ExtendedPref = row ? normalizeRow(row) : next
   cached = final
   writeToStorage(final)
   notify()

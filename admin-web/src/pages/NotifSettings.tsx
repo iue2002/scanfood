@@ -7,7 +7,10 @@ import {
   Save,
   Volume2,
   Monitor,
+  Smartphone,
   AlertCircle,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import {
@@ -20,6 +23,7 @@ import type { SoundEntry } from '@/notif/notif-pref-store'
 import type { DesktopEvent } from '@/notif/notification-decision'
 import { ALL_DESKTOP_EVENTS } from '@/notif/notification-decision'
 import { previewSound } from '@/notif/audio-player'
+import { detectPushCapability, subscribePush, unsubscribePush } from '@/notif/web-push'
 
 const EVENT_LABEL: Record<DesktopEvent, string> = {
   NEW_ORDER: '新订单',
@@ -44,6 +48,12 @@ export default function NotifSettings() {
     typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
   )
 
+  // Web Push 状态
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushSupportReason, setPushSupportReason] = useState<string | undefined>()
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+
   useEffect(() => {
     Promise.all([
       loadNotifPref(),
@@ -57,7 +67,53 @@ export default function NotifSettings() {
         showToast(err?.message || '加载偏好失败，已使用本地缓存', 'warning')
       })
       .finally(() => setLoading(false))
+
+    // 检测 Web Push 能力 + 当前订阅状态
+    detectPushCapability().then((cap) => {
+      setPushSupported(cap.supported)
+      setPushSupportReason(cap.reason)
+      setPushSubscribed(cap.subscribed)
+    })
   }, [showToast])
+
+  const handleEnablePush = async () => {
+    setPushBusy(true)
+    try {
+      // 先确保通知权限
+      if (Notification.permission !== 'granted') {
+        const result = await Notification.requestPermission()
+        setPermissionState(result)
+        if (result !== 'granted') {
+          showToast('通知权限未授予，无法开启 Web Push', 'warning')
+          return
+        }
+      }
+      const r = await subscribePush()
+      if (r.ok) {
+        setPushSubscribed(true)
+        showToast('Web Push 已开启，关浏览器/锁屏也能收到', 'success')
+      } else {
+        showToast(r.reason || 'Web Push 开启失败', 'error')
+      }
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
+  const handleDisablePush = async () => {
+    setPushBusy(true)
+    try {
+      const r = await unsubscribePush()
+      if (r.ok) {
+        setPushSubscribed(false)
+        showToast('Web Push 已关闭', 'info')
+      } else {
+        showToast(r.reason || 'Web Push 关闭失败', 'error')
+      }
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   const fallbackUrl = useMemo(
     () => sounds.find((s) => s.id === 'default')?.url ?? sounds[0]?.url ?? '',
@@ -259,6 +315,75 @@ export default function NotifSettings() {
           <BellOff className="w-3.5 h-3.5" />
           关闭浏览器站点通知权限后，所有桌面通知都将失效；声音和页内 toast 仍会保留。
         </p>
+      </section>
+
+      {/* Web Push 推送（关浏览器、锁屏也能收） */}
+      <section className="bg-white rounded-xl shadow-sm border border-[#E2E8F0] p-5 mt-4">
+        <div className="flex items-center gap-3 mb-4">
+          <Smartphone className="w-5 h-5 text-[#2563EB]" />
+          <div>
+            <h2 className="text-base font-semibold text-[#0F172A]">Web Push（强力推送）</h2>
+            <p className="text-xs text-[#94A3B8] mt-0.5">即使关掉浏览器、回到桌面、锁屏也能收到通知</p>
+          </div>
+        </div>
+
+        {!pushSupported ? (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF3C7] border border-[#FCD34D]">
+            <AlertCircle className="w-4 h-4 mt-0.5 text-[#B45309] shrink-0" />
+            <div className="text-sm text-[#78350F]">
+              当前环境不支持 Web Push：{pushSupportReason || '未知原因'}
+              <div className="text-xs mt-1 text-[#92400E]">
+                建议使用 Edge / Chrome 浏览器，或将网页"添加到主屏幕"以 PWA 方式使用。
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0]">
+              <div className="flex items-center gap-2">
+                {pushSubscribed ? (
+                  <CheckCircle2 className="w-5 h-5 text-[#10B981]" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-[#94A3B8]" />
+                )}
+                <div>
+                  <div className="text-sm font-medium text-[#0F172A]">
+                    {pushSubscribed ? '已订阅' : '未订阅'}
+                  </div>
+                  <div className="text-xs text-[#94A3B8]">
+                    {pushSubscribed
+                      ? '本设备已订阅，新订单会推送到系统通知中心'
+                      : '点击右侧按钮开启强力推送'}
+                  </div>
+                </div>
+              </div>
+              {pushSubscribed ? (
+                <button
+                  onClick={handleDisablePush}
+                  disabled={pushBusy}
+                  className="px-3 py-1.5 rounded-lg bg-[#F1F5F9] text-[#475569] text-sm font-medium hover:bg-[#E2E8F0] disabled:opacity-50"
+                >
+                  {pushBusy ? '处理中...' : '取消订阅'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleEnablePush}
+                  disabled={pushBusy || permissionState === 'denied'}
+                  className="px-3 py-1.5 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1D4ED8] disabled:opacity-50"
+                >
+                  {pushBusy ? '处理中...' : '开启订阅'}
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3 p-3 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E40AF] space-y-1">
+              <div className="font-medium">国内可用性提示</div>
+              <div>• Windows / macOS Edge：✅ 完美支持（微软 WNS 国内节点）</div>
+              <div>• iPhone Safari（添加到主屏后）：✅ 完美支持（Apple APNs）</div>
+              <div>• 安卓浏览器：⚠️ 国内 FCM 可能不稳定，建议同时配置邮件通知作为兜底</div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   )

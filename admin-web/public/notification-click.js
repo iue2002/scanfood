@@ -1,13 +1,38 @@
 // public/notification-click.js
 // 通过 vite-plugin-pwa 的 workbox.importScripts 注入到生成的 sw.js 中
 //
-// 作用：处理用户点击桌面通知 / 锁屏通知的事件
-//   1. 如果已有 admin tab 打开 → focus 它 + postMessage 让前端跳到目标 URL
-//   2. 如果没有打开的 tab → 新开 admin 并跳到目标 URL
+// 作用：
+//   1. 接收 Web Push 推送事件 → 弹通知
+//   2. 处理用户点击通知（桌面 / 锁屏） → focus 已有 admin tab 或新开
 //
-// 数据约定：showNotification 时传 options.data = { url: '/orders?focus=123' }
-// 这个 url 是相对路径，会和 self.registration.scope 拼成完整 URL
+// 数据约定：
+//   服务端发的 push payload JSON：{ title, body, url, tag, icon }
+//   showNotification options.data = { url } → notificationclick 时拿来跳转
 
+// ===== 1. 接收 Web Push 推送事件 =====
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    payload = { title: '新通知', body: event.data.text() };
+  }
+
+  const title = payload.title || '新通知';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: payload.tag,
+    data: { url: payload.url || '/' },
+    requireInteraction: false,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ===== 2. 用户点击通知 =====
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 

@@ -3,6 +3,10 @@
 --   1. 仅 ADD COLUMN / CREATE TABLE，绝不改原列（红线）
 --   2. 业务表 store_settings / user_preferences 仅扩展不破坏
 --   3. 新增独立表 push_subscriptions
+--
+-- 注：不用 IF NOT EXISTS（MySQL 8 不支持 ALTER ADD COLUMN IF NOT EXISTS），
+-- 也不用存储过程（mysql cli 输入流没有 DELIMITER 概念）。
+-- 重跑会因为列已存在报错，没关系——首次运行能跑通就行。
 
 -- ===== Web Push 订阅表 =====
 CREATE TABLE IF NOT EXISTS `push_subscriptions` (
@@ -23,18 +27,14 @@ CREATE TABLE IF NOT EXISTS `push_subscriptions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===== store_settings: SMTP 配置（双模式：platform / custom）=====
--- smtp_pass_enc 用 AES-256-GCM 加密（复用 printer device_key 同款加密器）
-ALTER TABLE `store_settings`
-  ADD COLUMN IF NOT EXISTS `smtp_mode` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'platform' COMMENT 'platform=用平台默认; custom=自定义',
-  ADD COLUMN IF NOT EXISTS `smtp_host` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS `smtp_port` int DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS `smtp_user` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS `smtp_pass_enc` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS `smtp_from` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS `smtp_secure` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否走 SSL/TLS';
+ALTER TABLE `store_settings` ADD COLUMN `smtp_mode` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'platform' COMMENT 'platform=用平台默认; custom=自定义';
+ALTER TABLE `store_settings` ADD COLUMN `smtp_host` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+ALTER TABLE `store_settings` ADD COLUMN `smtp_port` int DEFAULT NULL;
+ALTER TABLE `store_settings` ADD COLUMN `smtp_user` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+ALTER TABLE `store_settings` ADD COLUMN `smtp_pass_enc` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+ALTER TABLE `store_settings` ADD COLUMN `smtp_from` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+ALTER TABLE `store_settings` ADD COLUMN `smtp_secure` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否走 SSL/TLS';
 
 -- ===== user_preferences: 邮件通知配置（每个员工独立）=====
--- email_events 用 JSON 存数组：['NEW_ORDER','ADD_ITEM','REFUND'] 子集
-ALTER TABLE `user_preferences`
-  ADD COLUMN IF NOT EXISTS `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '接收订单通知的邮箱',
-  ADD COLUMN IF NOT EXISTS `email_events` json DEFAULT NULL COMMENT '订阅哪些事件: subset of {NEW_ORDER, ADD_ITEM, REFUND}';
+ALTER TABLE `user_preferences` ADD COLUMN `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '接收订单通知的邮箱';
+ALTER TABLE `user_preferences` ADD COLUMN `email_events` json DEFAULT NULL COMMENT '订阅哪些事件: subset of {NEW_ORDER, ADD_ITEM, REFUND}';

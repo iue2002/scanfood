@@ -24,19 +24,21 @@ export class StoreSettingsService {
   ) {}
 
   async getStoreSettings() {
+    // 仅返回小程序/公开页面用得到的字段。
+    // SMTP 配置（含 host/user/from 等敏感信息）必须走 getSmtpConfig（auth guarded）。
     const settings = await db
-      .select()
+      .select({
+        id: store_settings.id,
+        store_name: store_settings.store_name,
+        store_avatar: store_settings.store_avatar,
+      })
       .from(store_settings)
       .limit(1);
-    
+
     if (settings.length === 0) {
       return { store_name: '我的小店', store_avatar: '' };
     }
-
-    // 不暴露 smtp_pass_enc（含密文）；其它 smtp 字段也单独走 getSmtpConfig
-    const row = settings[0] as any;
-    const { smtp_pass_enc, ...safe } = row;
-    return safe;
+    return settings[0];
   }
 
   async updateStoreSettings(data: { store_name: string; store_avatar?: string }) {

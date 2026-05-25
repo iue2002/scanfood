@@ -26,7 +26,6 @@ import {
 import { eq, inArray } from 'drizzle-orm';
 import { PushNotificationService } from './push.service';
 import { EmailNotificationService } from './email.service';
-import type { OrderEmailParams } from './email.service';
 
 export type NotifEvent = 'NEW_ORDER' | 'ADD_ITEM' | 'REFUND';
 
@@ -84,18 +83,19 @@ export class NotificationDispatcherService {
   ): Promise<void> {
     if (!this.pushService.isEnabled()) return;
     try {
-      // 接收人 = 桌面通知里订阅了此事件的员工（与 desktop_events 同列控制）
-      const recipientIds = staff
-        .filter((s) => s.desktop_events.includes(event))
-        .map((s) => s.userId);
-      if (recipientIds.length === 0) return;
+      // Web Push 是独立通道：用户既然主动订阅了，所有 3 类事件都该推。
+      // 不再用 desktop_events 过滤（那是浏览器端 Notification API 的开关，
+      // 与 Web Push 后台推送是两套机制）。
+      const allUserIds = staff.map((s) => s.userId);
+      if (allUserIds.length === 0) return;
 
       const title = this.buildTitle(event, ctx);
       const body = this.buildPushBody(event, ctx);
       const url = `/orders?focus=${ctx.orderId}`;
       const tag = `${event}-${ctx.orderId}`;
 
-      await this.pushService.sendToUsers(recipientIds, { title, body, url, tag });
+      // sendToUsers 内部按 push_subscriptions 表查订阅；没订阅的员工自动跳过
+      await this.pushService.sendToUsers(allUserIds, { title, body, url, tag });
     } catch (err) {
       this.logger.warn(`[notif] push dispatch error (吞掉): ${(err as Error).message}`);
     }
@@ -127,26 +127,30 @@ export class NotificationDispatcherService {
       const storeName = await this.getStoreName();
       const detailUrl = this.buildDetailUrl(ctx.orderId);
 
-      // 串行发避免突发 50+ 邮件触发 SMTP 限流；每封间隔通过限流器自然控制
-      for (const r of recipients) {
-        const params: OrderEmailParams = {
-          to: r.email!,
-          storeName,
-          recipientName: r.username,
-          orderNumber: ctx.orderNumber,
-          tableLabel: ctx.tableLabel,
-          totalAmount: ctx.totalAmount,
-          items: ctx.items,
-          createdAt: ctx.createdAt,
-          detailUrl,
-          event,
-        };
-        // fire-and-forget，但仍 await 让限流器顺序生效
-        const r1 = await this.emailService.sendOrderEmail(params);
-        if (!r1.ok) {
-          this.logger.warn(`[notif] email to ${r.email} skipped: ${r1.reason}`);
+      // 并发发，单封内部由 EmailService 限流 + 超时控制
+      const results = await Promise.allSettled(
+        recipients.map((r) =>
+          this.emailService.sendOrderEmail({
+            to: r.email!,
+            storeName,
+            recipientName: r.username,
+            orderNumber: ctx.orderNumber,
+            tableLabel: ctx.tableLabel,
+            totalAmount: ctx.totalAmount,
+            items: ctx.items,
+            createdAt: ctx.createdAt,
+            detailUrl,
+            event,
+          }),
+        ),
+      );
+      results.forEach((r, idx) => {
+        if (r.status === 'fulfilled' && !r.value.ok) {
+          this.logger.warn(`[notif] email to ${recipients[idx].email} skipped: ${r.value.reason}`);
+        } else if (r.status === 'rejected') {
+          this.logger.warn(`[notif] email to ${recipients[idx].email} rejected: ${(r.reason as Error)?.message?.slice(0, 100)}`);
         }
-      }
+      });
     } catch (err) {
       this.logger.warn(`[notif] email dispatch error (吞掉): ${(err as Error).message}`);
     }

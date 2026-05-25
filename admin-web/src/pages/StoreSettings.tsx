@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import request from '@/api/request';
 import { useModal } from '@/components/ModalProvider';
 import {
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { resolveImageUrl } from '@/utils/image-url';
 import { smartUpload, fallbackOriginalUpload, type CompressionResult as UploadResult } from '@/utils/image-upload';
+import { useAuthStore } from '@/stores/auth';
 
 interface CompressionResult {
   success: boolean;
@@ -55,6 +56,12 @@ const DEFAULT_SMTP: SmtpConfig = {
 export default function StoreSettings() {
   const { showToast, showConfirm } = useModal();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const role = useAuthStore((s) => s.user?.role);
+  // SMTP 配置仅 owner / manager / admin 可见可写
+  const canManageSmtp = useMemo(
+    () => role === 'owner' || role === 'manager' || role === 'admin',
+    [role],
+  );
 
   const [storeName, setStoreName] = useState('');
   const [storeAvatar, setStoreAvatar] = useState('');
@@ -77,8 +84,11 @@ export default function StoreSettings() {
 
   useEffect(() => {
     fetchSettings();
-    fetchSmtpConfig();
-  }, []);
+    if (canManageSmtp) {
+      fetchSmtpConfig();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManageSmtp]);
 
   const fetchSettings = async () => {
     try {
@@ -436,7 +446,7 @@ export default function StoreSettings() {
       </div>
 
       {/* 邮件 SMTP 配置（owner / manager 可见） */}
-      {smtpLoaded && (
+      {canManageSmtp && smtpLoaded && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="mb-5 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#EFF6FF] flex items-center justify-center">
@@ -551,6 +561,9 @@ export default function StoreSettings() {
                   className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg text-sm outline-none focus:border-[#2563EB]"
                   maxLength={255}
                 />
+                <p className="text-xs text-[#94A3B8] mt-1">
+                  通常须与上面的「用户名」一致；QQ / 163 / 阿里云不允许伪装发件人
+                </p>
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer">

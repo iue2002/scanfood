@@ -53,16 +53,21 @@
 }
 
 /* ====== 图标：用 view 拼，确保选中态颜色跟随 ====== */
-/* LayoutGrid: 4 个圆角小方块 */
+/* LayoutGrid: 4 个圆角小方块（Skyline 不支持 grid，用嵌套 flex 实现 2×2 布局） */
 .om-icon-grid {
   width: 32rpx;
   height: 32rpx;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.om-icon-grid-row {
+  flex: 1;
+  display: flex;
   gap: 4rpx;
 }
 .om-icon-grid-cell {
+  flex: 1;
   background: currentColor;
   border-radius: 4rpx;
   opacity: 0.85;

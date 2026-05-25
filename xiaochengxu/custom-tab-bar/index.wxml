@@ -10,10 +10,14 @@
   >
     <view class="om-tab-icon">
       <view wx:if="{{index === 0}}" class="om-icon-grid">
-        <view class="om-icon-grid-cell"></view>
-        <view class="om-icon-grid-cell"></view>
-        <view class="om-icon-grid-cell"></view>
-        <view class="om-icon-grid-cell"></view>
+        <view class="om-icon-grid-row">
+          <view class="om-icon-grid-cell"></view>
+          <view class="om-icon-grid-cell"></view>
+        </view>
+        <view class="om-icon-grid-row">
+          <view class="om-icon-grid-cell"></view>
+          <view class="om-icon-grid-cell"></view>
+        </view>
       </view>
       <view wx:elif="{{index === 1}}" class="om-icon-user">
         <view class="om-icon-user-head"></view>

@@ -2,9 +2,12 @@
 
 .om-sheet-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: #F8FAFC;
-  z-index: 850; /* 高于 me-sheet/orders-sheet（800），但低于 TabBar 999 */
+  z-index: 850; /* 高于 me-sheet/orders-sheet�?00），但低�?TabBar 999 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 26rpx;
@@ -20,15 +23,15 @@
   transform: translate3d(0, 0, 0);
 }
 
-/* navbar 与 orders-sheet / me-sheet 同款 */
+/* navbar �?orders-sheet / me-sheet 同款 */
 .om-navbar {
   background: #FFFFFF;
   border-bottom: 2rpx solid #F1F5F9;
   flex-shrink: 0;
-  /* padding-top 由 wxml 内联（statusBarHeight）注入 */
+  /* padding-top �?wxml 内联（statusBarHeight）注�?*/
 }
 .om-navbar-inner {
-  /* 右侧 200rpx 留给微信胶囊按钮（87px ≈ 174rpx + 缓冲） */
+  /* 右侧 200rpx 留给微信胶囊按钮�?7px �?174rpx + 缓冲�?*/
   height: 88rpx;
   padding: 0 200rpx 0 28rpx;
   display: flex;
@@ -64,7 +67,7 @@
   line-height: 1;
 }
 
-/* 滚动主体：底部留出 footer 高度 + 安全区（sheet 已隐藏 TabBar） */
+/* 滚动主体：底部留�?footer 高度 + 安全区（sheet 已隐�?TabBar�?*/
 .om-page-scroll {
   flex: 1;
   min-height: 0;

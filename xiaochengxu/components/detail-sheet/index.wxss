@@ -1,12 +1,15 @@
 /* components/detail-sheet/index.wxss
- * 全屏订单详情弹窗：右侧滑入入场，与 confirm-sheet / orders-sheet 同款入场曲线
+ * 全屏订单详情弹窗：右侧滑入入场，�?confirm-sheet / orders-sheet 同款入场曲线
  */
 
 .om-sheet-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: #F8FAFC;
-  z-index: 900; /* 高于 orders-sheet/me-sheet (800) 和 confirm-sheet (850)，低于 TabBar (999) */
+  z-index: 900; /* 高于 orders-sheet/me-sheet (800) �?confirm-sheet (850)，低�?TabBar (999) */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 28rpx;
@@ -22,20 +25,20 @@
   transform: translate3d(0, 0, 0);
 }
 
-/* ====== 锁定模式：盖住底部 TabBar，强制完成订单 ====== */
+/* ====== 锁定模式：盖住底�?TabBar，强制完成订�?====== */
 .om-sheet-root-locked {
-  z-index: 1500; /* 高于 TabBar 的 999，完全覆盖 */
+  z-index: 1500; /* 高于 TabBar �?999，完全覆�?*/
 }
 
-/* navbar 与 confirm-sheet / orders-sheet / me-sheet 同款 */
+/* navbar �?confirm-sheet / orders-sheet / me-sheet 同款 */
 .om-navbar {
   background: #FFFFFF;
   border-bottom: 2rpx solid #F1F5F9;
   flex-shrink: 0;
-  /* padding-top 由 wxml 内联（statusBarHeight）注入 */
+  /* padding-top �?wxml 内联（statusBarHeight）注�?*/
 }
 .om-navbar-inner {
-  /* 右侧 200rpx 留给微信胶囊按钮（87px ≈ 174rpx + 缓冲） */
+  /* 右侧 200rpx 留给微信胶囊按钮�?7px �?174rpx + 缓冲�?*/
   height: 88rpx;
   padding: 0 200rpx 0 28rpx;
   display: flex;
@@ -82,7 +85,7 @@
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
-/* ====== 店铺信息条 ====== */
+/* ====== 店铺信息�?====== */
 .om-store {
   display: flex;
   align-items: center;
@@ -188,7 +191,7 @@
   font-size: 22rpx;
   color: #94A3B8;
 }
-/* 外带订单标识：替代桌号位置 */
+/* 外带订单标识：替代桌号位�?*/
 .om-meta-takeaway {
   font-size: 30rpx;
   font-weight: 700;
@@ -271,7 +274,7 @@
   gap: 16rpx;
 }
 
-/* 菜品行 */
+/* 菜品�?*/
 .om-dish-row {
   display: flex;
   gap: 16rpx;
@@ -383,7 +386,7 @@
   line-height: 1.1;
 }
 
-/* ====== 信息行 ====== */
+/* ====== 信息�?====== */
 .om-info-row {
   display: flex;
   align-items: center;
@@ -406,7 +409,7 @@
   flex: 1;
   margin-left: 16rpx;
 }
-/* 订单号 + 复制按钮的容器 */
+/* 订单�?+ 复制按钮的容�?*/
 .om-info-value-wrap {
   flex: 1;
   margin-left: 16rpx;
@@ -449,7 +452,7 @@
   letter-spacing: 0.5rpx;
 }
 
-/* ====== 底部操作栏（贴底 + 安全区，sheet 已隐藏 TabBar） ====== */
+/* ====== 底部操作栏（贴底 + 安全区，sheet 已隐�?TabBar�?====== */
 .om-action-bar {
   position: absolute;
   left: 0;
@@ -479,10 +482,13 @@
 }
 .om-action-btn-primary-hover { background: #1D4ED8; }
 
-/* ====== 加餐弹窗（在 detail-sheet 内部，不需要再避 TabBar，因为 sheet 已避） ====== */
+/* ====== 加餐弹窗（在 detail-sheet 内部，不需要再�?TabBar，因�?sheet 已避�?====== */
 .om-modal {
   position: absolute; /* 改成 absolute 让它相对 sheet 定位，不超出 sheet 范围 */
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: flex-end;
@@ -603,6 +609,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-height: 2.8em;
 }
 .om-mm-dish-bottom {
   display: flex;
@@ -626,7 +633,7 @@
   color: #0F172A;
 }
 
-/* 复用步进器 */
+/* 复用步进�?*/
 .om-step {
   display: flex;
   align-items: center;
@@ -727,7 +734,10 @@
 /* ====== 数量弹窗 ====== */
 .om-qty-modal {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
@@ -840,7 +850,7 @@
   border: none;
 }
 
-/* ====== 详情骨架屏 ====== */
+/* ====== 详情骨架�?====== */
 .om-skeleton {
   padding: 0 0 24rpx 0;
 }
@@ -893,7 +903,10 @@
 .om-skel-thumb::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
   transform: translateX(-100%);
   animation: om-shimmer-detail-sheet 1.4s infinite;

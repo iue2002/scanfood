@@ -1,14 +1,17 @@
 /* components/orders-sheet/index.wxss
  * 全屏订单弹窗：完全覆盖屏幕，与原 pages/order/list 同款外观
- * 入场动画：从右侧滑入（与 navigateTo 默认动画一致），看不出与原页面跳转的区别
+ * 入场动画：从右侧滑入（与 navigateTo 默认动画一致），看不出与原页面跳转的区�?
  */
 
-/* ====== 弹窗根：全屏定位，叠在页面之上（TabBar 通过更高 z-index 盖在 sheet 之上） ====== */
+/* ====== 弹窗根：全屏定位，叠在页面之上（TabBar 通过更高 z-index 盖在 sheet 之上�?====== */
 .om-sheet-root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: #F8FAFC;
-  z-index: 800; /* 低于 TabBar 的 999，TabBar 视觉上盖住 sheet 底部 */
+  z-index: 800; /* 低于 TabBar �?999，TabBar 视觉上盖�?sheet 底部 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   line-height: 1.5;
@@ -24,15 +27,15 @@
   transform: translate3d(0, 0, 0);
 }
 
-/* ====== 自绘 navbar (与 pages/order/list 完全一致) ====== */
+/* ====== 自绘 navbar (�?pages/order/list 完全一�? ====== */
 .om-navbar {
   background: #FFFFFF;
   border-bottom: 2rpx solid #F1F5F9;
   flex-shrink: 0;
-  /* padding-top 由 wxml 内联（statusBarHeight）注入 */
+  /* padding-top �?wxml 内联（statusBarHeight）注�?*/
 }
 .om-navbar-inner {
-  /* 右侧 200rpx 留给微信胶囊按钮（87px ≈ 174rpx + 缓冲） */
+  /* 右侧 200rpx 留给微信胶囊按钮�?7px �?174rpx + 缓冲�?*/
   height: 88rpx;
   padding: 0 200rpx 0 28rpx;
   display: flex;
@@ -95,11 +98,11 @@
   color: #FFFFFF;
 }
 
-/* ====== 列表（scroll-view 占满剩余高度） ====== */
+/* ====== 列表（scroll-view 占满剩余高度�?====== */
 .om-list {
   flex: 1;
   min-height: 0;
-  /* sheet 已隐藏 TabBar，底部只留安全区 + 一点呼吸距离 */
+  /* sheet 已隐�?TabBar，底部只留安全区 + 一点呼吸距�?*/
   padding: 8rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -522,7 +525,7 @@
   letter-spacing: 1rpx;
 }
 
-/* 骨架屏 */
+/* 骨架�?*/
 .om-skeleton-list {
   padding: 8rpx 0 0;
 }
@@ -586,7 +589,10 @@
 .om-skeleton-line-foot::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
   transform: translateX(-100%);
   animation: om-shimmer 1.4s infinite;

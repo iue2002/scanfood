@@ -14,18 +14,13 @@ page {
   --danger: #ef4444;         /* Red 500 */
   --radius-xl: 24rpx;        /* modern rounded corners */
 
-  /* TabBar 实际高度（用 calc 在子组件里加上安全区）：
-   * custom-tab-bar 内容 ≈ 100rpx，padding 上下 8rpx 8rpx，下边再加 safe-area-inset-bottom
-   * 取 116rpx 作为 TabBar 内容总高（不含安全区），子 sheet 用 var(--tabbar-h) 避让
-   */
+  /* TabBar 实际高度（用 calc 在子组件里加上安全区） */
   --tabbar-h: 116rpx;
 
   height: 100%;
   background: var(--bg-slate);
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   color: var(--text-main);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   font-size: 26rpx;
   line-height: 1.5;
   box-sizing: border-box;
@@ -42,7 +37,6 @@ page {
 /* ========== 通用按钮样式 ========== */
 button {
   border: none;
-  outline: none;
   background: transparent;
   padding: 0;
   margin: 0;
@@ -133,14 +127,19 @@ button::after {
   white-space: nowrap;
 }
 
+/* Skyline 兼容：用 max-height + line-height 模拟 -webkit-line-clamp */
 .ellipsis-2 {
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   white-space: normal;
   word-break: break-all;
+  /* line-height 1.5 + 2 行 = 3em，配合 line-clamp 属性双保险 */
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  max-height: 3em;
+  line-height: 1.5;
 }
 
 /* ========== 文字大小 ========== */
@@ -158,15 +157,13 @@ button::after {
 .text-accent { color: var(--primary); }
 .text-success { color: var(--success); }
 
-/* ========== 安全区域适配 ========== */
+/* ========== 安全区域适配（仅用 env，constant 是 iOS 11.0-11.2 的老语法 Skyline 不支持）========== */
 .safe-area-top {
   padding-top: env(safe-area-inset-top);
-  padding-top: constant(safe-area-inset-top);
 }
 
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
-  padding-bottom: constant(safe-area-inset-bottom);
 }
 
 /* ========== 通用卡片样式 ========== */
@@ -194,23 +191,24 @@ button::after {
   justify-content: center;
 }
 
-/* ========== 图片自适应 ========== */
+/* ========== 图片自适应（注意：Skyline 下 image 标签用 mode 属性而不是 object-fit）========== */
 image {
   width: 100%;
   height: 100%;
   display: block;
 }
 
+/* 这两个类靠 wxml 的 mode="aspectFill"/"aspectFit" 实现图片适配；
+ * 保留类名兼容老代码，但样式上已经不用 object-fit
+ */
 .img-cover {
   width: 100%;
   height: 100%;
-  object-fit: cover;
 }
 
 .img-contain {
   width: 100%;
   height: 100%;
-  object-fit: contain;
 }
 
 /* ========== 加载状态 ========== */

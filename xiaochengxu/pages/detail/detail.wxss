@@ -1,9 +1,9 @@
 /* pages/detail/detail.wxss
- * 订单详情真页面：从 components/detail-sheet/index.wxss 1:1 迁移
- * 唯一差异：根容器从 .om-sheet-root (fixed + transform) 改为 .om-page (普通 flex)
+ * 订单详情真页面：�?components/detail-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
  *           入场动画交给 wx.navigateTo 原生处理
- *           .om-action-bar / .om-modal 从 position: absolute 改为 position: fixed
- *           .om-page-locked 替代 .om-sheet-root-locked（锁定模式仍然盖住 TabBar）
+ *           .om-action-bar / .om-modal �?position: absolute 改为 position: fixed
+ *           .om-page-locked 替代 .om-sheet-root-locked（锁定模式仍然盖�?TabBar�?
  */
 
 .om-page {
@@ -20,10 +20,13 @@
   flex-direction: column;
 }
 
-/* 锁定模式：盖住底部 TabBar（页面用 z-index 提到 TabBar 之上） */
+/* 锁定模式：盖住底�?TabBar（页面用 z-index 提到 TabBar 之上�?*/
 .om-page-locked {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 1500;
   width: 100%;
   height: 100%;
@@ -83,7 +86,7 @@
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
-/* ====== 店铺信息条 ====== */
+/* ====== 店铺信息�?====== */
 .om-store {
   display: flex;
   align-items: center;
@@ -445,7 +448,7 @@
   letter-spacing: 0.5rpx;
 }
 
-/* ====== 底部操作栏（贴底 + 安全区，真页面下用 fixed 定位到 viewport） ====== */
+/* ====== 底部操作栏（贴底 + 安全区，真页面下�?fixed 定位�?viewport�?====== */
 .om-action-bar {
   position: fixed;
   left: 0;
@@ -478,7 +481,10 @@
 /* ====== 加餐弹窗 ====== */
 .om-modal {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: flex-end;
@@ -599,6 +605,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-height: 2.8em;
 }
 .om-mm-dish-bottom {
   display: flex;
@@ -722,7 +729,10 @@
 /* 数量弹窗 */
 .om-qty-modal {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
@@ -835,7 +845,7 @@
   border: none;
 }
 
-/* 详情骨架屏 */
+/* 详情骨架�?*/
 .om-skeleton {
   padding: 0 0 24rpx 0;
 }
@@ -888,7 +898,10 @@
 .om-skel-thumb::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
   transform: translateX(-100%);
   animation: om-shimmer-detail 1.4s infinite;

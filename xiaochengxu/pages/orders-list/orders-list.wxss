@@ -1,7 +1,7 @@
 /* pages/orders-list/orders-list.wxss
- * 订单列表真页面：从 components/orders-sheet/index.wxss 1:1 迁移
- * 唯一差异：根容器从 .om-sheet-root (fixed + transform) 改为 .om-page (普通 flex)
- *           入场动画交给 wx.navigateTo 原生处理（与原 220ms 动画几乎一致）
+ * 订单列表真页面：�?components/orders-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
+ *           入场动画交给 wx.navigateTo 原生处理（与�?220ms 动画几乎一致）
  */
 
 .om-page {
@@ -112,7 +112,7 @@
   transition: all 0.12s ease;
 }
 
-/* 店铺信息条 */
+/* 店铺信息�?*/
 .om-store {
   display: flex;
   align-items: center;
@@ -511,7 +511,7 @@
   letter-spacing: 1rpx;
 }
 
-/* 骨架屏 */
+/* 骨架�?*/
 .om-skeleton-list {
   padding: 8rpx 0 0;
 }
@@ -575,7 +575,10 @@
 .om-skeleton-line-foot::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
   transform: translateX(-100%);
   animation: om-shimmer 1.4s infinite;

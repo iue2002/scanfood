@@ -1,14 +1,17 @@
 /* components/me-sheet/index.wxss
- * "我的"全屏弹窗：右滑入场，与 orders-sheet 同款入场曲线，看不出与原 TabBar 切页的区别
- * 业务样式完全继承 pages/me/me.wxss，仅入场动画 + 全屏定位是新增
+ * "我的"全屏弹窗：右滑入场，�?orders-sheet 同款入场曲线，看不出与原 TabBar 切页的区�?
+ * 业务样式完全继承 pages/me/me.wxss，仅入场动画 + 全屏定位是新�?
  */
 
 .om-sheet-root {
   position: fixed;
-  /* 全屏覆盖（TabBar 通过更高 z-index 视觉上盖住底部，看起来像 Safari 底栏） */
-  inset: 0;
+  /* 全屏覆盖（TabBar 通过更高 z-index 视觉上盖住底部，看起来像 Safari 底栏�?*/
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: #F8FAFC;
-  z-index: 800; /* 低于 TabBar 的 999 */
+  z-index: 800; /* 低于 TabBar �?999 */
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
   font-size: 26rpx;
@@ -16,7 +19,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  /* 入场动画：默认右移 100% */
+  /* 入场动画：默认右�?100% */
   transform: translate3d(100%, 0, 0);
   transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
@@ -30,10 +33,10 @@
   background: #FFFFFF;
   border-bottom: 2rpx solid #F1F5F9;
   flex-shrink: 0;
-  /* padding-top 由 wxml 内联（statusBarHeight）注入 */
+  /* padding-top �?wxml 内联（statusBarHeight）注�?*/
 }
 .om-navbar-inner {
-  /* 右侧 200rpx 留给微信胶囊按钮（87px ≈ 174rpx + 缓冲） */
+  /* 右侧 200rpx 留给微信胶囊按钮�?7px �?174rpx + 缓冲�?*/
   height: 88rpx;
   padding: 0 200rpx 0 28rpx;
   display: flex;
@@ -55,7 +58,7 @@
   box-sizing: border-box;
 }
 
-/* ====== 用户卡 ====== */
+/* ====== 用户�?====== */
 .om-userblock {
   margin: 24rpx 32rpx 0;
   margin-bottom: 24rpx;
@@ -192,7 +195,7 @@
   line-height: 1;
 }
 
-/* ====== 空态 ====== */
+/* ====== 空�?====== */
 .om-empty {
   display: flex;
   flex-direction: column;
@@ -271,7 +274,10 @@
 /* ====== 授权 / 昵称弹窗 ====== */
 .om-auth-modal {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 200;
   display: flex;
   align-items: center;
@@ -279,7 +285,10 @@
 }
 .om-modal-mask {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(15, 23, 42, 0.5);
 }
 .om-modal-card {

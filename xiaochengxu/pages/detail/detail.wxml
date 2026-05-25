@@ -1,4 +1,4 @@
-<!--pages/detail/detail.wxml — 真页面版，视觉与原 detail-sheet 完全一致-->
+<!--pages/detail/detail.wxml — 真页面：订单详情-->
 <view class="om-page {{locked ? 'om-page-locked' : ''}}">
   <view class="om-navbar" style="padding-top: {{statusBarHeight || 20}}px;">
     <view class="om-navbar-inner">

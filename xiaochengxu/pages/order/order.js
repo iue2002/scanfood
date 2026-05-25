@@ -396,7 +396,7 @@ Page({
     
     this.ws = wx.connectSocket({
       url: wsUrl,
-      multiple: true, // 允许多 socket 共存，避免与 detail-sheet 的订单 ws 互相覆盖
+      multiple: true, // 允许多 socket 共存（detail 页有独立订单 ws，与桌台 ws 不冲突）
     });
 
     this.ws.onOpen(() => {
@@ -1291,18 +1291,20 @@ Page({
     }
     const userInfo = getApp().globalData.userInfo;
     if (!userInfo) {
+      // 未登录：引导用户去「我的」tab 登录（真页面架构下，me 已经是真 tab 页面）
+      const goLogin = () => wx.switchTab({ url: '/pages/me/me' });
       if (this.modal) {
         this.modal.show({
           title: '请先登录',
           content: '登录后即可下单外带',
           confirmText: '去登录',
           cancelText: '取消'
-        }).then(confirmed => { if (confirmed) this.openMeSheet(); });
+        }).then(confirmed => { if (confirmed) goLogin(); });
       } else {
         wx.showModal({
           title: '请先登录',
           content: '登录后即可下单外带',
-          success: (res) => { if (res.confirm) this.openMeSheet(); }
+          success: (res) => { if (res.confirm) goLogin(); }
         });
       }
       return;

@@ -1,4 +1,4 @@
-<!--pages/confirm/confirm.wxml — 真页面版，视觉与原 confirm-sheet 完全一致-->
+<!--pages/confirm/confirm.wxml — 真页面：确认订单-->
 <view class="om-page">
   <view class="om-navbar" style="padding-top: {{statusBarHeight || 20}}px;">
     <view class="om-navbar-inner">

@@ -1,6 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "orders-sheet": "/components/orders-sheet/index"
-  }
-}

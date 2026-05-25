@@ -1,4 +1,4 @@
-<!--pages/orders-list/orders-list.wxml — 真页面版，视觉与原 orders-sheet 完全一致-->
+<!--pages/orders-list/orders-list.wxml — 真页面：订单列表-->
 <view class="om-page">
   <!-- 自绘顶栏：状态栏占位 + navbar -->
   <view class="om-navbar" style="padding-top: {{statusBarHeight || 20}}px;">

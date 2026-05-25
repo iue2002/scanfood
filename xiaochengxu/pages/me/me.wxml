@@ -1,4 +1,4 @@
-<!--pages/me/me.wxml — 真页面，业务/视觉与原 me-sheet 一致-->
+<!--pages/me/me.wxml — 真页面：我的-->
 <view class="om-page">
 
   <!-- 自绘顶栏 -->

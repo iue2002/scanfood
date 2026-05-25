@@ -265,16 +265,20 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
 
   notifyAllAdmins(event: string, data: any) {
     const message = JSON.stringify({ event, data });
+    let sentCount = 0;
+    let totalAdmins = this.adminClients.size;
     this.adminClients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
+          sentCount++;
         } catch (err) {
           this.logger.error('Failed to send message to admin client', err.message);
           this.adminClients.delete(client);
         }
       }
     });
+    this.logger.log(`[notifyAllAdmins] event=${event} sent=${sentCount}/${totalAdmins}`);
   }
 
   /**

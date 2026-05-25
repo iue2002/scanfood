@@ -63,8 +63,10 @@ Page({
     }
 
     // 加载用户信息 + 拉订单
-    this.loadUserInfo();
-    if (this.data.userInfo && this.data.userInfo.id) {
+    // loadUserInfo 内部 setData 是异步的，data.userInfo 可能还是 null，
+    // 所以 loadUserInfo 直接返回用户对象，根据返回值决定是否拉订单
+    const user = this.loadUserInfo();
+    if (user && user.id) {
       this.fetchOrders(true);
     }
   },
@@ -93,7 +95,9 @@ Page({
       }
       app.globalData.userInfo = backendUser;
       app.globalData.token = token;
+      return backendUser;
     }
+    return null;
   },
 
   async fetchOrders(isRefresh) {
@@ -112,7 +116,11 @@ Page({
     }
 
     try {
-      const userInfo = this.data.userInfo;
+      // 优先用 data，兜底从 storage 读（避免 setData 异步导致首次拉取时 data.userInfo 还是 null）
+      let userInfo = this.data.userInfo;
+      if (!userInfo || !userInfo.id) {
+        userInfo = wx.getStorageSync('userInfo');
+      }
       const { SERVER_URL } = require('../../config');
       if (!userInfo || !userInfo.id) {
         this._isFetching = false;

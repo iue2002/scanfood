@@ -1,7 +1,7 @@
-/* pages/me/me.wxss �?admin-web 主题对齐 */
+/* pages/me/me.wxss �?admin-web 主题对齐 */
 
 .om-page {
-  min-height: 100vh;
+  height: 100%;
   background: #F8FAFC;
   padding: 0 0 calc(120rpx + env(safe-area-inset-bottom));
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
@@ -30,7 +30,7 @@
   line-height: 1;
 }
 
-/* ====== 自绘 navbar 之下的内容容器：�?page �?padding 转移到这 ====== */
+/* ====== 自绘 navbar 之下的内容容器：�?page �?padding 转移到这 ====== */
 .om-userblock {
   margin: 24rpx 32rpx 0;
 }
@@ -46,7 +46,7 @@
   padding-right: 32rpx;
 }
 
-/* ====== 用户�?====== */
+/* ====== 用户�?====== */
 .om-userblock {
   margin-bottom: 24rpx;
 }
@@ -184,7 +184,7 @@
   line-height: 1;
 }
 
-/* ====== 空�?====== */
+/* ====== 空�?====== */
 .om-empty {
   display: flex;
   flex-direction: column;
@@ -237,7 +237,8 @@
 }
 .om-empty-desc {
   font-size: 26rpx;
-  color: #64748B;
+  color: #64748B;
+
   white-space: normal;
 }
 .om-empty-cta {
@@ -255,7 +256,7 @@
 }
 .om-empty-cta-hover { background: #1D4ED8; }
 
-/* ====== 版本�?====== */
+/* ====== 版本�?====== */
 .om-version {
   text-align: center;
   font-size: 22rpx;
@@ -358,7 +359,7 @@
   line-height: 1.5;
 }
 
-/* 输入�?*/
+/* 输入�?*/
 .om-input-wrap {
   background: #F8FAFC;
   border: 2rpx solid #F1F5F9;

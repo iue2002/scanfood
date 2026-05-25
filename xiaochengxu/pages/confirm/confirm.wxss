@@ -1,13 +1,13 @@
 /* pages/confirm/confirm.wxss
- * 确认订单真页面：从 components/confirm-sheet/index.wxss 1:1 迁移
- * 唯一差异：根容器从 .om-sheet-root (fixed + transform) 改为 .om-page (普通 flex)
+ * 确认订单真页面：�?components/confirm-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
  *           入场动画交给 wx.navigateTo 原生处理
  */
 
 .om-page {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   background: #F8FAFC;
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
@@ -211,7 +211,7 @@
   color: #94A3B8;
 }
 
-/* 底部固定栏：原 sheet 用 absolute（依赖父级 fixed），真页面下改为 fixed 定位到 viewport */
+/* 底部固定栏：�?sheet �?absolute（依赖父�?fixed），真页面下改为 fixed 定位�?viewport */
 .om-footer {
   position: fixed;
   left: 0;

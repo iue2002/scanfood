@@ -1,13 +1,13 @@
 /* pages/orders-list/orders-list.wxss
- * 订单列表真页面：�?components/orders-sheet/index.wxss 1:1 迁移
- * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
- *           入场动画交给 wx.navigateTo 原生处理（与�?220ms 动画几乎一致）
+ * 订单列表真页面：�?components/orders-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
+ *           入场动画交给 wx.navigateTo 原生处理（与�?220ms 动画几乎一致）
  */
 
 .om-page {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   background: #F8FAFC;
   font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #0F172A;
@@ -112,7 +112,7 @@
   transition: all 0.12s ease;
 }
 
-/* 店铺信息�?*/
+/* 店铺信息�?*/
 .om-store {
   display: flex;
   align-items: center;
@@ -514,7 +514,7 @@
   letter-spacing: 1rpx;
 }
 
-/* 骨架�?*/
+/* 骨架�?*/
 .om-skeleton-list {
   padding: 8rpx 0 0;
 }

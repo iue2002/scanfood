@@ -66,13 +66,13 @@
         <view class="om-icon-lock-body"></view>
       </view>
     </view>
-    <view class="om-empty-title">请先登录</view>
-    <view class="om-empty-desc">登录后查看您的订单记录</view>
-    <view class="om-empty-cta" bindtap="showAuthModal" hover-class="om-empty-cta-hover">立即登录</view>
+    <view class="om-empty-title"><text>请先登录</text></view>
+    <view class="om-empty-desc"><text>登录后查看您的订单记录</text></view>
+    <view class="om-empty-cta" bindtap="showAuthModal" hover-class="om-empty-cta-hover"><text>立即登录</text></view>
   </view>
 
   <!-- 版本信息 -->
-  <view class="om-version">扫码点餐 · v1.0</view>
+  <view class="om-version"><text>扫码点餐 · v1.0</text></view>
 
   <!-- 授权弹窗 -->
   <view class="om-auth-modal" wx:if="{{showAuthModal}}">

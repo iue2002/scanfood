@@ -74,7 +74,7 @@
       bindtap="submitOrder"
       hover-class="om-footer-submit-hover"
     >
-      {{isSubmitting ? '提交中…' : '提交订单'}}
+      <text>{{isSubmitting ? '提交中…' : '提交订单'}}</text>
     </view>
   </view>
 </view>

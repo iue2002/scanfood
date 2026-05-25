@@ -59,7 +59,7 @@
 
     <!-- 右侧菜品列表 -->
     <scroll-view class="om-dish" scroll-y enhanced show-scrollbar="{{false}}">
-      <view class="om-dish-cat-title">{{currentCategoryName}}</view>
+      <view class="om-dish-cat-title"><text>{{currentCategoryName}}</text></view>
 
       <view wx:for="{{dishes}}" wx:key="id" class="om-dish-card">
         <image
@@ -86,21 +86,21 @@
                 data-id="{{item.id}}"
                 data-type="minus"
                 hover-class="om-step-minus-hover"
-              >−</view>
+              ><text>−</text></view>
               <view
                 class="om-step-count"
                 wx:if="{{cartCount[item.id] > 0}}"
                 bindtap="onCountTap"
                 data-id="{{item.id}}"
                 data-count="{{cartCount[item.id]}}"
-              >{{cartCount[item.id]}}</view>
+              ><text>{{cartCount[item.id]}}</text></view>
               <view
                 class="om-step-plus"
                 bindtap="updateCart"
                 data-id="{{item.id}}"
                 data-type="plus"
                 hover-class="om-step-plus-hover"
-              >+</view>
+              ><text>+</text></view>
             </view>
           </view>
         </view>
@@ -120,7 +120,7 @@
           <view class="om-icon-cart-mini-wheel"></view>
           <view class="om-icon-cart-mini-wheel om-icon-cart-mini-wheel-2"></view>
         </view>
-        <view class="om-cart-bar-badge">{{totalCount}}</view>
+        <view class="om-cart-bar-badge"><text>{{totalCount}}</text></view>
       </view>
       <view class="om-cart-bar-amount">
         <text class="om-cart-bar-symbol">¥</text>
@@ -128,7 +128,7 @@
       </view>
     </view>
     <view class="om-cart-bar-submit" bindtap="goToConfirm" hover-class="om-cart-bar-submit-hover">
-      {{isTakeaway ? '提交外带' : (isAddMore ? '提交加餐' : '去结算')}}
+      <text>{{isTakeaway ? '提交外带' : (isAddMore ? '提交加餐' : '去结算')}}</text>
     </view>
   </view>
 </view>
@@ -142,16 +142,16 @@
     </view>
     <view class="om-qty-body">
       <view class="om-qty-ctrl">
-        <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount - 1}}">−</view>
+        <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount - 1}}"><text>−</text></view>
         <input class="om-qty-input" type="number" value="{{editDishCount}}" bindinput="onQtyInput" focus="{{true}}" />
-        <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount + 1}}">+</view>
+        <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount + 1}}"><text>+</text></view>
       </view>
       <view class="om-qty-quick">
-        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="5">5</view>
-        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="10">10</view>
-        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="15">15</view>
-        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="20">20</view>
-        <view class="om-qty-quick-btn om-qty-quick-btn-danger" bindtap="onQtyQuickSet" data-val="0">清空</view>
+        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="5"><text>5</text></view>
+        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="10"><text>10</text></view>
+        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="15"><text>15</text></view>
+        <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="20"><text>20</text></view>
+        <view class="om-qty-quick-btn om-qty-quick-btn-danger" bindtap="onQtyQuickSet" data-val="0"><text>清空</text></view>
       </view>
     </view>
     <view class="om-qty-foot">
@@ -177,8 +177,8 @@
           wx:if="{{cartItems.length > 0}}"
           bindtap="clearCart"
           hover-class="om-cart-clear-hover"
-        >清空</view>
-        <view class="om-cart-close" bindtap="closeCartPanel" hover-class="om-cart-close-hover">✕</view>
+        ><text>清空</text></view>
+        <view class="om-cart-close" bindtap="closeCartPanel" hover-class="om-cart-close-hover"><text>✕</text></view>
       </view>
     </view>
 
@@ -206,15 +206,15 @@
                 data-id="{{item.id}}"
                 data-type="minus"
                 hover-class="om-step-minus-hover"
-              >−</view>
-              <view class="om-step-count" bindtap="onCountTap" data-id="{{item.id}}" data-count="{{item.quantity}}">{{item.quantity}}</view>
+              ><text>−</text></view>
+              <view class="om-step-count" bindtap="onCountTap" data-id="{{item.id}}" data-count="{{item.quantity}}"><text>{{item.quantity}}</text></view>
               <view
                 class="om-step-plus"
                 bindtap="updateCart"
                 data-id="{{item.id}}"
                 data-type="plus"
                 hover-class="om-step-plus-hover"
-              >+</view>
+              ><text>+</text></view>
             </view>
           </view>
         </view>
@@ -234,7 +234,7 @@
         class="om-cart-foot-submit"
         bindtap="goToConfirm"
         hover-class="om-cart-foot-submit-hover"
-      >{{isTakeaway ? '提交外带' : (isAddMore ? '提交加餐' : '去下单')}}</view>
+      ><text>{{isTakeaway ? '提交外带' : (isAddMore ? '提交加餐' : '去下单')}}</text></view>
     </view>
   </view>
 </view>

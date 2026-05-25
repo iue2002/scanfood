@@ -1,5 +1,10 @@
 /**app.wxss - 全局样式与响应式基础**/
 
+/* ========== Skyline 兼容：view 默认行为对齐 webview ========== */
+view, scroll-view {
+  box-sizing: border-box;
+}
+
 /* ========== 页面基础配置 ========== */
 page {
   /* Slate/Blue Theme Variables */

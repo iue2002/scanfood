@@ -56,7 +56,7 @@
 
     <view wx:if="{{order}}" class="om-status-card om-status-{{order.status}}">
       <view class="om-status-row">
-        <view class="om-status-pill om-pill-{{order.status}}">{{statusMap[order.status]}}</view>
+        <view class="om-status-pill om-pill-{{order.status}}"><text>{{statusMap[order.status]}}</text></view>
         <text class="om-status-time">{{order.created_at}}</text>
       </view>
       <view class="om-status-tip" wx:if="{{order.status === 'submitted' || order.status === 'printed'}}">未付款，请餐后到前台结账</view>
@@ -165,7 +165,7 @@
 
   <view class="om-action-bar" wx:if="{{order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid'}}">
     <view class="om-action-btn om-action-btn-primary" bindtap="goToOrder" hover-class="om-action-btn-primary-hover">
-      继续加菜
+      <text>继续加菜</text>
     </view>
   </view>
 
@@ -174,7 +174,7 @@
     <view class="om-modal-card om-modal-card-fullsheet" catchtap="preventClose">
       <view class="om-modal-head">
         <text class="om-modal-title">添加菜品</text>
-        <view class="om-modal-close" bindtap="closeAddMoreModal">×</view>
+        <view class="om-modal-close" bindtap="closeAddMoreModal"><text>×</text></view>
       </view>
 
       <view class="om-modal-body">
@@ -185,7 +185,7 @@
             class="om-mm-cat-item {{currentCategory === item.id ? 'om-mm-cat-item-active' : ''}}"
             bindtap="switchCategory"
             data-id="{{item.id}}"
-          >{{item.name}}</view>
+          ><text>{{item.name}}</text></view>
         </scroll-view>
 
         <scroll-view class="om-mm-dish" scroll-y enhanced show-scrollbar="{{false}}">
@@ -200,9 +200,9 @@
                   <text class="om-price-num">{{item.price}}</text>
                 </view>
                 <view class="om-step">
-                  <view class="om-step-minus" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="minus" hover-class="om-step-minus-hover">−</view>
-                  <view class="om-step-count" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="onAddMoreCountTap" data-id="{{item.id}}" data-count="{{addMoreCartCount[item.id]}}">{{addMoreCartCount[item.id]}}</view>
-                  <view class="om-step-plus" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="plus" hover-class="om-step-plus-hover">+</view>
+                  <view class="om-step-minus" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="minus" hover-class="om-step-minus-hover"><text>−</text></view>
+                  <view class="om-step-count" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="onAddMoreCountTap" data-id="{{item.id}}" data-count="{{addMoreCartCount[item.id]}}"><text>{{addMoreCartCount[item.id]}}</text></view>
+                  <view class="om-step-plus" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="plus" hover-class="om-step-plus-hover"><text>+</text></view>
                 </view>
               </view>
             </view>
@@ -218,12 +218,12 @@
             <text class="om-foot-num">{{addMoreTotalStr}}</text>
           </view>
         </view>
-        <view class="om-foot-empty" wx:else>请选择菜品</view>
+        <view class="om-foot-empty" wx:else><text>请选择菜品</text></view>
         <view
           class="om-foot-submit {{addMoreTotal > 0 ? '' : 'om-foot-submit-disabled'}}"
           bindtap="submitAddMore"
           hover-class="om-foot-submit-hover"
-        >提交加餐</view>
+        ><text>提交加餐</text></view>
       </view>
     </view>
   </view>
@@ -236,16 +236,16 @@
       </view>
       <view class="om-qty-body">
         <view class="om-qty-ctrl">
-          <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount - 1}}">−</view>
+          <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount - 1}}"><text>−</text></view>
           <input class="om-qty-input" type="number" value="{{editDishCount}}" bindinput="onQtyInput" focus="{{true}}" />
-          <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount + 1}}">+</view>
+          <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount + 1}}"><text>+</text></view>
         </view>
         <view class="om-qty-quick">
-          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="5">5</view>
-          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="10">10</view>
-          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="15">15</view>
-          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="20">20</view>
-          <view class="om-qty-quick-btn om-qty-quick-btn-danger" bindtap="onQtyQuickSet" data-val="0">清空</view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="5"><text>5</text></view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="10"><text>10</text></view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="15"><text>15</text></view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="20"><text>20</text></view>
+          <view class="om-qty-quick-btn om-qty-quick-btn-danger" bindtap="onQtyQuickSet" data-val="0"><text>清空</text></view>
         </view>
       </view>
       <view class="om-qty-foot">

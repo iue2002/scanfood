@@ -175,6 +175,7 @@
   font-size: 24rpx;
   color: #64748B;
   line-height: 1.5;
+  white-space: normal;
 }
 .om-status-meta {
   margin-top: 20rpx;
@@ -604,6 +605,7 @@
   max-height: 2.8em;
   overflow: hidden;
   word-break: break-all;
+  white-space: normal;
 }
 .om-mm-dish-bottom {
   display: flex;

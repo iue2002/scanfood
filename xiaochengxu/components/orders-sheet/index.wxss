@@ -367,7 +367,8 @@
   border-radius: 12rpx;
   font-size: 24rpx;
   color: #92400E;
-  line-height: 1.5;
+  line-height: 1.5;
+  white-space: normal;
 }
 .om-collapse {
   margin-top: 8rpx;
@@ -493,7 +494,8 @@
 }
 .om-empty-desc {
   font-size: 24rpx;
-  color: #64748B;
+  color: #64748B;
+  white-space: normal;
 }
 
 .om-loading {

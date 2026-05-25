@@ -246,7 +246,8 @@
 }
 .om-empty-desc {
   font-size: 26rpx;
-  color: #64748B;
+  color: #64748B;
+  white-space: normal;
 }
 .om-empty-cta {
   margin-top: 24rpx;

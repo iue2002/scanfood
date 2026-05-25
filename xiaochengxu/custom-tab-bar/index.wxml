@@ -19,7 +19,7 @@
           <view class="om-icon-grid-cell"></view>
         </view>
       </view>
-      <view wx:elif="{{index === 1}}" class="om-icon-user">
+      <view wx:if="{{index === 1}}" class="om-icon-user">
         <view class="om-icon-user-head"></view>
         <view class="om-icon-user-body"></view>
       </view>

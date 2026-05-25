@@ -5,6 +5,14 @@ view, scroll-view {
   box-sizing: border-box;
 }
 
+/* Skyline 下 text 默认会按父容器宽度换行（webview 默认不换行）。
+ * 为了视觉对齐 webview 行为，按钮/标签/导航等场景统一用 nowrap。
+ * 如果某处确实需要多行（如菜品描述），就在该处显式 white-space: normal 覆盖。
+ */
+text {
+  white-space: nowrap;
+}
+
 /* ========== 页面基础配置 ========== */
 page {
   /* Slate/Blue Theme Variables */

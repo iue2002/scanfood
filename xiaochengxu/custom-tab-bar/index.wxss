@@ -13,6 +13,7 @@
   border-top: 2rpx solid #F1F5F9;
   z-index: 999;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .om-tab {
@@ -29,6 +30,7 @@
   font-size: 22rpx;
   font-weight: 500;
   transition: background 0.15s, color 0.15s;
+  pointer-events: auto;
 }
 .om-tab-hover {
   opacity: 0.85;

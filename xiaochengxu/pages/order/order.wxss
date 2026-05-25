@@ -310,6 +310,7 @@
   max-height: 2.8em;
   overflow: hidden;
   word-break: break-all;
+  white-space: normal;
 }
 .om-dish-bottom {
   display: flex;

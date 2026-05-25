@@ -48,11 +48,30 @@ Component({
     switchTab(e) {
       const data = e.currentTarget.dataset
       const url = data.path
-      // 跟当前 tab 一样：什么都不做
-      if (url === this.data.list[this.data.selected].pagePath) {
+      const index = data.index
+      console.log('[TabBar] switchTab tap', { url, index, currentSelected: this.data.selected })
+
+      // 已经在当前 tab：什么都不做
+      if (index === this.data.selected) {
+        console.log('[TabBar] 已在当前 tab，跳过')
         return
       }
-      wx.switchTab({ url })
+
+      // 立即更新 UI 状态（不等 switchTab 回调，避免视觉延迟）
+      this.setData({ selected: index })
+
+      wx.switchTab({
+        url,
+        success: () => {
+          console.log('[TabBar] switchTab 成功:', url)
+        },
+        fail: (err) => {
+          console.error('[TabBar] switchTab 失败:', err, 'url=', url)
+          // 回滚 UI 状态
+          this.setData({ selected: this.data.selected === index ? (1 - index) : this.data.selected })
+          wx.showToast({ title: '切换失败：' + (err.errMsg || ''), icon: 'none' })
+        }
+      })
     }
   }
 })

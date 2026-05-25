@@ -1,0 +1,276 @@
+/* pages/confirm/confirm.wxss
+ * 确认订单真页面：从 components/confirm-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器从 .om-sheet-root (fixed + transform) 改为 .om-page (普通 flex)
+ *           入场动画交给 wx.navigateTo 原生处理
+ */
+
+.om-page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: #F8FAFC;
+  font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  color: #0F172A;
+  font-size: 26rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.om-navbar {
+  background: #FFFFFF;
+  border-bottom: 2rpx solid #F1F5F9;
+  flex-shrink: 0;
+}
+.om-navbar-inner {
+  height: 88rpx;
+  padding: 0 200rpx 0 28rpx;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.om-navbar-back {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8rpx;
+  margin-right: 10rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.om-navbar-back-hover {
+  background: #F1F5F9;
+}
+.om-navbar-back-arrow {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #0F172A;
+  font-weight: 500;
+  margin-top: -4rpx;
+}
+.om-navbar-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  letter-spacing: 0.5rpx;
+  line-height: 1;
+}
+
+.om-page-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 24rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.om-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  border: 2rpx solid #F1F5F9;
+  box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+.om-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 24rpx 28rpx 16rpx;
+}
+.om-card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0F172A;
+}
+.om-card-count {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+
+.om-items {
+  padding: 0 28rpx;
+}
+.om-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 0;
+  border-top: 2rpx solid #F1F5F9;
+}
+.om-item:first-child {
+  border-top: none;
+}
+.om-item-name-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.om-item-name {
+  font-size: 28rpx;
+  color: #0F172A;
+  line-height: 1.5;
+}
+.om-item-qty {
+  font-size: 24rpx;
+  color: #64748B;
+  margin-left: 8rpx;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+.om-item-subtotal {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #0F172A;
+  flex-shrink: 0;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
+.om-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx 24rpx;
+  border-top: 2rpx solid #F1F5F9;
+  margin-top: 4rpx;
+  background: #F8FAFC;
+}
+.om-total-label {
+  font-size: 26rpx;
+  color: #64748B;
+}
+.om-total-amount-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+}
+.om-total-symbol {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #2563EB;
+}
+.om-total-num {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #2563EB;
+  letter-spacing: 0.5rpx;
+  line-height: 1.1;
+}
+
+.om-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 28rpx;
+  border-top: 2rpx solid #F1F5F9;
+}
+.om-form-row:first-of-type {
+  border-top: none;
+}
+.om-form-row-textarea {
+  flex-direction: column;
+  align-items: stretch;
+}
+.om-form-label {
+  font-size: 26rpx;
+  color: #334155;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.om-form-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+  color: #0F172A;
+}
+.om-form-arrow {
+  font-size: 28rpx;
+  color: #CBD5E1;
+  line-height: 1;
+}
+.om-input-wrap {
+  margin-top: 16rpx;
+  background: #F8FAFC;
+  border: 2rpx solid #F1F5F9;
+  border-radius: 16rpx;
+  padding: 0 20rpx;
+}
+.om-input {
+  width: 100%;
+  height: 80rpx;
+  font-size: 26rpx;
+  color: #0F172A;
+  background: transparent;
+}
+.om-input-placeholder {
+  color: #94A3B8;
+}
+
+/* 底部固定栏：原 sheet 用 absolute（依赖父级 fixed），真页面下改为 fixed 定位到 viewport */
+.om-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  border-top: 2rpx solid #F1F5F9;
+  z-index: 50;
+}
+.om-footer-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+}
+.om-footer-count {
+  font-size: 22rpx;
+  color: #94A3B8;
+}
+.om-footer-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 2rpx;
+}
+.om-footer-symbol {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #0F172A;
+}
+.om-footer-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #2563EB;
+  letter-spacing: 0.5rpx;
+  line-height: 1.1;
+}
+.om-footer-submit {
+  flex-shrink: 0;
+  height: 88rpx;
+  padding: 0 56rpx;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5rpx;
+}
+.om-footer-submit-hover {
+  background: #1D4ED8;
+}
+.om-footer-submit-disabled {
+  opacity: 0.6;
+}

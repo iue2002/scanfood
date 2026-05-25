@@ -3,10 +3,14 @@
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
   "backgroundColor": "#f8fafc",
+  "renderer": "skyline",
+  "componentFramework": "glass-easel",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true
+    }
+  },
   "usingComponents": {
-    "theme-modal": "/components/theme-modal/index",
-    "me-sheet": "/components/me-sheet/index",
-    "confirm-sheet": "/components/confirm-sheet/index",
-    "detail-sheet": "/components/detail-sheet/index"
+    "theme-modal": "/components/theme-modal/index"
   }
 }

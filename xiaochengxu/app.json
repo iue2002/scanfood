@@ -1,14 +1,29 @@
 {
   "pages": [
     "pages/order/order",
-    "pages/me/me"
+    "pages/me/me",
+    "pages/orders-list/orders-list",
+    "pages/confirm/confirm",
+    "pages/detail/detail"
   ],
   "preloadRule": {
+    "pages/order/order": {
+      "network": "all",
+      "packages": ["__APP__"]
+    },
     "pages/me/me": {
       "network": "all",
       "packages": ["__APP__"]
     },
-    "pages/order/order": {
+    "pages/orders-list/orders-list": {
+      "network": "all",
+      "packages": ["__APP__"]
+    },
+    "pages/confirm/confirm": {
+      "network": "all",
+      "packages": ["__APP__"]
+    },
+    "pages/detail/detail": {
       "network": "all",
       "packages": ["__APP__"]
     }
@@ -38,6 +53,15 @@
   },
   "style": "v2",
   "componentFramework": "glass-easel",
+  "lazyCodeLoading": "requiredComponents",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "disableABTest": true,
+      "sdkVersionBegin": "3.0.0",
+      "sdkVersionEnd": "15.255.255"
+    }
+  },
   "sitemapLocation": "sitemap.json",
   "resizable": false,
   "darkmode": false

@@ -1,5 +1,8 @@
 // pages/me/me.js
+// 「我的」真页面：从 components/me-sheet/index.js 1:1 迁移业务逻辑
+// 不再做 onShow → switchTab 重定向，让微信 TabBar 切换正常 pop 栈
 const { request } = require('../../utils/request');
+const ordersPrefetch = require('../../utils/orders-prefetch');
 
 Page({
   data: {
@@ -10,28 +13,24 @@ Page({
     showNicknameModal: false,
     tempAvatarUrl: '',
     tempNickname: '',
-    // === 仅 UI：头像加载失败标记 ===
     avatarError: false,
-    // === 仅 UI：头像首字母占位 ===
     avatarLetter: 'U',
-    // === 全屏订单弹窗开关 ===
-    showOrdersSheet: false,
-    // === 自绘 navbar 状态栏高度 ===
     statusBarHeight: 0
   },
 
-  onShow() {
-    // me 页已替换为 order 页内嵌的 me-sheet 弹窗
-    // 任何路径进到这里（如旧版 wx.switchTab、分享卡片）都自动重定向到 order 页 + 自动展开 me-sheet
-    const app = getApp();
-    if (app && app.globalData) {
-      app.globalData.openMeOnNextShow = true;
+  onLoad() {
+    try {
+      const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 });
+    } catch (e) {
+      this.setData({ statusBarHeight: 20 });
     }
-    // 防抖：避免短时间内重复 switchTab 导致小程序卡住
-    if (this._redirecting) return;
-    this._redirecting = true;
-    setTimeout(() => { this._redirecting = false; }, 500);
-    wx.switchTab({ url: '/pages/order/order' });
+    this.loadUserInfo();
+  },
+
+  onShow() {
+    this.updateTabBar();
+    this.loadUserInfo();
   },
 
   async onPullDownRefresh() {
@@ -61,7 +60,6 @@ Page({
     let backendUser = wx.getStorageSync('userInfo');
 
     if (token && backendUser && backendUser.id) {
-      // === 自愈：清掉旧的微信临时头像死链（127.0.0.1/__tmp__ 或 wxfile://） ===
       if (this.isInvalidAvatarUrl(backendUser.avatar_url)) {
         console.warn('检测到失效的本地头像 URL，已清空:', backendUser.avatar_url);
         backendUser = { ...backendUser, avatar_url: '' };
@@ -69,7 +67,6 @@ Page({
         app.globalData.userInfo = backendUser;
       }
 
-      // 跟当前 data 一致就跳过 setData，避免无意义渲染
       const cur = this.data.userInfo;
       const same = cur
         && cur.id === backendUser.id
@@ -87,18 +84,15 @@ Page({
     }
   },
 
-  // 判断是否是会失效的本地/临时 URL
-  // 注意：只匹配真正的临时头像特征，避免误伤本地后端 URL（http://localhost:3000/uploads/...）
   isInvalidAvatarUrl(url) {
     if (!url) return false;
     return (
-      url.indexOf('__tmp__') !== -1 ||      // 微信开发者工具内部代理临时文件
-      url.indexOf('wxfile://') === 0 ||     // 微信原生临时文件协议
-      url.indexOf('http://tmp/') === 0      // 真机上的临时文件协议
+      url.indexOf('__tmp__') !== -1 ||
+      url.indexOf('wxfile://') === 0 ||
+      url.indexOf('http://tmp/') === 0
     );
   },
 
-  // === 仅 UI：从昵称取首字母（无昵称时为 'U'） ===
   computeAvatarLetter(user) {
     if (!user) return 'U';
     const name = (user.nickname || user.nickName || '').trim();
@@ -106,7 +100,6 @@ Page({
     return name.charAt(0).toUpperCase();
   },
 
-  // === 仅 UI：image 加载失败时切换到字母占位 ===
   onAvatarError() {
     this.setData({ avatarError: true });
   },
@@ -125,9 +118,6 @@ Page({
   },
 
   onChooseAvatar(e) {
-    // 防重复触发：第一次点击后立即禁用按钮，2 秒后自动恢复
-    // 用户点完成功 → setData chooseAvatarPending=false（下面）
-    // 用户点完取消 → 微信不回调 onChooseAvatar，靠 timer 兜底恢复
     if (this.data.chooseAvatarPending) return;
     this.setData({ chooseAvatarPending: true });
     setTimeout(() => {
@@ -137,7 +127,6 @@ Page({
     }, 2000);
 
     const { avatarUrl } = e.detail;
-
     this.setData({
       tempAvatarUrl: avatarUrl,
       showAuthModal: false,
@@ -155,10 +144,7 @@ Page({
     const avatarUrl = this.data.tempAvatarUrl;
 
     if (!nickname) {
-      wx.showToast({
-        title: '请输入昵称',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请输入昵称', icon: 'none' });
       return;
     }
 
@@ -172,27 +158,23 @@ Page({
 
     try {
       const app = getApp();
-      const config = require('../../config');
-
       const loginRes = await wx.login();
 
       if (!loginRes.code) {
         throw new Error('获取登录code失败: ' + loginRes.errMsg);
       }
 
-      // === Step 1: 微信登录拿 token（先不带头像，避免临时 URL 入库） ===
       const loginData = await request({
         url: '/auth/wechat-login',
         method: 'POST',
         data: {
           code: loginRes.code,
           nickname: nickname,
-          avatar_url: '' // 临时 URL 不入库，下一步上传后再回填
+          avatar_url: ''
         },
         noLoading: true
       });
 
-      // === Step 2: 上传微信临时头像，换永久 URL（best-effort，失败不阻塞登录） ===
       let permanentAvatarUrl = '';
       if (avatarUrl) {
         try {
@@ -202,7 +184,6 @@ Page({
         }
       }
 
-      // === Step 3: 把永久 URL 写回数据库（拿到才调，避免空写） ===
       if (permanentAvatarUrl) {
         try {
           await request({
@@ -234,22 +215,16 @@ Page({
         avatarError: false,
         avatarLetter: this.computeAvatarLetter(finalUser),
         tempAvatarUrl: '',
-        tempNickname: ''
+        tempNickname: '',
+        isLoading: false
       });
-
-      this.setData({ isLoading: false });
     } catch (err) {
       console.error('微信登录失败', err);
-      console.error('错误详情:', JSON.stringify(err, null, 2));
       this.setData({ isLoading: false });
-      wx.showToast({
-        title: '登录失败，请重试',
-        icon: 'none'
-      });
+      wx.showToast({ title: '登录失败，请重试', icon: 'none' });
     }
   },
 
-  // 把微信临时头像 URL（http://127.0.0.1/__tmp__ 或 wxfile://）上传到后端，返回永久绝对 URL
   uploadAvatar(tempFilePath, token) {
     const config = require('../../config');
     return new Promise((resolve, reject) => {
@@ -257,9 +232,7 @@ Page({
         url: `${config.baseURL}/upload/image`,
         filePath: tempFilePath,
         name: 'file',
-        header: {
-          Authorization: `Bearer ${token}`
-        },
+        header: { Authorization: `Bearer ${token}` },
         success: (res) => {
           if (res.statusCode < 200 || res.statusCode >= 300) {
             return reject(res);
@@ -273,7 +246,6 @@ Page({
           if (!data || !data.url) {
             return reject(new Error('upload response missing url'));
           }
-          // 后端返回 /uploads/xxx.jpg，拼成绝对 URL 才能在小程序 Image 渲染
           const absoluteUrl = data.url.startsWith('http')
             ? data.url
             : config.SERVER_URL + (data.url.startsWith('/') ? '' : '/') + data.url;
@@ -285,24 +257,8 @@ Page({
   },
 
   goToOrders() {
-    // 触发预拉取，让 orders-sheet 一打开就有数据
-    const ordersPrefetch = require('../../utils/orders-prefetch');
+    // 触发预拉取，让 orders-list 真页面一打开就有数据
     ordersPrefetch.prefetchFirstPage(20);
-
-    // 隐藏自定义 TabBar，让弹窗能真正全屏覆盖
-    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && tabBar.setHidden) {
-      tabBar.setHidden(true);
-    }
-
-    this.setData({ showOrdersSheet: true });
-  },
-
-  onOrdersSheetClose() {
-    this.setData({ showOrdersSheet: false });
-    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && tabBar.setHidden) {
-      tabBar.setHidden(false);
-    }
+    wx.navigateTo({ url: '/pages/orders-list/orders-list' });
   }
-})
+});

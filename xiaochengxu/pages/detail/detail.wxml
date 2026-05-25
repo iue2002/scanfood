@@ -1,0 +1,257 @@
+<!--pages/detail/detail.wxml — 真页面版，视觉与原 detail-sheet 完全一致-->
+<view class="om-page {{locked ? 'om-page-locked' : ''}}">
+  <view class="om-navbar" style="padding-top: {{statusBarHeight || 20}}px;">
+    <view class="om-navbar-inner">
+      <view
+        wx:if="{{!locked}}"
+        class="om-navbar-back"
+        bindtap="onBack"
+        hover-class="om-navbar-back-hover"
+      >
+        <text class="om-navbar-back-arrow">‹</text>
+      </view>
+      <text class="om-navbar-title">订单详情</text>
+    </view>
+  </view>
+
+  <scroll-view
+    class="om-page-scroll {{(order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid') ? 'om-page-scroll-with-action' : ''}}"
+    scroll-y
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <view wx:if="{{isLoading && !order}}" class="om-skeleton">
+      <view class="om-skel-card">
+        <view class="om-skel-line om-skel-w-30"></view>
+        <view class="om-skel-line om-skel-w-50" style="margin-top: 16rpx"></view>
+        <view class="om-skel-row" style="margin-top: 24rpx">
+          <view class="om-skel-block"></view>
+          <view class="om-skel-block"></view>
+        </view>
+      </view>
+      <view class="om-skel-card" style="margin-top: 24rpx">
+        <view class="om-skel-line om-skel-w-40"></view>
+        <view class="om-skel-row-item" wx:for="{{[0,1]}}" wx:key="*this" style="margin-top: 24rpx">
+          <view class="om-skel-thumb"></view>
+          <view class="om-skel-main">
+            <view class="om-skel-line om-skel-w-70"></view>
+            <view class="om-skel-line om-skel-w-40" style="margin-top: 12rpx"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{order && storeInfo && storeInfo.store_name}}" class="om-store">
+      <image
+        wx:if="{{storeInfo.store_avatar}}"
+        class="om-store-avatar"
+        src="{{storeInfo.store_avatar}}"
+        mode="aspectFill"
+      />
+      <view wx:else class="om-store-avatar om-store-avatar-empty">
+        <text class="om-store-avatar-letter">{{storeInfo.store_name_letter}}</text>
+      </view>
+      <text class="om-store-name">{{storeInfo.store_name}}</text>
+    </view>
+
+    <view wx:if="{{order}}" class="om-status-card om-status-{{order.status}}">
+      <view class="om-status-row">
+        <view class="om-status-pill om-pill-{{order.status}}">{{statusMap[order.status]}}</view>
+        <text class="om-status-time">{{order.created_at}}</text>
+      </view>
+      <view class="om-status-tip" wx:if="{{order.status === 'submitted' || order.status === 'printed'}}">未付款，请餐后到前台结账</view>
+      <view class="om-status-tip" wx:if="{{order.status === 'settled'}}">已结账，感谢您的光临，欢迎下次再来</view>
+      <view class="om-status-meta">
+        <view class="om-meta-item">
+          <block wx:if="{{order.order_type === 'takeaway'}}">
+            <text class="om-meta-takeaway">🛍 外带打包</text>
+          </block>
+          <block wx:else>
+            <text class="om-meta-label">桌号</text>
+            <text class="om-meta-value">{{order.tables ? order.tables.table_number : '-'}}</text>
+            <text class="om-meta-suffix">桌</text>
+          </block>
+        </view>
+        <view class="om-meta-divider"></view>
+        <view class="om-meta-item om-meta-item-amount">
+          <text class="om-meta-label">合计</text>
+          <text class="om-meta-amount">¥{{order.total_amount}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{order}}" class="om-card">
+      <view class="om-card-head">
+        <text class="om-card-title">菜品明细</text>
+      </view>
+
+      <block wx:if="{{order.groupedItems}}">
+        <view class="om-group" wx:for="{{order.groupedItems}}" wx:key="round" wx:for-item="group">
+          <view class="om-group-head">
+            <text class="om-group-label {{index === 0 ? 'om-group-label-primary' : 'om-group-label-warn'}}">{{group.label}}</text>
+            <view class="om-group-line"></view>
+          </view>
+          <view class="om-group-body">
+            <view class="om-dish-row" wx:for="{{group.items}}" wx:key="id" wx:for-item="dish">
+              <image class="om-dish-img" src="{{dish.dish_image || '/images/default-dish.png'}}" mode="aspectFill" />
+              <view class="om-dish-info">
+                <view class="om-dish-name-row">
+                  <text class="om-dish-name">{{dish.dish_name}}</text>
+                  <text class="om-dish-spec" wx:if="{{dish.spec_name}}">{{dish.spec_name}}</text>
+                </view>
+                <view class="om-dish-bottom">
+                  <text class="om-dish-adder" wx:if="{{dish.added_by_nickname}}">{{dish.added_by_nickname}} 添加</text>
+                  <view class="om-dish-trail">
+                    <text class="om-dish-qty">×{{dish.quantity}}</text>
+                    <text class="om-dish-price">¥{{dish.subtotal}}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <view class="om-group-body" wx:else>
+        <view class="om-dish-row" wx:for="{{order.order_items}}" wx:key="id">
+          <image class="om-dish-img" src="{{item.dish_image || '/images/default-dish.png'}}" mode="aspectFill" />
+          <view class="om-dish-info">
+            <view class="om-dish-name-row">
+              <text class="om-dish-name">{{item.dish_name}}</text>
+              <text class="om-dish-spec" wx:if="{{item.spec_name}}">{{item.spec_name}}</text>
+            </view>
+            <view class="om-dish-bottom">
+              <text class="om-dish-adder" wx:if="{{item.added_by_nickname}}">{{item.added_by_nickname}} 添加</text>
+              <view class="om-dish-trail">
+                <text class="om-dish-qty">×{{item.quantity}}</text>
+                <text class="om-dish-price">¥{{item.subtotal}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="om-total-row">
+        <text class="om-total-label">合计</text>
+        <view class="om-total-amount-wrap">
+          <text class="om-total-symbol">¥</text>
+          <text class="om-total-num">{{order.total_amount}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{order}}" class="om-card">
+      <view class="om-info-row">
+        <text class="om-info-label">订单号</text>
+        <view class="om-info-value-wrap">
+          <text class="om-info-value om-mono">{{order.order_number}}</text>
+          <view
+            class="om-copy-btn"
+            catchtap="copyOrderNumber"
+            data-text="{{order.order_number}}"
+            hover-class="om-copy-btn-hover"
+          >
+            <text class="om-copy-icon">⎘</text>
+            <text class="om-copy-text">复制</text>
+          </view>
+        </view>
+      </view>
+      <view class="om-info-row om-info-row-divider">
+        <text class="om-info-label">下单时间</text>
+        <text class="om-info-value">{{order.created_at}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="om-action-bar" wx:if="{{order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid'}}">
+    <view class="om-action-btn om-action-btn-primary" bindtap="goToOrder" hover-class="om-action-btn-primary-hover">
+      继续加菜
+    </view>
+  </view>
+
+  <!-- 加餐弹窗 -->
+  <view class="om-modal" wx:if="{{showAddMoreModal}}" bindtap="closeAddMoreModal">
+    <view class="om-modal-card om-modal-card-fullsheet" catchtap="preventClose">
+      <view class="om-modal-head">
+        <text class="om-modal-title">添加菜品</text>
+        <view class="om-modal-close" bindtap="closeAddMoreModal">×</view>
+      </view>
+
+      <view class="om-modal-body">
+        <scroll-view class="om-mm-cat" scroll-y enhanced show-scrollbar="{{false}}">
+          <view
+            wx:for="{{categories}}"
+            wx:key="id"
+            class="om-mm-cat-item {{currentCategory === item.id ? 'om-mm-cat-item-active' : ''}}"
+            bindtap="switchCategory"
+            data-id="{{item.id}}"
+          >{{item.name}}</view>
+        </scroll-view>
+
+        <scroll-view class="om-mm-dish" scroll-y enhanced show-scrollbar="{{false}}">
+          <view wx:for="{{dishes}}" wx:key="id" class="om-mm-dish-card">
+            <image class="om-mm-dish-img" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill" />
+            <view class="om-mm-dish-info">
+              <text class="om-mm-dish-name">{{item.name}}</text>
+              <text class="om-mm-dish-desc" wx:if="{{item.description}}">{{item.description}}</text>
+              <view class="om-mm-dish-bottom">
+                <view class="om-price-wrap">
+                  <text class="om-price-symbol">¥</text>
+                  <text class="om-price-num">{{item.price}}</text>
+                </view>
+                <view class="om-step">
+                  <view class="om-step-minus" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="minus" hover-class="om-step-minus-hover">−</view>
+                  <view class="om-step-count" wx:if="{{addMoreCartCount[item.id] > 0}}" bindtap="onAddMoreCountTap" data-id="{{item.id}}" data-count="{{addMoreCartCount[item.id]}}">{{addMoreCartCount[item.id]}}</view>
+                  <view class="om-step-plus" bindtap="updateAddMoreCart" data-id="{{item.id}}" data-type="plus" hover-class="om-step-plus-hover">+</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="om-modal-foot">
+        <view class="om-foot-info" wx:if="{{addMoreTotal > 0}}">
+          <text class="om-foot-count">已选 {{cartItemCount}} 种菜品</text>
+          <view class="om-foot-amount">
+            <text class="om-foot-symbol">¥</text>
+            <text class="om-foot-num">{{addMoreTotalStr}}</text>
+          </view>
+        </view>
+        <view class="om-foot-empty" wx:else>请选择菜品</view>
+        <view
+          class="om-foot-submit {{addMoreTotal > 0 ? '' : 'om-foot-submit-disabled'}}"
+          bindtap="submitAddMore"
+          hover-class="om-foot-submit-hover"
+        >提交加餐</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="om-qty-modal" wx:if="{{showQtyModal}}" bindtap="closeQtyModal">
+    <view class="om-qty-card" catchtap="preventClose">
+      <view class="om-qty-head">
+        <text class="om-qty-title">输入数量</text>
+        <text class="om-qty-dish">{{editDishName}}</text>
+      </view>
+      <view class="om-qty-body">
+        <view class="om-qty-ctrl">
+          <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount - 1}}">−</view>
+          <input class="om-qty-input" type="number" value="{{editDishCount}}" bindinput="onQtyInput" focus="{{true}}" />
+          <view class="om-qty-btn" bindtap="onQtyQuickSet" data-val="{{editDishCount + 1}}">+</view>
+        </view>
+        <view class="om-qty-quick">
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="5">5</view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="10">10</view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="15">15</view>
+          <view class="om-qty-quick-btn" bindtap="onQtyQuickSet" data-val="20">20</view>
+          <view class="om-qty-quick-btn om-qty-quick-btn-danger" bindtap="onQtyQuickSet" data-val="0">清空</view>
+        </view>
+      </view>
+      <view class="om-qty-foot">
+        <button class="om-qty-cancel" bindtap="closeQtyModal">取消</button>
+        <button class="om-qty-confirm" bindtap="confirmQty">确定</button>
+      </view>
+    </view>
+  </view>
+</view>

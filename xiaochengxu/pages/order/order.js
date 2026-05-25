@@ -28,17 +28,6 @@ Page({
     // 购物车弹窗
     showCartPanel: false,
     cartItems: [],
-    // "我的"全屏弹窗（替代 wx.switchTab → me 页）
-    showMeSheet: false,
-    // "确认订单"全屏弹窗（替代 wx.navigateTo → confirm 页）
-    showConfirmSheet: false,
-    // "订单详情"全屏弹窗（替代 wx.navigateTo → detail 页）
-    showDetailSheet: false,
-    detailOrderId: '',
-    // 锁定模式：检测到未付款订单时强制完成（隐藏返回 + 盖住 TabBar）
-    detailLocked: false,
-    // me-sheet 内部叠开了订单列表（订单列表是非"我的/浏览"sheet，要隐藏 TabBar）
-    _meOrdersOpen: false,
     // === 自定义导航栏：状态栏高度（custom 模式必需） ===
     statusBarHeight: 0,
     // === 自定义导航栏：店铺品牌信息（启动时 app.js 已预加载到 globalData，这里同步过来） ===
@@ -122,8 +111,8 @@ Page({
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
       if (order && order.id) {
-        // 自动检测：锁定模式（强制用户完成订单）
-        this.openDetailSheet(order.id, true);
+        // 自动检测：跳转到 detail 真页面（锁定模式）
+        this.navigateToDetail(order.id, true);
       }
     } catch (err) {
       console.log('没有未完成的订单', err);
@@ -134,7 +123,6 @@ Page({
     try {
       const token = wx.getStorageSync('token');
       if (!token) {
-        // 未登录时也释放桌号资源
         if (this.data.tableId) {
           this.releaseTableResources();
         }
@@ -142,18 +130,15 @@ Page({
       }
       const order = await request({ url: '/orders/my-active', noLoading: true });
       if (order && order.id) {
-        // 有未完成订单：锁定模式打开 detail-sheet（强制用户完成订单）
-        this.openDetailSheet(order.id, true);
+        this.navigateToDetail(order.id, true);
         return true;
       }
-      // 没有未完成订单，释放桌号资源
       if (this.data.tableId) {
         this.releaseTableResources();
       }
       return false;
     } catch (err) {
       console.log('没有未完成的订单', err);
-      // 请求失败也释放桌号资源
       if (this.data.tableId) {
         this.releaseTableResources();
       }
@@ -166,17 +151,47 @@ Page({
   },
 
   async onShow() {
-    // 检查是否需要自动打开"我的"弹窗（从其它非 TabBar 页点底部"我的"切回时）
+    // 检查 globalData 信号：detail 页释放桌号后回到首页时同步清理 UI
     const app = getApp();
-    if (app && app.globalData && app.globalData.openMeOnNextShow) {
-      app.globalData.openMeOnNextShow = false;
-      this.openMeSheet();
+    if (app && app.globalData && app.globalData._tableReleased) {
+      app.globalData._tableReleased = false;
+      this.setData({
+        tableId: '',
+        tableNumber: '',
+        hasScannedTable: false,
+        cartCount: {},
+        cartItems: [],
+        totalCount: 0,
+        totalPrice: '0.00',
+        currentCartId: null,
+        currentOrderId: null,
+        orderStatus: null,
+        isAddMore: false
+      });
+      this.closeWebSocket();
+    }
+
+    // 检查 confirm 页提交校验失败时的 focusDishId 信号
+    if (app && app.globalData && app.globalData.focusDishId) {
+      const fid = app.globalData.focusDishId;
+      app.globalData.focusDishId = null;
+      // 找到该菜品所在分类，切过去
+      const dish = this.data.allDishes.find(d => d.id == fid);
+      if (dish && dish.category_id) {
+        const cat = this.data.categories.find(c => c.id == dish.category_id);
+        if (cat) {
+          this.setData({
+            currentCategory: cat.id,
+            currentCategoryName: cat.name,
+            dishes: this.data.allDishes.filter(d => d.category_id == cat.id)
+          });
+        }
+      }
     }
 
     // 同步店铺信息（app.js 异步刷新的最新店名/头像可能在 onShow 时才到位）
     this.syncStoreInfo();
-    // 触发一次后端刷新（30 秒内会自动节流，多次调用安全）；
-    // 商家在 admin 改了店名/头像后，顾客切回首页就能看到最新值
+    // 触发一次后端刷新（5 分钟内会自动节流，多次调用安全）
     this.refreshStoreInfo();
 
     // 先处理页面状态，让用户立即看到内容
@@ -198,7 +213,7 @@ Page({
       const hasLocalData = Object.values(cartCount).some(count => count > 0);
 
       if (hasLocalData) {
-        // 本地有购物车数据，恢复 UI（仅在内容变了才 setData）
+        // 本地有购物车数据，恢复 UI
         if (!this.cartCountEqual(this.data.cartCount, cartCount) ||
             this.data.currentCartId !== (cart.currentCartId || null)) {
           this.setData({
@@ -210,7 +225,6 @@ Page({
           this.calculateTotal();
         }
       } else if (!isSecondShow) {
-        // 首次 onShow（或长时间未 show）才发请求；30 秒内频繁切跳过
         this.fetchCurrentCart();
       }
     } else if (this.data.tableId && this.data.isAddMore) {
@@ -231,8 +245,7 @@ Page({
     }
     this.updateTabBar();
 
-    // onShow 时若有桌号但 ws 已关（挂机/onHide 关掉的）→ 重连
-    // initWebSocket 内部有"已连/连中跳过"保护，多次调用安全
+    // onShow 时若有桌号但 ws 已关 → 重连
     if (this.data.tableId && !this._wsConnected && !this._wsConnecting) {
       this.initWebSocket();
     }
@@ -240,41 +253,6 @@ Page({
     // 异步检查未付款订单（已节流），不阻塞页面显示
     if (!isSecondShow) {
       this.checkActiveOrderAsync();
-    }
-
-    // 关键兜底：如果 detail-sheet 处于"锁定模式"（顾客被困在订单里），
-    // 强制重查一次最新订单状态，避免"商家已结账但 ws 推送丢了 → 顾客被永久锁定"的死锁。
-    // 这条路径不受 30s 节流限制（用户回到 onShow 时迫切需要解锁判断）
-    if (this.data.detailLocked && this.data.detailOrderId) {
-      this._refreshLockedOrderStatus(this.data.detailOrderId);
-    }
-  },
-
-  /**
-   * 强制核对锁定中的订单状态：直接调 my-active 看后端是否还有活跃订单
-   * - 后端返回 null（订单已结账/取消）→ 立即解锁 + 关闭 sheet + 释放桌号
-   * - 后端返回 active 订单 → 把最新数据传给 detail-sheet
-   * 这是 onShow 路径的"安全网"，跟 detail-sheet 内部 safetyNetPolling 互为补充
-   */
-  async _refreshLockedOrderStatus(orderId) {
-    try {
-      const order = await request({ url: '/orders/my-active', noLoading: true });
-      // 后端没活跃订单 → 顾客已被结账/取消 → 解锁释放
-      if (!order || !order.id) {
-        console.log('[order] detailLocked 但后端无活跃订单，自动解锁');
-        this.setData({ detailLocked: false, showDetailSheet: false, detailOrderId: '' });
-        this.onDetailTableReleased();
-        return;
-      }
-      // 后端有活跃订单：核对状态
-      if (order.status === 'settled' || order.status === 'cancelled') {
-        console.log('[order] 订单已终态，解锁');
-        this.setData({ detailLocked: false, showDetailSheet: false, detailOrderId: '' });
-        this.onDetailTableReleased();
-      }
-      // 否则保持锁定，detail-sheet 内部会拉最新数据
-    } catch (err) {
-      console.warn('[order] 核对锁定订单状态失败', err);
     }
   },
 
@@ -528,8 +506,8 @@ Page({
       if (this.data.isAddMore) {
         return;
       }
-      // ws 推送的未付款订单：锁定模式
-      this.openDetailSheet(order.id, true);
+      // ws 推送的未付款订单：跳到 detail 真页面（锁定模式）
+      this.navigateToDetail(order.id, true);
     } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
       // 订单已结账或取消，立即释放所有桌号资源
       this.releaseTableResources();
@@ -1465,85 +1443,22 @@ Page({
         });
       }
     } else {
-      this.setData({ showConfirmSheet: true });
-      this._updateTabBarVisibility();
+      // 跳转到 confirm 真页面（栈式 navigateTo，按返回键自动 pop 回首页）
+      wx.navigateTo({ url: `/pages/confirm/confirm?tableId=${this.data.tableId}` });
     }
   },
 
-  onConfirmSheetClose() {
-    this.setData({ showConfirmSheet: false });
-    this._updateTabBarVisibility();
-  },
-
-  onConfirmSubmitted(e) {
-    const orderId = e.detail && e.detail.orderId;
-    // 关 confirm-sheet 后，等动画结束再开 detail-sheet（锁定模式：刚下单未结账，强制完成）
-    if (orderId) {
-      setTimeout(() => {
-        this.openDetailSheet(orderId, true);
-      }, 240);
-    }
-  },
-
-  // ====== 订单详情弹窗（替代 pages/order/detail）======
-  // locked=true：锁定模式，禁止关闭，强制用户完成订单（自动检测 / ws 推送 / 刚下单时用）
-  //   - z-index=1500 完全盖住 TabBar 和其他 sheet
-  //   - 关闭其他 sheet 避免栈层混乱
-  // locked=false：普通模式，叠在 orders-sheet/me-sheet 之上（栈式）
-  //   - 关闭 detail 后下层 sheet 自动显露，保留原滚动位置和状态
-  openDetailSheet(orderId, locked = false) {
+  // 跳转到详情真页面
+  // locked=true：锁定模式，detail 页内部用 enableAlertBeforeUnload + z-index 提到 1500 拦截返回
+  navigateToDetail(orderId, locked = false) {
     if (!orderId) return;
-    if (this.data.showDetailSheet && this.data.detailOrderId === String(orderId)) {
-      // 已经打开同一订单：仅升级锁定状态（不能从锁→解，只能解→锁或同级）
-      if (locked && !this.data.detailLocked) {
-        this.setData({ detailLocked: true });
-      }
-      return;
-    }
-    const patch = {
-      showDetailSheet: true,
-      detailOrderId: String(orderId),
-      detailLocked: !!locked
-    };
-    // 锁定模式才关其他 sheet（避免栈层混乱）；非锁定模式保留下层 sheet 实现栈式返回
+    const lockedFlag = locked ? '1' : '0';
     if (locked) {
-      patch.showMeSheet = false;
-      patch.showConfirmSheet = false;
+      // 锁定模式：用 redirectTo 替换栈，避免按返回回到 confirm（已提交）页
+      wx.redirectTo({ url: `/pages/detail/detail?orderId=${orderId}&locked=${lockedFlag}` });
+    } else {
+      wx.navigateTo({ url: `/pages/detail/detail?orderId=${orderId}&locked=${lockedFlag}` });
     }
-    this.setData(patch);
-    this._updateTabBarVisibility();
-  },
-
-  onDetailSheetClose() {
-    // detail-sheet 关闭：detail-sheet z-index=900，关闭后下层 orders-sheet (z=800) / me-sheet (z=800)
-    // / confirm-sheet (z=850) 会自动显露（栈式渲染，保留滚动位置和状态）
-    this.setData({ showDetailSheet: false, detailOrderId: '', detailLocked: false });
-    this._updateTabBarVisibility();
-  },
-
-  // 订单结账/取消，detail-sheet 通知解锁（即使在锁定模式也允许关闭了）
-  onDetailUnlock() {
-    this.setData({ detailLocked: false });
-  },
-
-  // detail-sheet 通知：订单已结账/取消，桌号已释放
-  onDetailTableReleased() {
-    // 同步清理 order 页面状态，避免回到 order 页时还显示旧桌号/购物车
-    this.setData({
-      tableId: '',
-      tableNumber: '',
-      hasScannedTable: false,
-      cartCount: {},
-      cartItems: [],
-      totalCount: 0,
-      totalPrice: '0.00',
-      currentCartId: null,
-      currentOrderId: null,
-      orderStatus: null,
-      isAddMore: false
-    });
-    // 关掉 ws 订阅，等用户重新扫码再连
-    this.closeWebSocket();
   },
 
   async submitAddMore() {
@@ -1586,7 +1501,7 @@ Page({
       wx.showToast({ title: '加餐已提交', icon: 'success' });
 
       setTimeout(() => {
-        this.openDetailSheet(result.id, true);
+        this.navigateToDetail(result.id, true);
       }, 1500);
     } catch (err) {
       wx.hideLoading();
@@ -1640,95 +1555,11 @@ Page({
     this.syncCartToBackend();
   },
 
-  // ====== "我的"弹窗（替代 wx.switchTab → me 页）======
-  // 统一管理 TabBar 显隐：除了"我的"和"浏览"两个 sheet，其他 sheet 都隐藏 TabBar
-  // - showMeSheet 单独打开：显示 TabBar（"我的"是 TabBar 页）
-  // - 任何叠加层（confirm / detail / me 内嵌的订单列表）：隐藏 TabBar
+  // ====== 'TabBar 显隐管理（真页面架构下不再需要） ======
+  // 旧 sheet 架构需要在 sheet 打开时隐藏 TabBar；
+  // 真页面架构下，wx.navigateTo 后 TabBar 自动隐藏（页面级而非 tab 级），所以这个函数现在只是 no-op，
+  // 保留以兼容遗留调用点。
   _updateTabBarVisibility() {
-    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (!tabBar || !tabBar.setHidden) return;
-    const shouldHide =
-      this.data.showConfirmSheet ||
-      this.data.showDetailSheet ||
-      this.data._meOrdersOpen;
-    tabBar.setHidden(!!shouldHide);
-  },
-
-  openMeSheet() {
-    // 不隐藏 TabBar：sheet 给底部 TabBar 留空间，用户能直接点"浏览"切回
-    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && tabBar.setSelected) {
-      tabBar.setSelected(1); // "我的"高亮
-    }
-    // 已经打开了：直接调子组件 reopen 强制重新加载/动画（防止某次状态残留导致点不开）
-    if (this.data.showMeSheet) {
-      const meSheet = this.selectComponent('#meSheet');
-      if (meSheet && typeof meSheet.reopen === 'function') {
-        meSheet.reopen();
-      }
-      return;
-    }
-    this.setData({ showMeSheet: true });
-    this._updateTabBarVisibility();
-  },
-
-  onMeSheetClose() {
-    this.setData({ showMeSheet: false, _meOrdersOpen: false });
-    this._updateTabBarVisibility();
-    const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
-    if (tabBar && tabBar.setSelected) {
-      tabBar.setSelected(0); // 恢复"浏览"高亮
-    }
-  },
-
-  // me-sheet → orders-sheet 的"再来一单"已写入购物车，回到 order 页打开 confirm-sheet
-  // 注意触发顺序：父级先收到 'close'（已把 showMeSheet 置 false），再收到 'reorder'。
-  // 我们这里立刻开 confirm-sheet，让 TabBar 直接从"被 me-sheet 内嵌 orders 隐藏"
-  // 平滑过渡到"被 confirm-sheet 隐藏"，避免中间一帧 TabBar 闪现。
-  onMeReorder(e) {
-    const tableId = (e.detail && e.detail.tableId) || this.data.tableId;
-    if (tableId && this.data.tableId !== String(tableId)) {
-      this.setData({ tableId: String(tableId) });
-    }
-    // 立刻开（不等动画），_updateTabBarVisibility 会发现 showConfirmSheet=true 直接隐藏 TabBar
-    this.setData({ showConfirmSheet: true });
-    this._updateTabBarVisibility();
-  },
-
-  // me-sheet → orders-sheet 的"查看详情"，me-sheet 仍保留，detail-sheet 叠在最上层
-  onMeDetail(e) {
-    const orderId = e.detail && e.detail.orderId;
-    if (orderId) {
-      this.openDetailSheet(orderId);
-    }
-  },
-
-  // me-sheet 内的订单列表开关变更：用于 TabBar 显隐联动
-  onMeOrdersSheet(e) {
-    const open = !!(e.detail && e.detail.open);
-    this.setData({ _meOrdersOpen: open });
-    this._updateTabBarVisibility();
-  },
-
-  // 拦截系统返回键 / 手势：关闭 detail-sheet / confirm-sheet / me-sheet 而不是退出 order 页
-  onBackPress() {
-    if (this.data.showDetailSheet) {
-      // 锁定模式：禁止返回
-      if (this.data.detailLocked) {
-        wx.showToast({ title: '请先完成当前订单', icon: 'none' });
-        return true;
-      }
-      this.onDetailSheetClose();
-      return true;
-    }
-    if (this.data.showConfirmSheet) {
-      this.onConfirmSheetClose();
-      return true;
-    }
-    if (this.data.showMeSheet) {
-      this.onMeSheetClose();
-      return true; // 阻止默认返回
-    }
-    return false;
+    // no-op
   }
 })

@@ -1,8 +1,7 @@
 {
   "navigationStyle": "custom",
-  "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark",
   "backgroundColor": "#f8fafc",
+  "backgroundTextStyle": "dark",
   "renderer": "skyline",
   "componentFramework": "glass-easel",
   "rendererOptions": {

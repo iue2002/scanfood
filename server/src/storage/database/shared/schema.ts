@@ -254,6 +254,15 @@ export const store_settings = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     store_name: varchar("store_name", { length: 100 }).notNull().default('我的小店'),
     store_avatar: varchar("store_avatar", { length: 500 }),
+    // SMTP 配置（多通道通知 - 邮件）：双模式（platform / custom）
+    smtp_mode: varchar("smtp_mode", { length: 20 }).notNull().default('platform'),
+    smtp_host: varchar("smtp_host", { length: 255 }),
+    smtp_port: int("smtp_port"),
+    smtp_user: varchar("smtp_user", { length: 255 }),
+    // AES-256-GCM 加密后的密码（复用 printer device_key 加密器）
+    smtp_pass_enc: varchar("smtp_pass_enc", { length: 512 }),
+    smtp_from: varchar("smtp_from", { length: 255 }),
+    smtp_secure: boolean("smtp_secure").notNull().default(true),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   }
@@ -346,7 +355,7 @@ export const audit_logs_archive = mysqlTable(
 );
 
 
-// merchant-ops-center M3：用户通知偏好（声音 + 桌面通知事件）
+// merchant-ops-center M3：用户通知偏好（声音 + 桌面通知事件 + 邮件）
 // 与 users 1:1，外键 cascade
 export const user_preferences = mysqlTable(
   "user_preferences",
@@ -356,6 +365,10 @@ export const user_preferences = mysqlTable(
     sound_id: varchar("sound_id", { length: 64 }).notNull().default('default'),
     // 元素 ⊆ {NEW_ORDER, ADD_ITEM, REFUND}（I12 由应用层校验）
     desktop_events: json("desktop_events").notNull(),
+    // 邮件通知（可选）：留空表示不发邮件给该员工
+    email: varchar("email", { length: 255 }),
+    // 元素 ⊆ {NEW_ORDER, ADD_ITEM, REFUND}（应用层校验，未配置时 fallback 到空数组）
+    email_events: json("email_events"),
     updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
   }
 );
@@ -511,5 +524,35 @@ export const print_plan_slices = mysqlTable(
   (t) => [
     index("print_plan_slices_plan_idx").on(t.plan_id),
     index("print_plan_slices_printer_idx").on(t.printer_id),
+  ]
+);
+
+
+// ============================================================
+// 多通道通知 - Web Push 订阅表
+// 一个用户可有多个订阅（不同浏览器/设备）
+// ============================================================
+export const push_subscriptions = mysqlTable(
+  "push_subscriptions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    user_id: int("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** PushSubscription.endpoint - 浏览器推送中心的 URL（FCM/WNS/APNs/Mozilla） */
+    endpoint: varchar("endpoint", { length: 500 }).notNull().unique(),
+    /** PushSubscription.keys.p256dh - 加密公钥 */
+    p256dh: varchar("p256dh", { length: 255 }).notNull(),
+    /** PushSubscription.keys.auth - 加密 secret */
+    auth: varchar("auth", { length: 255 }).notNull(),
+    /** 用户代理串，用于 UI 展示"哪个设备订阅的"（"Edge on Windows"、"Safari on iPhone"） */
+    user_agent: varchar("user_agent", { length: 500 }),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    /** 最后一次成功推送时间，用于清理长期不活跃的订阅 */
+    last_used_at: timestamp("last_used_at"),
+    /** 连续失败次数 ≥5 → 自动清理（防止无效 endpoint 浪费推送配额） */
+    failed_count: int("failed_count").notNull().default(0),
+  },
+  (t) => [
+    index("push_subs_user_id_idx").on(t.user_id),
+    index("push_subs_failed_count_idx").on(t.failed_count),
   ]
 );

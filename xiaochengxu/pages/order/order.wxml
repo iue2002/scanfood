@@ -3,6 +3,19 @@
   <!-- 状态栏占位（custom navigationStyle 必需，避开手机顶部时间/电量区） -->
   <view class="om-status-bar" style="height: {{statusBarHeight || 20}}px;"></view>
 
+  <!-- 自定义品牌导航栏（避开微信胶囊按钮的 175rpx 区域） -->
+  <view class="om-brand-bar">
+    <block wx:if="{{storeInfo && storeInfo.store_avatar}}">
+      <image class="om-brand-avatar" src="{{storeInfo.store_avatar}}" mode="aspectFill" />
+    </block>
+    <block wx:else>
+      <view class="om-brand-avatar om-brand-avatar-placeholder">
+        <text>{{storeInfo && storeInfo.store_name ? storeInfo.store_name.charAt(0) : '店'}}</text>
+      </view>
+    </block>
+    <text class="om-brand-name">{{storeInfo.store_name || '我的小店'}}</text>
+  </view>
+
   <!-- 顶部桌号 / 扫码栏 -->
   <view class="om-topbar">
     <view class="om-topbar-left">

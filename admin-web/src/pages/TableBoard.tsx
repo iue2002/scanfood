@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import request from '@/api/request'
 import { ArrowLeft, CheckCircle, Minus, Plus, PlusCircle, RefreshCw, Search, ShoppingCart, Utensils, Users, WifiOff, X } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
-import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { useWebSocketEvent, useWebSocketReconnect } from '@/components/WebSocketProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 
 interface OrderItem {
@@ -182,6 +182,8 @@ export default function TableBoard() {
   useWebSocketEvent('orderItemServedChanged', fetchBoard)
   useWebSocketEvent('refundCreated', fetchBoard)
   useWebSocketEvent('refundUpdated', fetchBoard)
+  // ws 断线重连后补拉一次（防丢消息）
+  useWebSocketReconnect(fetchBoard)
 
   const loadDishes = useCallback(async () => {
     const res = await request.get('/dishes')

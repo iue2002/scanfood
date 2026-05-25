@@ -40,7 +40,9 @@ Page({
     // me-sheet 内部叠开了订单列表（订单列表是非"我的/浏览"sheet，要隐藏 TabBar）
     _meOrdersOpen: false,
     // === 自定义导航栏：状态栏高度（custom 模式必需） ===
-    statusBarHeight: 0
+    statusBarHeight: 0,
+    // === 自定义导航栏：店铺品牌信息（启动时 app.js 已预加载到 globalData，这里同步过来） ===
+    storeInfo: null
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -60,6 +62,9 @@ Page({
     } catch (e) {
       this.setData({ statusBarHeight: 20 });
     }
+
+    // === 自定义导航栏：从 globalData 同步店铺信息（app.js 启动时已预加载） ===
+    this.syncStoreInfo();
 
     let tableNumber = null;
     let rawTableId = options.tableId;
@@ -159,6 +164,9 @@ Page({
       this.openMeSheet();
     }
 
+    // 同步店铺信息（app.js 异步刷新的最新店名/头像可能在 onShow 时才到位）
+    this.syncStoreInfo();
+
     // 先处理页面状态，让用户立即看到内容
     if (app.globalData.addMore) {
       app.globalData.addMore = false;
@@ -256,6 +264,19 @@ Page({
     this.closeWebSocket();
     // 页面卸载兜底：关闭退出确认拦截，避免泄漏到其它页面
     this.disableExitGuard();
+  },
+
+  // ====== 自定义导航栏：店铺品牌信息同步（参考 detail-sheet / orders-sheet 的做法） ======
+  syncStoreInfo() {
+    try {
+      const app = getApp();
+      const storeInfo = app && app.globalData && app.globalData.storeInfo;
+      if (storeInfo && storeInfo.store_name) {
+        this.setData({ storeInfo });
+      }
+    } catch (e) {
+      console.warn('[order] syncStoreInfo failed', e);
+    }
   },
 
   // ====== 退出确认拦截（防止用户误按手机系统返回键直接退出小程序） ======

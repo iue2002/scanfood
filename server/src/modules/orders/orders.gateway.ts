@@ -45,7 +45,27 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
   init(httpServer: http.Server) {
     this.wss = new Server({ server: httpServer, path: '/ws' });
 
+    // ====== 心跳：服务端每 30 秒对所有 client 发 native ping，30 秒内没收到 pong 就 terminate ======
+    // 关键：穿透/反代（nginx / cpolar / cloudflare 等）通常 60s 空闲断连，这里 30s 心跳能保活
+    const HEARTBEAT_INTERVAL_MS = 30_000;
+    const heartbeatTimer = setInterval(() => {
+      this.wss.clients.forEach((ws: any) => {
+        if (ws.isAlive === false) {
+          // 上一轮没收到 pong → 视为僵尸连接，强制关闭释放资源
+          this.logger.debug('terminating dead ws (no pong)');
+          return ws.terminate();
+        }
+        ws.isAlive = false;
+        try { ws.ping(); } catch { /* ignore */ }
+      });
+    }, HEARTBEAT_INTERVAL_MS);
+    this.wss.on('close', () => clearInterval(heartbeatTimer));
+
     this.wss.on('connection', async (ws: WebSocket, req: http.IncomingMessage) => {
+      // 标记心跳活跃
+      (ws as any).isAlive = true;
+      ws.on('pong', () => { (ws as any).isAlive = true; });
+
       // ===== 安全加固: WebSocket 连接鉴权 =====
       // 从查询参数中提取 token 进行 JWT 验证
       const clientIp = req.headers['x-forwarded-for'] as string
@@ -139,6 +159,10 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
     const { event, data } = message;
 
     switch (event) {
+      case 'ping':
+        // 应用层心跳：客户端主动发，立即回 pong（穿透/反代环境保活更稳）
+        try { client.send(JSON.stringify({ event: 'pong', data: { ts: Date.now() } })); } catch { /* ignore */ }
+        break;
       case 'subscribeTable':
         this.handleSubscribeTable(client, data);
         break;

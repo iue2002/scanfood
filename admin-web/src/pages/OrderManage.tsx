@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import request from '@/api/request'
 import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Printer, Search, ShoppingCart, ShoppingBag, X } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
-import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { useWebSocketEvent, useWebSocketReconnect } from '@/components/WebSocketProvider'
 import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 import PrintActionModal from '@/components/PrintActionModal'
@@ -157,6 +157,8 @@ export default function OrderManage() {
   }, []))
   useWebSocketEvent('refundCreated', fetchOrders)
   useWebSocketEvent('refundUpdated', fetchOrders)
+  // ws 断线重连后补拉一次：避免断线期间错过 orderStatusChanged 等事件造成 UI 不刷新
+  useWebSocketReconnect(fetchOrders)
 
   const handleSettle = async (id: number) => {
     showConfirm('确认结账', '确认标记该订单为已结账？', async () => {

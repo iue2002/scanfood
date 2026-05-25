@@ -13,12 +13,18 @@ type Handler = (data: any) => void
 interface WebSocketCtx {
   connected: boolean
   subscribe: (event: string, handler: Handler) => () => void
+  /**
+   * 监听 ws 重连成功事件（不是首连）。页面用它在断线重连后补拉数据，
+   * 避免断线期间错过的 orderStatusChanged / orderUpdated 等事件造成 UI 不刷新
+   */
+  onReconnect: (handler: () => void) => () => void
 }
 
 const WebSocketContext = createContext<WebSocketCtx | null>(null)
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const handlersRef = useRef<Map<string, Set<Handler>>>(new Map())
+  const reconnectHandlersRef = useRef<Set<() => void>>(new Set())
   const [connected, setConnected] = useState(false)
 
   const subscribe = useCallback<WebSocketCtx['subscribe']>((event, handler) => {
@@ -33,10 +39,20 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const onReconnect = useCallback<WebSocketCtx['onReconnect']>((handler) => {
+    reconnectHandlersRef.current.add(handler)
+    return () => {
+      reconnectHandlersRef.current.delete(handler)
+    }
+  }, [])
+
   useEffect(() => {
     let ws: WebSocket | null = null
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null
     let reconnectDelay = 1000
+    // 第一次连接成功不算"重连"；之后再连成功才触发 onReconnect 回调
+    let hasConnectedOnce = false
     // 一旦 cleanup 设为 true，所有 onclose / onerror 都不再触发重连
     let cancelled = false
 
@@ -50,6 +66,27 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           console.error('WS handler error', e)
         }
       })
+    }
+
+    const startHeartbeat = () => {
+      // 心跳：每 25 秒主动发 application-level ping，让中间反代/穿透不要切连接
+      // 25s 是经验值：cpolar / nginx / cloudflare 默认空闲超时通常 ≥ 60s，留 2x 余量
+      stopHeartbeat()
+      heartbeatTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          try {
+            ws.send(JSON.stringify({ event: 'ping', data: { ts: Date.now() } }))
+          } catch (e) {
+            /* noop */
+          }
+        }
+      }, 25_000)
+    }
+    const stopHeartbeat = () => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer)
+        heartbeatTimer = null
+      }
     }
 
     const connect = () => {
@@ -102,13 +139,24 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           /* noop */
         }
+        startHeartbeat()
+
+        // 重连成功（非首连）：触发所有 reconnectHandlers 让页面补拉数据
+        // 关键：避免 ws 断线期间错过 orderStatusChanged / orderUpdated 事件
+        if (hasConnectedOnce) {
+          reconnectHandlersRef.current.forEach((h) => {
+            try { h() } catch (e) { console.error('[WS] reconnect handler error', e) }
+          })
+        }
+        hasConnectedOnce = true
       }
 
       ws.onmessage = (event) => {
         if (cancelled) return
         try {
           const message = JSON.parse(event.data)
-          if (message.event === 'subscribed') return
+          // 内部事件直接吞掉
+          if (message.event === 'subscribed' || message.event === 'pong') return
           dispatch(message.event, message.data)
         } catch (e) {
           console.error('WS message parse error', e)
@@ -117,6 +165,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
       ws.onclose = (event) => {
         setConnected(false)
+        stopHeartbeat()
         ws = null
         if (cancelled) return
         if (event.code === 4001) {
@@ -137,6 +186,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true
+      stopHeartbeat()
       if (reconnectTimer) {
         clearTimeout(reconnectTimer)
         reconnectTimer = null
@@ -153,7 +203,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <WebSocketContext.Provider value={{ connected, subscribe }}>
+    <WebSocketContext.Provider value={{ connected, subscribe, onReconnect }}>
       {children}
     </WebSocketContext.Provider>
   )
@@ -177,6 +227,26 @@ export function useWebSocketEvent(event: string, handler: Handler) {
     const stable: Handler = (data) => handlerRef.current(data)
     return ctx.subscribe(event, stable)
   }, [ctx, event])
+}
+
+/**
+ * 监听 ws 重连事件（不是首连）
+ * 用法：useWebSocketReconnect(() => fetchOrders())
+ * 关键作用：ws 断线期间错过的消息（比如商家结账时连接刚好断了），重连后用这个 hook 主动补拉一次
+ */
+export function useWebSocketReconnect(handler: () => void) {
+  const ctx = useContext(WebSocketContext)
+  if (!ctx) {
+    throw new Error('useWebSocketReconnect must be used inside <WebSocketProvider>')
+  }
+
+  const handlerRef = useRef(handler)
+  handlerRef.current = handler
+
+  useEffect(() => {
+    const stable = () => handlerRef.current()
+    return ctx.onReconnect(stable)
+  }, [ctx])
 }
 
 export function useWebSocketStatus() {

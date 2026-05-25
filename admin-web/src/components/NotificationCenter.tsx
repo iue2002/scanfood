@@ -60,7 +60,7 @@ export default function NotificationCenter() {
 
       // 2) 桌面通知（按权限 + 偏好）
       if (decision.showDesktop) {
-        showNotification(params.desktopTitle, { body: params.desktopBody })
+        showNotification(params.desktopTitle, { body: params.desktopBody }).catch(() => { /* 通知失败不影响 toast/sound */ })
       }
 
       // 3) 声音（按偏好），失败仅记日志，不影响上面两个通道
@@ -221,7 +221,7 @@ export default function NotificationCenter() {
         showToast(`打印失败：${printerName} - ${data.errorCode || '未知错误'}${orderTag}`, 'error')
         showNotification(`${printerName} 打印失败`, {
           body: `${data.errorCode || '未知错误'}${data.errorMessage ? ' · ' + data.errorMessage : ''}${orderTag}`,
-        })
+        }).catch(() => { /* ignore */ })
       },
       [showToast]
     )

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import request from '@/api/request'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
-import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { useWebSocketEvent, useWebSocketReconnect } from '@/components/WebSocketProvider'
 import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 
@@ -40,6 +40,8 @@ export default function RefundManage() {
   // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
   useWebSocketEvent('refundCreated', fetchRefunds)
   useWebSocketEvent('refundUpdated', fetchRefunds)
+  // ws 断线重连后补拉一次（防丢消息）
+  useWebSocketReconnect(fetchRefunds)
 
   const handleApprove = async (id: number) => {
     showConfirm('确认通过', '确认通过该退款申请？', async () => {

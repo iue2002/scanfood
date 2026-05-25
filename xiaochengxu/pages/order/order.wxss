@@ -25,6 +25,49 @@
   flex-shrink: 0;
   background: #FFFFFF;
 }
+
+/* 品牌导航栏：跟微信胶囊按钮等高（32px ≈ 88rpx），右侧留出 175rpx 避开胶囊 */
+.om-brand-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  /* 右侧 padding 175rpx 精确避开微信胶囊（87px ≈ 174rpx） */
+  padding: 0 200rpx 0 32rpx;
+  /* 跟胶囊高度对齐：胶囊在状态栏下 6px 起、高 32px → 占 ~88rpx */
+  height: 88rpx;
+  background: #FFFFFF;
+  box-sizing: border-box;
+}
+.om-brand-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #EFF6FF;
+  /* 避免空 src 时图片占位破样式 */
+  overflow: hidden;
+}
+.om-brand-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563EB;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.om-brand-name {
+  margin-left: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0F172A;
+  /* 单行省略，避免长店名挤胶囊 */
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .om-topbar {
   flex-shrink: 0;
   display: flex;

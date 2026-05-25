@@ -13,7 +13,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { useWebSocketEvent } from '@/components/WebSocketProvider'
+import { useWebSocketEvent, useWebSocketReconnect } from '@/components/WebSocketProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 
 interface Overview {
@@ -102,6 +102,8 @@ export default function Dashboard() {
   useWebSocketEvent('orderDeleted', fetchAll)
   useWebSocketEvent('refundCreated', fetchAll)
   useWebSocketEvent('refundUpdated', fetchAll)
+  // ws 断线重连后补拉一次（防丢消息）
+  useWebSocketReconnect(fetchAll)
 
   const kpiCards = [
     {

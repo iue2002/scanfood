@@ -38,6 +38,21 @@ Page({
     this.loadUserInfo();
   },
 
+  /**
+   * 拦截系统返回键（Skyline + 基础库 ≥ 2.30.4 支持）
+   * "我的"是 TabBar 页面，栈深永远 1，按返回会直接退出小程序。
+   * 这里拦截：第一次按返回 → 切换到「浏览」tab；第二次按返回（已在浏览）才会真退出。
+   * return true = 阻止默认行为；return false / undefined = 走默认（退出小程序）
+   */
+  onBackPress() {
+    try {
+      wx.switchTab({ url: '/pages/order/order' });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
   async onPullDownRefresh() {
     try {
       this.loadUserInfo();

@@ -252,7 +252,7 @@ export const store_settings = mysqlTable(
   "store_settings",
   {
     id: int("id").autoincrement().primaryKey(),
-    store_name: varchar("store_name", { length: 100 }).notNull().default('伊美轩'),
+    store_name: varchar("store_name", { length: 100 }).notNull().default('我的小店'),
     store_avatar: varchar("store_avatar", { length: 500 }),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),

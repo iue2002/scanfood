@@ -38,7 +38,7 @@ CREATE TABLE `login_logs` (
 --> statement-breakpoint
 CREATE TABLE `store_settings` (
 	`id` int AUTO_INCREMENT NOT NULL,
-	`store_name` varchar(100) NOT NULL DEFAULT '伊美轩',
+	`store_name` varchar(100) NOT NULL DEFAULT '我的小店',
 	`store_avatar` varchar(500),
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()),

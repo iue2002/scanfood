@@ -38,7 +38,9 @@ Page({
     // 锁定模式：检测到未付款订单时强制完成（隐藏返回 + 盖住 TabBar）
     detailLocked: false,
     // me-sheet 内部叠开了订单列表（订单列表是非"我的/浏览"sheet，要隐藏 TabBar）
-    _meOrdersOpen: false
+    _meOrdersOpen: false,
+    // === 自定义导航栏：状态栏高度（custom 模式必需） ===
+    statusBarHeight: 0
   },
 
   // 业务实例字段（不放 data，避免触发 setData）
@@ -51,6 +53,14 @@ Page({
   _lastOnShowAt: 0,           // 最近一次 onShow 时间，用于跳过短时间频繁切换的请求
 
   async onLoad(options) {
+    // === 自定义导航栏：读取手机状态栏高度（用于占位） ===
+    try {
+      const sysInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      this.setData({ statusBarHeight: sysInfo.statusBarHeight || 20 });
+    } catch (e) {
+      this.setData({ statusBarHeight: 20 });
+    }
+
     let tableNumber = null;
     let rawTableId = options.tableId;
 
@@ -244,6 +254,46 @@ Page({
       this._syncTimer = null;
     }
     this.closeWebSocket();
+    // 页面卸载兜底：关闭退出确认拦截，避免泄漏到其它页面
+    this.disableExitGuard();
+  },
+
+  // ====== 退出确认拦截（防止用户误按手机系统返回键直接退出小程序） ======
+  // 调用时机：扫桌成功 + 购物车有内容时启用；提交订单 / 释放桌台 / 主动清空时关闭
+  // 微信官方 API：仅真机生效（开发者工具不弹），基础库 ≥ 2.10.0
+  // 文档：https://developers.weixin.qq.com/miniprogram/dev/api/route/wx.enableAlertBeforeUnload.html
+  _exitGuardEnabled: false,
+  enableExitGuard(message) {
+    if (this._exitGuardEnabled) return;
+    if (!wx.enableAlertBeforeUnload) return; // 老基础库无此 API，静默跳过
+    try {
+      wx.enableAlertBeforeUnload({
+        message: message || '订单未提交，确定要离开吗？',
+      });
+      this._exitGuardEnabled = true;
+    } catch (e) {
+      console.warn('[exit-guard] 启用退出确认失败', e);
+    }
+  },
+  disableExitGuard() {
+    if (!this._exitGuardEnabled) return;
+    if (!wx.disableAlertBeforeUnload) return;
+    try {
+      wx.disableAlertBeforeUnload();
+      this._exitGuardEnabled = false;
+    } catch (e) {
+      console.warn('[exit-guard] 关闭退出确认失败', e);
+    }
+  },
+  // 根据当前状态自动决定开/关退出确认（购物车有菜 + 已扫桌就拦截）
+  syncExitGuard() {
+    const hasCart = this.data.totalCount > 0;
+    const hasTable = !!this.data.tableId || this.data.isTakeaway;
+    if (hasCart && hasTable) {
+      this.enableExitGuard();
+    } else {
+      this.disableExitGuard();
+    }
   },
 
   // 页面隐藏（切到其他小程序 / 锁屏）：暂停 ws 避免后台重连风暴
@@ -899,6 +949,9 @@ Page({
     if (this.data.showCartPanel) {
       this.refreshCartItems();
     }
+
+    // 购物车数量变化 → 自动同步退出确认拦截开/关
+    this.syncExitGuard();
   },
 
   // 防抖触发同步购物车，连续点击只发最后一次

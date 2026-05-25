@@ -142,7 +142,7 @@ export class PrintCore {
    * 渲染策略：每个字段输出一段以 `===<MARKER>===` 起头的小节。
    * 例如 STORE_NAME 字段渲染为：
    *   ===STORE===
-   *   伊美轩
+   *   我的小店
    * ITEMS 字段渲染为：
    *   ===ITEMS===
    *   宫保鸡丁(辣) x2  ¥40.00

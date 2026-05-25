@@ -1,7 +1,8 @@
 {
-  "navigationBarTitleText": "点餐",
+  "navigationStyle": "custom",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
+  "backgroundColor": "#f8fafc",
   "usingComponents": {
     "theme-modal": "/components/theme-modal/index",
     "me-sheet": "/components/me-sheet/index",

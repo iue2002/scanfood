@@ -15,7 +15,7 @@ export class StoreSettingsService {
       .limit(1);
     
     if (settings.length === 0) {
-      return { store_name: '伊美轩', store_avatar: '' };
+      return { store_name: '我的小店', store_avatar: '' };
     }
     
     return settings[0];

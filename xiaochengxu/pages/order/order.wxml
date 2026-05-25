@@ -1,5 +1,8 @@
 <!--pages/order/order.wxml — 商家端主题对齐版（仅视觉重构，业务字段保持原状）-->
 <view class="om-page">
+  <!-- 状态栏占位（custom navigationStyle 必需，避开手机顶部时间/电量区） -->
+  <view class="om-status-bar" style="height: {{statusBarHeight || 20}}px;"></view>
+
   <!-- 顶部桌号 / 扫码栏 -->
   <view class="om-topbar">
     <view class="om-topbar-left">

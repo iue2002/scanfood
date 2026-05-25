@@ -25,7 +25,7 @@ export default function TableManage() {
   const [editing, setEditing] = useState<Table | null>(null)
   const [form, setForm] = useState({ table_number: '', capacity: 4 })
   const [posterTable, setPosterTable] = useState<Table | null>(null)
-  const [storeName, setStoreName] = useState('伊美轩')
+  const [storeName, setStoreName] = useState('我的小店')
   const { showToast, showConfirm } = useModal()
 
   const fetchTables = () => {

@@ -513,7 +513,7 @@ DROP TABLE IF EXISTS `store_settings`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `store_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `store_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '伊美轩',
+  `store_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '我的小店',
   `store_avatar` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

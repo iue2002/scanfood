@@ -71,7 +71,7 @@ export class OrdersController {
     const settings = await this.storeSettingsService.getStoreSettings();
     return {
       data,
-      store_name: settings?.store_name || '伊美轩',
+      store_name: settings?.store_name || '我的小店',
       store_avatar: settings?.store_avatar || '',
     };
   }

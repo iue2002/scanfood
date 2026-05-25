@@ -22,7 +22,7 @@ const QR_SIZE = 480
 export default function TablePosterModal({
   open,
   table,
-  storeName = '伊美轩',
+  storeName = '我的小店',
   onClose,
 }: TablePosterModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)

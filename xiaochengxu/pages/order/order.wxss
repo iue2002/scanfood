@@ -20,6 +20,11 @@
 }
 
 /* ====== 顶部桌号 / 扫码栏 ====== */
+/* 状态栏占位（custom navigationStyle）：必须跟 topbar 同色，让顶部融为一体 */
+.om-status-bar {
+  flex-shrink: 0;
+  background: #FFFFFF;
+}
 .om-topbar {
   flex-shrink: 0;
   display: flex;

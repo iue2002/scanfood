@@ -135,6 +135,12 @@ Component({
       // 关键：先 fetch 拿到状态，再决定要不要建 ws
       // 避免 ws 还在 connecting 时被 fetch 完成后的 disconnect 中断（"未完成的操作"）
       this.fetchOrderDetail(id);
+
+      // 锁定模式立即启动安全网轮询：覆盖"ws 还没建好"或"ws 看似活着但推送丢了"的边界
+      // 15s 一次的开销极小，但能彻底防止"detailLocked 永久不解锁"
+      if (this.data.locked) {
+        this.startSafetyNetPolling(id);
+      }
     },
 
     handleClose() {
@@ -181,6 +187,7 @@ Component({
         this.pollTimer = null;
       }
       this._stopHeartbeat();
+      this.stopSafetyNetPolling();
       if (this.ws) {
         try {
           this.ws.close({ code: 1000, reason: 'sheet close' });
@@ -243,6 +250,11 @@ Component({
         this.sendSubscribe(orderId);
         // 启动心跳防止反代切连接
         this._startHeartbeat();
+        // 锁定模式必开"安全网轮询"：哪怕 ws 看起来活着，也每 15s 主动核对一次状态
+        // 关键修复：解决"ws 连着但推送丢了 → detailLocked 永久不解锁"的诡异 bug
+        if (this.data.locked) {
+          this.startSafetyNetPolling(orderId);
+        }
         // 重连补拉：避免断线期间错过 orderStatusChanged
         try { this.fetchOrderDetail(this.orderId || orderId); } catch (e) { /* ignore */ }
       });
@@ -322,6 +334,38 @@ Component({
           this.fetchOrderDetail(orderId);
         }
       }, 10000);
+    },
+
+    /**
+     * 兜底轮询（即使 ws 连着也跑），15s 一次。
+     * 解决"ws 看起来活着但实际推送丢了"导致状态永远停在 submitted/printed 的死锁。
+     * 仅在锁定模式下激活——普通查看历史订单不需要这层兜底。
+     * 一旦订单变 settled/cancelled，自动停止。
+     */
+    startSafetyNetPolling(orderId) {
+      if (this.safetyNetTimer) return;
+      console.log('[SafetyNet-detail] 启动锁定模式安全网');
+      this.safetyNetTimer = setInterval(() => {
+        const order = this.data.order;
+        if (order && (order.status === 'settled' || order.status === 'cancelled')) {
+          this.stopSafetyNetPolling();
+          return;
+        }
+        // 仅锁定模式下持续核对（避免顾客查看历史订单也被反复请求）
+        if (this.data.locked) {
+          this.fetchOrderDetail(orderId);
+        } else {
+          // 已经不是锁定状态了，不需要兜底
+          this.stopSafetyNetPolling();
+        }
+      }, 15000);
+    },
+    stopSafetyNetPolling() {
+      if (this.safetyNetTimer) {
+        clearInterval(this.safetyNetTimer);
+        this.safetyNetTimer = null;
+        console.log('[SafetyNet-detail] 停止');
+      }
     },
 
     stopPolling() {

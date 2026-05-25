@@ -229,6 +229,41 @@ Page({
     if (!isSecondShow) {
       this.checkActiveOrderAsync();
     }
+
+    // 关键兜底：如果 detail-sheet 处于"锁定模式"（顾客被困在订单里），
+    // 强制重查一次最新订单状态，避免"商家已结账但 ws 推送丢了 → 顾客被永久锁定"的死锁。
+    // 这条路径不受 30s 节流限制（用户回到 onShow 时迫切需要解锁判断）
+    if (this.data.detailLocked && this.data.detailOrderId) {
+      this._refreshLockedOrderStatus(this.data.detailOrderId);
+    }
+  },
+
+  /**
+   * 强制核对锁定中的订单状态：直接调 my-active 看后端是否还有活跃订单
+   * - 后端返回 null（订单已结账/取消）→ 立即解锁 + 关闭 sheet + 释放桌号
+   * - 后端返回 active 订单 → 把最新数据传给 detail-sheet
+   * 这是 onShow 路径的"安全网"，跟 detail-sheet 内部 safetyNetPolling 互为补充
+   */
+  async _refreshLockedOrderStatus(orderId) {
+    try {
+      const order = await request({ url: '/orders/my-active', noLoading: true });
+      // 后端没活跃订单 → 顾客已被结账/取消 → 解锁释放
+      if (!order || !order.id) {
+        console.log('[order] detailLocked 但后端无活跃订单，自动解锁');
+        this.setData({ detailLocked: false, showDetailSheet: false, detailOrderId: '' });
+        this.onDetailTableReleased();
+        return;
+      }
+      // 后端有活跃订单：核对状态
+      if (order.status === 'settled' || order.status === 'cancelled') {
+        console.log('[order] 订单已终态，解锁');
+        this.setData({ detailLocked: false, showDetailSheet: false, detailOrderId: '' });
+        this.onDetailTableReleased();
+      }
+      // 否则保持锁定，detail-sheet 内部会拉最新数据
+    } catch (err) {
+      console.warn('[order] 核对锁定订单状态失败', err);
+    }
   },
 
   async onPullDownRefresh() {

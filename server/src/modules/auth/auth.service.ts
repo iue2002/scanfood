@@ -7,6 +7,7 @@ import { CaptchaService } from './captcha.service';
 import * as bcrypt from 'bcryptjs';
 import { eq, desc, and } from 'drizzle-orm';
 import * as https from 'https';
+import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +16,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly captchaService: CaptchaService,
+    private readonly imageCleanup: LocalImageCleanupService,
   ) {}
 
   // ===== 安全加固: 账户锁定（内存 Map） =====
@@ -316,7 +318,22 @@ export class AuthService {
       throw new BadRequestException('没有需要更新的字段');
     }
 
+    // 头像替换：先记录旧值，update 后清理旧文件（fire-and-forget）
+    let oldAvatar: string | null = null;
+    if (dto.avatar_url !== undefined) {
+      const cur = await db
+        .select({ avatar_url: users.avatar_url })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      oldAvatar = cur[0]?.avatar_url ?? null;
+    }
+
     await db.update(users).set(updateData).where(eq(users.id, userId));
+
+    if (oldAvatar && oldAvatar !== dto.avatar_url) {
+      void this.imageCleanup.removeByUrl(oldAvatar);
+    }
 
     const result = await db.select({
       id: users.id,

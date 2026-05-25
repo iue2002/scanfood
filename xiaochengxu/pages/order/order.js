@@ -66,6 +66,16 @@ Page({
       }
     } catch (e) { /* ignore */ }
 
+    // 订阅菜品变化：商家在 admin 改菜品图/价格/状态后，缓存后台刷新检测到变更会回调到这里
+    try {
+      const dishesCache = require('../../utils/dishes-cache');
+      if (dishesCache && typeof dishesCache.subscribe === 'function') {
+        this._unsubscribeDishes = dishesCache.subscribe((newDishes) => {
+          this._applyDishesUpdate(newDishes);
+        });
+      }
+    } catch (e) { /* ignore */ }
+
     let tableNumber = null;
     let rawTableId = options.tableId;
 
@@ -202,6 +212,14 @@ Page({
     // 触发一次后端刷新（5 分钟内会自动节流，多次调用安全）
     this.refreshStoreInfo();
 
+    // 触发菜品后台刷新（30 秒内节流；商家在 admin 改完菜品/图片后顾客切回首页秒同步）
+    try {
+      const dishesCache = require('../../utils/dishes-cache');
+      if (dishesCache && typeof dishesCache.refreshInBackground === 'function') {
+        dishesCache.refreshInBackground();
+      }
+    } catch (e) { /* ignore */ }
+
     // 先处理页面状态，让用户立即看到内容
     if (app.globalData.addMore) {
       app.globalData.addMore = false;
@@ -314,6 +332,11 @@ Page({
     if (this._unsubscribeStoreInfo) {
       try { this._unsubscribeStoreInfo(); } catch (e) { /* ignore */ }
       this._unsubscribeStoreInfo = null;
+    }
+    // 解绑菜品变更订阅
+    if (this._unsubscribeDishes) {
+      try { this._unsubscribeDishes(); } catch (e) { /* ignore */ }
+      this._unsubscribeDishes = null;
     }
     this.closeWebSocket();
     // 页面卸载兜底：关闭退出确认拦截，避免泄漏到其它页面
@@ -757,6 +780,25 @@ Page({
         icon: 'none'
       });
     }
+  },
+
+  /** 菜品缓存变更回调：商家在 admin 改完菜品后，自动同步到 UI */
+  _applyDishesUpdate(newDishes) {
+    if (!Array.isArray(newDishes) || newDishes.length === 0) return;
+    const { serverURL } = require('../../utils/request');
+    const allDishes = newDishes.map(dish => {
+      if (dish.image_url && !dish.image_url.startsWith('http')) {
+        if (dish.image_url.includes('__tmp__') || dish.image_url.includes('tmp/')) {
+          dish.image_url = '';
+        } else {
+          dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
+        }
+      }
+      return dish;
+    });
+    this.setData({ allDishes });
+    getApp().globalData.allDishes = allDishes;
+    this.filterDishes();
   },
 
   async fetchCurrentCart() {

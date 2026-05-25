@@ -127,17 +127,11 @@ button::after {
   white-space: nowrap;
 }
 
-/* Skyline 兼容：用 max-height + line-height 模拟 -webkit-line-clamp */
 .ellipsis-2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: normal;
   word-break: break-all;
-  /* line-height 1.5 + 2 行 = 3em，配合 line-clamp 属性双保险 */
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
   max-height: 3em;
   line-height: 1.5;
 }

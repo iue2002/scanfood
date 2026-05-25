@@ -302,13 +302,10 @@
   font-size: 22rpx;
   color: #94A3B8;
   line-height: 1.4;
-  /* Skyline 兼容：保留 -webkit-box 三联（webview 走这条） + max-height（Skyline 走这条） */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  /* 单纯用 max-height 实现 2 行截断（Skyline 兼容；webview 下也能正常工作） */
+  max-height: 2.8em;
   overflow: hidden;
   word-break: break-all;
-  max-height: 2.8em;
 }
 .om-dish-bottom {
   display: flex;

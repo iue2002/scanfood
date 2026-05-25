@@ -556,3 +556,33 @@ export const push_subscriptions = mysqlTable(
     index("push_subs_failed_count_idx").on(t.failed_count),
   ]
 );
+
+
+// ============================================================
+// 多通道通知 - 群机器人（钉钉 / 企业微信 / 飞书）
+// 店铺级配置：一店三家最多三行；webhook URL 和 secret AES 加密
+// ============================================================
+export const robot_webhooks = mysqlTable(
+  "robot_webhooks",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    store_id: int("store_id").notNull().default(1),
+    /** 'dingtalk' | 'wecom' | 'feishu' */
+    provider: varchar("provider", { length: 16 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    /** AES-256-GCM 加密的 webhook URL（含 access_token） */
+    webhook_url_enc: varchar("webhook_url_enc", { length: 1024 }).notNull(),
+    /** 钉钉/飞书签名密钥（AES 加密）；wecom 无签名留 NULL */
+    secret_enc: varchar("secret_enc", { length: 512 }),
+    /** 订阅事件：JSON 数组，'NEW_ORDER'/'ADD_ITEM'/'REFUND' 子集 */
+    events_json: json("events_json").notNull(),
+    last_sent_at: timestamp("last_sent_at"),
+    last_error: varchar("last_error", { length: 500 }),
+    failed_count: int("failed_count").notNull().default(0),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uk_robot_store_provider").on(t.store_id, t.provider),
+  ]
+);

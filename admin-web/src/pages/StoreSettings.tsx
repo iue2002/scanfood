@@ -16,6 +16,7 @@ import {
 import { resolveImageUrl } from '@/utils/image-url';
 import { smartUpload, fallbackOriginalUpload, type CompressionResult as UploadResult } from '@/utils/image-upload';
 import { useAuthStore } from '@/stores/auth';
+import RobotConfigPanel from '@/components/RobotConfigPanel';
 
 interface CompressionResult {
   success: boolean;
@@ -627,6 +628,9 @@ export default function StoreSettings() {
           </div>
         </div>
       )}
+
+      {/* 群机器人通知（owner / manager / admin 可见） */}
+      {canManageSmtp && <RobotConfigPanel />}
     </div>
   );
 }

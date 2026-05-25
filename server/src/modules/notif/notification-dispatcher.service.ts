@@ -26,6 +26,7 @@ import {
 import { eq, inArray } from 'drizzle-orm';
 import { PushNotificationService } from './push.service';
 import { EmailNotificationService } from './email.service';
+import { RobotNotificationService } from './robot.service';
 
 export type NotifEvent = 'NEW_ORDER' | 'ADD_ITEM' | 'REFUND';
 
@@ -47,6 +48,7 @@ export class NotificationDispatcherService {
   constructor(
     private readonly pushService: PushNotificationService,
     private readonly emailService: EmailNotificationService,
+    private readonly robotService: RobotNotificationService,
   ) {}
 
   /**
@@ -61,15 +63,55 @@ export class NotificationDispatcherService {
       // 拉所有有效员工 + 偏好
       const staff = await this.loadStaffPreferences();
 
-      // 1) Web Push：所有 desktop_events 包含此事件的员工（push 默认全员，但这里复用 desktop_events 作为信号）
-      await this.dispatchPush(event, ctx, staff);
-
-      // 2) Email：按 user_preferences.email + email_events
-      await this.dispatchEmail(event, ctx, staff);
+      // 三通道并发 fan-out（彼此独立，单通道失败不影响其它）
+      await Promise.allSettled([
+        this.dispatchPush(event, ctx, staff),
+        this.dispatchEmail(event, ctx, staff),
+        this.dispatchRobot(event, ctx),
+      ]);
     } catch (err) {
       // 顶层吞错，保护订单主流程
       this.logger.error(`[notif] dispatch event=${event} orderId=${orderId} 失败（吞掉）: ${(err as Error).message}`);
     }
+  }
+
+  // ============================================================
+  // 群机器人分发（钉钉 / 企微 / 飞书）
+  // ============================================================
+
+  private async dispatchRobot(event: NotifEvent, ctx: OrderContext): Promise<void> {
+    try {
+      const storeName = await this.getStoreName();
+      const detailUrl = this.buildDetailUrl(ctx.orderId);
+      const title = this.buildTitle(event, ctx);
+      const markdown = this.buildRobotMarkdown(event, ctx, storeName);
+      await this.robotService.sendForEvent(event, { title, markdown, url: detailUrl }, 1);
+    } catch (err) {
+      this.logger.warn(`[notif] robot dispatch error (吞掉): ${(err as Error).message}`);
+    }
+  }
+
+  private buildRobotMarkdown(event: NotifEvent, ctx: OrderContext, storeName: string): string {
+    const itemSummary = ctx.items
+      .slice(0, 5)
+      .map((i) => `- ${i.name} × **${i.quantity}** ¥${i.subtotal}`)
+      .join('\n');
+    const more = ctx.items.length > 5 ? `\n... 共 ${ctx.items.length} 项` : '';
+    const eventLine = {
+      NEW_ORDER: '🛎 **新订单**',
+      ADD_ITEM: '🍽 **订单加菜**',
+      REFUND: '💸 **退款申请**',
+    }[event];
+    return [
+      `### ${storeName} · ${eventLine}`,
+      `**桌台**：${ctx.tableLabel}`,
+      `**订单号**：${ctx.orderNumber}`,
+      `**金额**：¥**${ctx.totalAmount}**`,
+      `**下单时间**：${ctx.createdAt}`,
+      ``,
+      `**菜品**：`,
+      itemSummary + more,
+    ].join('\n');
   }
 
   // ============================================================

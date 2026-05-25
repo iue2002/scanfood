@@ -1378,10 +1378,10 @@ Page({
 
       wx.hideLoading();
       wx.showToast({ title: '外带订单已提交', icon: 'success' });
-      // 退出外带模式 + 打开详情（锁定模式直到付款 / 取消）
+      // 退出外带模式 + 跳到详情真页面（锁定模式直到付款 / 取消）
       this.exitTakeaway();
       setTimeout(() => {
-        this.openDetailSheet(result.id, true);
+        this.navigateToDetail(result.id, true);
       }, 600);
     } catch (err) {
       wx.hideLoading();

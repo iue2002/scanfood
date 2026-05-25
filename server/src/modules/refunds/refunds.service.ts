@@ -4,10 +4,14 @@ import { refunds, orders } from '@/storage/database/shared/schema';
 import { CreateRefundDto, UpdateRefundStatusDto } from './dto/refund.dto';
 import { eq, desc } from 'drizzle-orm';
 import { OrdersGateway } from '../orders/orders.gateway';
+import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
 
 @Injectable()
 export class RefundsService {
-  constructor(private readonly ordersGateway: OrdersGateway) {}
+  constructor(
+    private readonly ordersGateway: OrdersGateway,
+    private readonly notifDispatcher: NotificationDispatcherService,
+  ) {}
 
   async getRefunds() {
     return await db.select().from(refunds).orderBy(desc(refunds.created_at));
@@ -42,6 +46,9 @@ export class RefundsService {
       reason: refund.reason,
       created_at: refund.created_at,
     });
+
+    // 多通道通知（Web Push + Email）：fire-and-forget，绝不阻塞退款主流程
+    void this.notifDispatcher.notifyOrderEvent('REFUND', refund.order_id);
 
     return refund;
   }

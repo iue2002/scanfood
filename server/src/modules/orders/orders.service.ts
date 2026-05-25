@@ -4,10 +4,14 @@ import { orders, order_items, tables, users, carts, cart_items, dishes } from '@
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { eq, and, inArray, desc, sql, like } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
+import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly ordersGateway: OrdersGateway) {}
+  constructor(
+    private readonly ordersGateway: OrdersGateway,
+    private readonly notifDispatcher: NotificationDispatcherService,
+  ) {}
   private generateOrderNumber(): string {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
@@ -203,6 +207,8 @@ export class OrdersService {
     this.ordersGateway.notifyOrderUpdate(orderId, updatedOrder);
     // 通知所有管理员
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
+    // 多通道通知（加菜）
+    void this.notifDispatcher.notifyOrderEvent('ADD_ITEM', orderId);
     return updatedOrder;
   }
 
@@ -350,6 +356,8 @@ export class OrdersService {
     const order = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(finalTableId, order);
     this.ordersGateway.notifyAllAdmins('orderStatusChanged', order);
+    // 多通道通知（Web Push + Email）：fire-and-forget，绝不阻塞订单主流程
+    void this.notifDispatcher.notifyOrderEvent('NEW_ORDER', orderId);
     // 外带不依赖桌台共享购物车，跳过 cart 清理 / 推送
     if (!isTakeaway) {
       await this.clearTableCart(finalTableId);
@@ -385,6 +393,8 @@ export class OrdersService {
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
+    // 多通道通知（加菜）
+    void this.notifDispatcher.notifyOrderEvent('ADD_ITEM', orderId);
     return updatedOrder;
   }
 

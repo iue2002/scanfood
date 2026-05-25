@@ -3,6 +3,7 @@ import request from '@/api/request'
 import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { resolveImageUrl } from '@/utils/image-url'
+import { smartUpload, fallbackOriginalUpload, type CompressionResult as UploadResult } from '@/utils/image-upload'
 
 interface Category {
   id: number
@@ -25,6 +26,8 @@ interface CompressionResult {
   success: boolean
   data?: {
     url: string
+    /** 缩略图 URL（新增字段；旧代码不读不影响） */
+    thumbnailUrl?: string
     originalSize: number
     compressedSize: number
     compressionRatio: number
@@ -126,11 +129,9 @@ export default function DishManage() {
 
   const uploadOriginalImage = async (file: File) => {
     setUploading(true)
-    const formData = new FormData()
-    formData.append('file', file)
     try {
-      const res: any = await request.post('/upload/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const res = await fallbackOriginalUpload(file, {
+        onProgress: (p) => setCompressionProgress(p.percent),
       })
       const url = res?.url ? resolveImageUrl(res.url) : ''
       setForm(prev => ({ ...prev, image_url: res?.url || '' }))
@@ -147,37 +148,28 @@ export default function DishManage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     setCompressing(true)
     setCompressionProgress(0)
     setCompressionResult(null)
     setPreviewUrl('')
 
-    const progressInterval = setInterval(() => {
-      setCompressionProgress(prev => {
-        if (prev >= 90) return 90
-        return prev + Math.random() * 15
-      })
-    }, 300)
-
-    const formData = new FormData()
-    formData.append('file', file)
-
     try {
-      const res: CompressionResult = await request.post('/upload/compress', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const res: UploadResult = await smartUpload(file, {
+        onProgress: (p) => setCompressionProgress(p.percent),
       })
-
-      clearInterval(progressInterval)
-      setCompressionProgress(100)
 
       if (res.success && res.data) {
         setCompressionResult(res)
-        // 数据库存相对路径，img src 用 resolveImageUrl 转 dev/prod 友好 URL
-        setForm(prev => ({ ...prev, image_url: res.data.url }))
+        // 数据库存相对路径（主图），img src 用 resolveImageUrl 转 dev/prod 友好 URL
+        // 注意：res.data.thumbnailUrl 现在也可用，未来需要时可单独存到 thumbnail_url 字段
+        setForm(prev => ({ ...prev, image_url: res.data!.url }))
         setPreviewUrl(resolveImageUrl(res.data.url))
         const savedSize = res.data.originalSize - res.data.compressedSize
-        showToast(`图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`, 'success')
+        showToast(
+          `图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`,
+          'success'
+        )
       } else {
         setCompressionResult(res)
         showConfirm(
@@ -192,7 +184,6 @@ export default function DishManage() {
         )
       }
     } catch (err: any) {
-      clearInterval(progressInterval)
       setCompressionResult({
         success: false,
         message: err?.message || '图片压缩请求失败',

@@ -3,12 +3,15 @@ import request from '@/api/request';
 import { useModal } from '@/components/ModalProvider';
 import { Upload, Save, ImageIcon, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { resolveImageUrl } from '@/utils/image-url';
+import { smartUpload, fallbackOriginalUpload, type CompressionResult as UploadResult } from '@/utils/image-upload';
 
 interface CompressionResult {
   success: boolean;
   message: string;
   data?: {
     url: string;
+    /** 缩略图 URL（新增字段；旧代码不读不影响） */
+    thumbnailUrl?: string;
     originalSize: number;
     compressedSize: number;
     compressionRatio: number;
@@ -62,11 +65,9 @@ export default function StoreSettings() {
 
   const uploadOriginalImage = async (file: File) => {
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const res: any = await request.post('/upload/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const res = await fallbackOriginalUpload(file, {
+        onProgress: (p) => setCompressionProgress(p.percent),
       });
       const url = res?.url || '';
       setStoreAvatar(url);
@@ -90,34 +91,28 @@ export default function StoreSettings() {
     setCompressionResult(null);
     setPreviewUrl('');
 
-    const progressInterval = setInterval(() => {
-      setCompressionProgress(prev => {
-        if (prev >= 90) return 90;
-        return prev + Math.random() * 15;
-      });
-    }, 300);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const res: CompressionResult = await request.post('/upload/compress', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const res: UploadResult = await smartUpload(file, {
+        onProgress: (p) => setCompressionProgress(p.percent),
       });
-
-      clearInterval(progressInterval);
-      setCompressionProgress(100);
 
       if (res.success && res.data) {
-        setCompressionResult(res);
+        setCompressionResult(res as CompressionResult);
         const url = res.data.url;
         setStoreAvatar(url);
         setPreviewUrl(resolveImageUrl(url));
         setImgBroken(false);
         const savedSize = res.data.originalSize - res.data.compressedSize;
-        showToast(`图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`, 'success');
+        showToast(
+          `图片压缩成功！节省 ${formatFileSize(savedSize)}（${res.data.compressionRatio}%）`,
+          'success'
+        );
       } else {
-        setCompressionResult(res);
+        setCompressionResult({
+          success: false,
+          message: res.message || '图片压缩失败',
+          allowOriginalUpload: true,
+        });
         showConfirm(
           '压缩失败',
           `${res.message || '图片压缩失败'}\n\n图片大小：${formatFileSize(file.size)}\n\n是否继续上传原图？`,
@@ -130,7 +125,6 @@ export default function StoreSettings() {
         );
       }
     } catch (err: any) {
-      clearInterval(progressInterval);
       setCompressionResult({
         success: false,
         message: err?.message || '图片压缩请求失败',

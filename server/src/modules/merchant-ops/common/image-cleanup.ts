@@ -71,6 +71,10 @@ export class LocalImageCleanupService {
   /**
    * 删一个 url 对应的本地文件；外部/非法 url 静默跳过
    * 永远不抛错（业务侧只需 fire-and-forget）
+   *
+   * 自动副作用：如果 url 形如 `/uploads/<id>.<ext>`，同时尝试清理
+   * `/uploads/<id>_thumb.webp`（智能压缩流水线产物）。
+   * 缩略图不存在时静默跳过，不影响主图清理结果。
    */
   async removeByUrl(rawUrl: string | null | undefined): Promise<{ removed: boolean; reason?: string }> {
     const resolved = resolveLocalUpload(rawUrl, this.uploadsRoot);
@@ -80,13 +84,42 @@ export class LocalImageCleanupService {
     try {
       await fs.unlink(resolved.absPath);
       this.logger.log(`[image-cleanup] removed ${resolved.url}`);
+      // 顺带清同 UUID 的缩略图（主图删了缩略图就成孤儿）
+      // 失败静默：缩略图可能本来就没生成（旧数据）
+      void this.tryRemoveThumbnail(resolved.url);
       return { removed: true };
     } catch (err: any) {
       if (err?.code === 'ENOENT') {
+        // 主图本身已不在，但缩略图也尝试清一次
+        void this.tryRemoveThumbnail(resolved.url);
         return { removed: false, reason: 'not-found' };
       }
       this.logger.warn(`[image-cleanup] failed to remove ${resolved.url}: ${err?.message ?? err}`);
       return { removed: false, reason: err?.message || 'unknown' };
+    }
+  }
+
+  /**
+   * 根据主图 url 推断同 UUID 缩略图路径并尝试删除
+   * 主图：/uploads/abc-123.webp  →  缩略图：/uploads/abc-123_thumb.webp
+   * 主图：/uploads/abc-123.jpg   →  缩略图：/uploads/abc-123_thumb.webp（旧数据可能不存在）
+   * 永远静默，不影响调用方
+   */
+  private async tryRemoveThumbnail(mainUrl: string): Promise<void> {
+    try {
+      // 提取文件名（不含路径）
+      const fileName = mainUrl.slice(UPLOAD_PREFIX.length);
+      // 去掉扩展名得到 id
+      const dotIdx = fileName.lastIndexOf('.');
+      const id = dotIdx > 0 ? fileName.slice(0, dotIdx) : fileName;
+      // 跳过本身就是缩略图的情况
+      if (id.endsWith('_thumb')) return;
+      const thumbUrl = `${UPLOAD_PREFIX}${id}_thumb.webp`;
+      const thumbResolved = resolveLocalUpload(thumbUrl, this.uploadsRoot);
+      if (!thumbResolved) return;
+      await fs.unlink(thumbResolved.absPath).catch(() => {});
+    } catch {
+      /* 任何异常都不冒泡，主图清理已经完成 */
     }
   }
 

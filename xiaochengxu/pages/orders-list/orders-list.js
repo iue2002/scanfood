@@ -71,6 +71,21 @@ Page({
     }
   },
 
+  onShow() {
+    // 隐藏底部 TabBar（订单列表是 navigateTo 进入的非 TabBar 页面，
+    // 自定义 TabBar 不会自动隐藏，需要手动 hide 否则底部会有空白挡板挡住内容）
+    this._hideTabBar();
+  },
+
+  _hideTabBar() {
+    try {
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) {
+        tabBar.setHidden(true);
+      }
+    } catch (e) { /* ignore */ }
+  },
+
   onUnload() {
     if (this._unsubscribeStoreInfo) {
       try { this._unsubscribeStoreInfo(); } catch (e) { /* ignore */ }

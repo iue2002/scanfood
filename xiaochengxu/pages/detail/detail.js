@@ -100,6 +100,12 @@ Page({
   },
 
   onShow() {
+    // 隐藏底部 TabBar（detail 是 navigateTo/redirectTo 进入的非 TabBar 页面）
+    try {
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) tabBar.setHidden(true);
+    } catch (e) { /* ignore */ }
+
     // 锁定模式下，用户从其他场景回来时强制核对一次最新订单状态（与 order 页 _refreshLockedOrderStatus 同款逻辑）
     if (this.data.locked && this.data.orderId) {
       this._refreshLockedOrderStatus(this.data.orderId);

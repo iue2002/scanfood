@@ -34,6 +34,14 @@ Page({
     this.fetchCurrentCartPreview();
   },
 
+  onShow() {
+    // 隐藏底部 TabBar（confirm 是 navigateTo 进入的非 TabBar 页面）
+    try {
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) tabBar.setHidden(true);
+    } catch (e) { /* ignore */ }
+  },
+
   onBack() {
     wx.navigateBack().catch(() => {
       wx.switchTab({ url: '/pages/order/order' });

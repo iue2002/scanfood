@@ -29,6 +29,11 @@ Page({
   },
 
   onShow() {
+    // TabBar 页面回到时显示 TabBar（从 orders-list 返回时之前被 setHidden(true) 了）
+    try {
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) tabBar.setHidden(false);
+    } catch (e) { /* ignore */ }
     this.updateTabBar();
     this.loadUserInfo();
   },

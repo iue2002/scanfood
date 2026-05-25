@@ -151,6 +151,12 @@ Page({
   },
 
   async onShow() {
+    // TabBar 页面回到时显示 TabBar（从 confirm/detail/orders-list 返回时之前被 setHidden(true) 了）
+    try {
+      const tabBar = typeof this.getTabBar === 'function' ? this.getTabBar() : null;
+      if (tabBar && tabBar.setHidden) tabBar.setHidden(false);
+    } catch (e) { /* ignore */ }
+
     // 检查 globalData 信号：detail 页释放桌号后回到首页时同步清理 UI
     const app = getApp();
     if (app && app.globalData && app.globalData._tableReleased) {

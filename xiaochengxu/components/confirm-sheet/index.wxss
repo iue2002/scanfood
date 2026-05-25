@@ -25,10 +25,12 @@
   background: #FFFFFF;
   border-bottom: 2rpx solid #F1F5F9;
   flex-shrink: 0;
+  /* padding-top 由 wxml 内联（statusBarHeight）注入 */
 }
 .om-navbar-inner {
-  height: 80rpx;
-  padding: 0 28rpx;
+  /* 右侧 200rpx 留给微信胶囊按钮（87px ≈ 174rpx + 缓冲） */
+  height: 88rpx;
+  padding: 0 200rpx 0 28rpx;
   display: flex;
   align-items: center;
   position: relative;

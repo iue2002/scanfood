@@ -5,7 +5,7 @@
   catchtap="preventClose"
 >
   <!-- 自绘顶栏：状态栏占位 + navbar，与原 list 页一字不差 -->
-  <view class="om-navbar">
+  <view class="om-navbar" style="padding-top: {{statusBarHeight || 20}}px;">
     <view class="om-navbar-inner">
       <view class="om-navbar-back" bindtap="onClose" hover-class="om-navbar-back-hover">
         <text class="om-navbar-back-arrow">‹</text>

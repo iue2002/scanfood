@@ -4,7 +4,7 @@
   class="om-sheet-root {{sheetIn ? 'om-sheet-root-in' : ''}} {{locked ? 'om-sheet-root-locked' : ''}}"
 >
   <!-- 自绘顶栏（带返回；锁定模式下隐藏返回，强制完成订单） -->
-  <view class="om-navbar">
+  <view class="om-navbar" style="padding-top: {{statusBarHeight || 20}}px;">
     <view class="om-navbar-inner">
       <view
         wx:if="{{!locked}}"

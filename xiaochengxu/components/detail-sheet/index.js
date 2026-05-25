@@ -180,11 +180,30 @@ Component({
         clearInterval(this.pollTimer);
         this.pollTimer = null;
       }
+      this._stopHeartbeat();
       if (this.ws) {
         try {
           this.ws.close({ code: 1000, reason: 'sheet close' });
         } catch (e) {}
         this.ws = null;
+      }
+    },
+
+    // ====== WS 心跳：每 25 秒发 ping 防反代切空闲连接 ======
+    _startHeartbeat() {
+      this._stopHeartbeat();
+      this._heartbeatTimer = setInterval(() => {
+        if (this.wsStatus === 'connected' && this.ws) {
+          try {
+            this.ws.send({ data: JSON.stringify({ event: 'ping', data: { ts: Date.now() } }) });
+          } catch (e) { /* ignore */ }
+        }
+      }, 25000);
+    },
+    _stopHeartbeat() {
+      if (this._heartbeatTimer) {
+        clearInterval(this._heartbeatTimer);
+        this._heartbeatTimer = null;
       }
     },
 
@@ -222,6 +241,10 @@ Component({
         this._reconnectCount = 0;
         this.stopPolling();
         this.sendSubscribe(orderId);
+        // 启动心跳防止反代切连接
+        this._startHeartbeat();
+        // 重连补拉：避免断线期间错过 orderStatusChanged
+        try { this.fetchOrderDetail(this.orderId || orderId); } catch (e) { /* ignore */ }
       });
 
       this.ws.onMessage((res) => {

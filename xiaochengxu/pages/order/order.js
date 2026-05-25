@@ -355,6 +355,11 @@ Page({
           data: { tableId: this.data.tableId }
         })
       });
+      // 启动心跳：每 25 秒主动发 ping，防止 cpolar/nginx 等反代 60s 空闲超时切连接
+      this._startHeartbeat();
+      // 重连后补拉一次最新订单状态：避免断线期间错过 orderStatusChanged 导致 UI 不刷新
+      // 关键场景：商家结账时 ws 刚好断开，重连后小程序看到的还是旧状态
+      try { this.fetchCurrentCart(); } catch (e) { /* ignore */ }
     });
 
     this.ws.onMessage((res) => {
@@ -382,6 +387,7 @@ Page({
       this._wsConnected = false;
       this._wsConnecting = false;
       this.ws = null;
+      this._stopHeartbeat();
 
       // 已结账或取消的订单不再重连
       const orderStatus = (getApp().getCart(this.data.tableId) || {}).orderStatus;
@@ -413,6 +419,7 @@ Page({
     this._wsConnecting = false;
     this._wsReconnectCount = 0;
     this._reconnectDelay = 1000;
+    this._stopHeartbeat();
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
@@ -422,6 +429,25 @@ Page({
         this.ws.close({ code: 1000, reason: 'page unload' });
       } catch (e) {}
       this.ws = null;
+    }
+  },
+
+  // ====== WS 心跳：每 25 秒发一次 ping，让 cpolar/nginx 不要切空闲连接 ======
+  // 反代默认空闲超时通常 ≥ 60s，25s 心跳留 2x 安全余量
+  _startHeartbeat() {
+    this._stopHeartbeat();
+    this._heartbeatTimer = setInterval(() => {
+      if (this._wsConnected && this.ws) {
+        try {
+          this.ws.send({ data: JSON.stringify({ event: 'ping', data: { ts: Date.now() } }) });
+        } catch (e) { /* ignore */ }
+      }
+    }, 25000);
+  },
+  _stopHeartbeat() {
+    if (this._heartbeatTimer) {
+      clearInterval(this._heartbeatTimer);
+      this._heartbeatTimer = null;
     }
   },
 

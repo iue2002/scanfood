@@ -53,11 +53,15 @@ export function isStandalonePWA(): boolean {
  * 整个会话生命周期只弹一次授权框，之后走缓存。
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (typeof window === 'undefined' || !('Notification' in window)) return false
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.warn('[notification] Notification API not supported in this environment')
+    return false
+  }
   if (permissionGranted !== null) return permissionGranted
 
   if (Notification.permission === 'granted') {
     permissionGranted = true
+    console.log('[notification] permission already granted')
     // 顺便预热 SW registration，让 PWA 模式下首条通知就能成功
     void getSWRegistration()
     return true
@@ -65,11 +69,14 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
   if (Notification.permission === 'denied') {
     permissionGranted = false
+    console.warn('[notification] permission denied (user previously rejected)')
     return false
   }
 
+  console.log('[notification] requesting permission...')
   const result = await Notification.requestPermission()
   permissionGranted = result === 'granted'
+  console.log('[notification] permission request result:', result)
   if (permissionGranted) {
     void getSWRegistration()
   }
@@ -86,8 +93,14 @@ interface ShowNotificationOptions extends NotificationOptions {
  * PWA 模式下走 ServiceWorker 路径以兼容更多浏览器。
  */
 export async function showNotification(title: string, options?: ShowNotificationOptions) {
-  if (typeof window === 'undefined' || !('Notification' in window)) return
-  if (Notification.permission !== 'granted') return
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.warn('[notification] showNotification: API not available')
+    return
+  }
+  if (Notification.permission !== 'granted') {
+    console.warn('[notification] showNotification skipped: permission =', Notification.permission)
+    return
+  }
 
   const { onClick, ...rest } = options || {}
   const notificationOptions: NotificationOptions = {
@@ -103,10 +116,12 @@ export async function showNotification(title: string, options?: ShowNotification
     const reg = await getSWRegistration()
     if (reg && typeof reg.showNotification === 'function') {
       await reg.showNotification(title, notificationOptions)
+      console.log('[notification] shown via SW:', title)
       // SW 路径不支持 onclick 直接绑定，需要通过 notificationclick 事件转发
       // 这里简化处理：onClick 仅在普通 Notification 路径生效（一般场景够用）
       return
     }
+    console.log('[notification] no SW available, using legacy Notification API')
   } catch (err) {
     // SW 路径失败时（少见），尝试普通路径
     console.warn('[notification] SW path failed, falling back to legacy:', err)
@@ -120,7 +135,9 @@ export async function showNotification(title: string, options?: ShowNotification
       notification.close()
       onClick?.()
     }
-  } catch {
+    console.log('[notification] shown via legacy:', title)
+  } catch (err) {
     // 忽略通知失败（如非 HTTPS 环境下）
+    console.warn('[notification] legacy Notification failed:', err)
   }
 }

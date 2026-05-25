@@ -65,6 +65,15 @@ Page({
 
     // === 自定义导航栏：从 globalData 同步店铺信息（app.js 启动时已预加载） ===
     this.syncStoreInfo();
+    // 订阅店铺信息变更：商家在 admin 改店名/头像后，下次 loadStoreInfo 拉到新值就会回调到这里
+    try {
+      const app = getApp();
+      if (app && typeof app.subscribeStoreInfo === 'function') {
+        this._unsubscribeStoreInfo = app.subscribeStoreInfo((info) => {
+          this.setData({ storeInfo: info });
+        });
+      }
+    } catch (e) { /* ignore */ }
 
     let tableNumber = null;
     let rawTableId = options.tableId;
@@ -166,6 +175,9 @@ Page({
 
     // 同步店铺信息（app.js 异步刷新的最新店名/头像可能在 onShow 时才到位）
     this.syncStoreInfo();
+    // 触发一次后端刷新（30 秒内会自动节流，多次调用安全）；
+    // 商家在 admin 改了店名/头像后，顾客切回首页就能看到最新值
+    this.refreshStoreInfo();
 
     // 先处理页面状态，让用户立即看到内容
     if (app.globalData.addMore) {
@@ -268,6 +280,11 @@ Page({
 
   async onPullDownRefresh() {
     try {
+      // 用户主动下拉：强制刷新店铺信息（绕过 5 分钟节流）
+      const app = getApp();
+      if (app && typeof app.loadStoreInfo === 'function') {
+        app.loadStoreInfo(true);
+      }
       await this.fetchData();
       if (this.data.tableId) {
         await this.fetchCurrentCart();
@@ -296,12 +313,20 @@ Page({
       clearTimeout(this._syncTimer);
       this._syncTimer = null;
     }
+    // 解绑店铺信息订阅
+    if (this._unsubscribeStoreInfo) {
+      try { this._unsubscribeStoreInfo(); } catch (e) { /* ignore */ }
+      this._unsubscribeStoreInfo = null;
+    }
     this.closeWebSocket();
     // 页面卸载兜底：关闭退出确认拦截，避免泄漏到其它页面
     this.disableExitGuard();
   },
 
-  // ====== 自定义导航栏：店铺品牌信息同步（参考 detail-sheet / orders-sheet 的做法） ======
+  // ====== 自定义导航栏：店铺品牌信息同步 ======
+  // 1) syncStoreInfo：从 globalData 拉一次（瞬时）
+  // 2) refreshStoreInfo：触发 app 后台拉接口（30 秒节流，安全）
+  // 3) _unsubscribeStoreInfo：订阅 app 的店铺变更广播（admin 改完立即同步，不用 setInterval）
   syncStoreInfo() {
     try {
       const app = getApp();
@@ -311,6 +336,18 @@ Page({
       }
     } catch (e) {
       console.warn('[order] syncStoreInfo failed', e);
+    }
+  },
+
+  refreshStoreInfo() {
+    try {
+      const app = getApp();
+      if (app && typeof app.loadStoreInfo === 'function') {
+        // 不 await，让接口在后台跑；变更后通过 subscribe 回调
+        app.loadStoreInfo();
+      }
+    } catch (e) {
+      console.warn('[order] refreshStoreInfo failed', e);
     }
   },
 

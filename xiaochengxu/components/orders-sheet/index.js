@@ -59,6 +59,24 @@ Component({
       } catch (e) {
         this.setData({ statusBarHeight: 20 });
       }
+      // 订阅店铺信息变更（admin 改完 → 5 分钟节流刷新到 → 自动同步过来）
+      try {
+        const app = getApp();
+        if (app && typeof app.subscribeStoreInfo === 'function') {
+          this._unsubscribeStoreInfo = app.subscribeStoreInfo((info) => {
+            if (info && info.store_name) {
+              const letter = (info.store_name || '').charAt(0).toUpperCase();
+              this.setData({ storeInfo: { ...info, store_name_letter: letter } });
+            }
+          });
+        }
+      } catch (e) { /* ignore */ }
+    },
+    detached() {
+      if (this._unsubscribeStoreInfo) {
+        try { this._unsubscribeStoreInfo(); } catch (e) { /* ignore */ }
+        this._unsubscribeStoreInfo = null;
+      }
     }
   },
 

@@ -29,10 +29,9 @@
     }
   },
   "window": {
-    "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "扫码点餐",
-    "navigationBarBackgroundColor": "#ffffff",
-    "backgroundColor": "#f8fafc"
+    "navigationStyle": "custom",
+    "backgroundColor": "#f8fafc",
+    "backgroundTextStyle": "dark"
   },
   "tabBar": {
     "custom": true,
@@ -53,7 +52,6 @@
   },
   "style": "v2",
   "componentFramework": "glass-easel",
-  "lazyCodeLoading": "requiredComponents",
   "rendererOptions": {
     "skyline": {
       "defaultDisplayBlock": true,

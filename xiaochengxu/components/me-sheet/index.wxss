@@ -93,7 +93,6 @@
   color: #FFFFFF;
   line-height: 1;
   letter-spacing: 0.5rpx;
-  text-transform: uppercase;
 }
 .om-user-detail {
   flex: 1;

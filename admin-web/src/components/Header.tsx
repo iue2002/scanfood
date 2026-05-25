@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   User, LogOut, X, MoreHorizontal,
   LayoutDashboard, Armchair, UtensilsCrossed, RotateCcw, BarChart3, Settings,
-  Users, ScrollText, Bell, Download, Printer, Layers,
+  Users, ScrollText, Bell, Download, Printer, Layers, UserCog,
 } from 'lucide-react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import type { Role } from '@/rbac/types'
@@ -42,6 +42,7 @@ const moreItems: MoreItem[] = [
   { path: '/audit-logs', label: '审计日志', icon: ScrollText, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
   // 个人偏好
   { path: '/notif-settings', label: '通知偏好', icon: Bell, visibleFor: null, group: '个人偏好' },
+  { path: '/account-settings', label: '账户设置', icon: UserCog, visibleFor: null, group: '个人偏好' },
 ]
 
 const groupOrder: MoreItem['group'][] = ['业务管理', '数据中心', '运营中心', '个人偏好']
@@ -82,6 +83,9 @@ export default function Header(_: HeaderProps) {
     navigate('/login', { replace: true })
   }
 
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const closeUserMenu = () => setUserMenuOpen(false)
+
   return (
     <>
       <header className="sticky top-0 h-14 lg:h-16 bg-white border-b border-gray-200 z-30 shrink-0 flex items-center justify-between px-3 sm:px-4 lg:px-6">
@@ -91,20 +95,59 @@ export default function Header(_: HeaderProps) {
 
         <div className="flex items-center gap-2 sm:gap-3 md:gap-4 shrink-0">
           {/* 桌面端：用户信息 + 退出 */}
-          <div className="hidden sm:flex items-center gap-3 md:gap-4">
-            <div className="flex items-center gap-2 text-sm text-[#334155]">
+          <div className="hidden sm:flex items-center gap-3 md:gap-4 relative">
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen((v) => !v)}
+              className="flex items-center gap-2 text-sm text-[#334155] hover:bg-[#F1F5F9] rounded-lg px-2 py-1.5 cursor-pointer transition-colors"
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+            >
               <div className="w-8 h-8 bg-[#EFF6FF] rounded-full flex items-center justify-center">
                 <User size={16} className="text-[#2563EB]" />
               </div>
-              <span className="hidden md:inline">{user?.nickname || user?.username || '管理员'}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1 text-sm text-[#EF4444] hover:text-red-700 transition-colors cursor-pointer min-h-[44px] px-2"
-            >
-              <LogOut size={16} />
-              <span className="hidden md:inline">退出</span>
+              <span className="hidden md:inline max-w-[140px] truncate">
+                {user?.nickname || user?.username || '管理员'}
+              </span>
             </button>
+
+            {userMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={closeUserMenu} />
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-[#E2E8F0] rounded-xl shadow-lg z-40 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                    <p className="text-sm font-medium text-[#0F172A] truncate">
+                      {user?.nickname || user?.username || '管理员'}
+                    </p>
+                    <p className="text-xs text-[#94A3B8] mt-0.5 truncate">
+                      {user?.username ? `@${user.username}` : ''}{role ? ` · ${role}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeUserMenu()
+                      navigate('/account-settings')
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#334155] hover:bg-[#F1F5F9] cursor-pointer"
+                  >
+                    <Settings size={16} className="text-[#64748B]" />
+                    账户设置
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeUserMenu()
+                      handleLogout()
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-red-50 cursor-pointer border-t border-[#E2E8F0]"
+                  >
+                    <LogOut size={16} />
+                    退出登录
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 移动端 / 平板：更多按钮（桌面端有侧边栏，不显示） */}

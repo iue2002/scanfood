@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '@/modules/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Audit, Permissions, Roles } from '../auth/decorators';
 import { EmployeeCore } from './employee.core';
-import { ChangePasswordDto, CreateEmployeeDto, ListEmployeeQueryDto, UpdateEmployeeDto } from './employee.dto';
+import { ChangePasswordDto, ChangeUsernameDto, CreateEmployeeDto, ListEmployeeQueryDto, UpdateEmployeeDto } from './employee.dto';
 import type { ActorContext } from '../auth/rbac.types';
 
 /**
@@ -108,5 +108,16 @@ export class EmployeeController {
     const actor = this.buildActor(req);
     await this.core.changeOwnPassword(actor, dto.oldPassword, dto.newPassword);
     return { data: { changed: true } };
+  }
+
+  @Post('me/change-username')
+  @Permissions('USERNAME_CHANGE')
+  @Audit('USERNAME_CHANGE')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  async changeOwnUsername(@Body() dto: ChangeUsernameDto, @Req() req: any) {
+    const actor = this.buildActor(req);
+    const employee = await this.core.changeOwnUsername(actor, dto.password, dto.newUsername);
+    return { data: { id: employee.id, username: employee.username } };
   }
 }

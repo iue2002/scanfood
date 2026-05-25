@@ -20,6 +20,7 @@ import PrinterManage from './pages/PrinterManage'
 import PrintPlanManage from './pages/PrintPlanManage'
 import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
+import AccountSettings from './pages/AccountSettings'
 import { ModalProvider } from './components/ModalProvider'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { UnreadProvider } from './components/UnreadProvider'
@@ -182,6 +183,7 @@ export default function App() {
                 </RoleGuard>
               } />
               <Route path="notif-settings" element={<NotifSettings />} />
+              <Route path="account-settings" element={<AccountSettings />} />
               <Route path="forbidden" element={<Forbidden />} />
             </Route>
           </Routes>

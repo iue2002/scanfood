@@ -85,6 +85,7 @@ export class DrizzleEmployeeRepo implements EmployeeRepoPort {
 
   async update(id: number, patch: EmployeePatch): Promise<EmployeeRow> {
     const update: any = {};
+    if (patch.username !== undefined) update.username = patch.username;
     if (patch.nickname !== undefined) update.nickname = patch.nickname;
     if (patch.role !== undefined) update.role = patch.role;
     if (patch.status !== undefined) update.status = patch.status;

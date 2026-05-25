@@ -762,7 +762,7 @@ Page({
       });
 
       const allCategory = { id: 'all', name: '全部', dish_count: allDishes.length };
-      const categoriesWithAll = [allCategory, ...categories];
+      const categoriesWithAll = [allCategory].concat(categories);
 
       this.setData({
         categories: categoriesWithAll,

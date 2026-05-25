@@ -330,6 +330,40 @@ export class EmployeeCore {
     this.opts.forceLogout?.(actor.userId, 'password changed');
   }
 
+  /**
+   * 员工自助修改自己的登录用户名。
+   *
+   * 安全约束（CRITICAL）：
+   * - 必须验证当前密码（防 token 被劫持后随意改账号）
+   * - 新用户名要走唯一性检查（已剔除软删除条目）
+   * - 与现有用户名不同才允许提交（避免无谓审计噪音）
+   * - JWT payload 不含 username，所以**不需要** bumpTokenVersion 强制下线
+   */
+  async changeOwnUsername(actor: ActorContext, password: string, newUsername: string): Promise<EmployeeRow> {
+    const me = await this.repo.findById(actor.userId);
+    if (!me || me.status === 'deleted') {
+      throw new NotFoundException({ code: 'EMPLOYEE_NOT_FOUND', msg: '账号不存在' });
+    }
+    if (newUsername === me.username) {
+      throw new BadRequestException({ code: 'SAME_USERNAME', msg: '新用户名与当前用户名相同' });
+    }
+    // 验证当前密码
+    const currentHash = await this.repo.getPasswordHashById(actor.userId);
+    if (!currentHash) {
+      throw new NotFoundException({ code: 'EMPLOYEE_NOT_FOUND', msg: '账号不存在' });
+    }
+    const passwordOk = await bcrypt.compare(password, currentHash);
+    if (!passwordOk) {
+      throw new ForbiddenException({ code: 'PASSWORD_INVALID', msg: '密码错误' });
+    }
+    // 唯一性检查（findByUsername 已排除 deleted）
+    const existing = await this.repo.findByUsername(newUsername);
+    if (existing && existing.id !== actor.userId) {
+      throw new ConflictException({ code: 'USERNAME_TAKEN', msg: '用户名已被占用' });
+    }
+    return await this.repo.update(actor.userId, { username: newUsername });
+  }
+
   async list(filter: EmployeeListFilter, page: PageOptions): Promise<Page<EmployeeRow>> {
     return await this.repo.list(filter, page);
   }

@@ -76,6 +76,7 @@ class InMemoryEmployeeRepo implements EmployeeRepoPort {
   async update(id: number, patch: EmployeePatch): Promise<EmployeeRow> {
     const r = this.rows.get(id);
     if (!r) throw new Error('row not found: ' + id);
+    if (patch.username !== undefined) r.username = patch.username;
     if (patch.nickname !== undefined) r.nickname = patch.nickname;
     if (patch.role !== undefined) r.role = patch.role;
     if (patch.status !== undefined) r.status = patch.status;

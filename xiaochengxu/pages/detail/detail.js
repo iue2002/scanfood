@@ -413,7 +413,7 @@ Page({
 
   groupItemsByRound(items) {
     if (!items || items.length === 0) return [];
-    const sorted = [...items].sort((a, b) => (a.add_more_round || 0) - (b.add_more_round || 0));
+    const sorted = items.slice().sort((a, b) => (a.add_more_round || 0) - (b.add_more_round || 0));
     const groups = [];
     let currentGroup = [sorted[0]];
     let currentRound = sorted[0].add_more_round || 0;

@@ -202,7 +202,7 @@ Page({
           return order;
         });
 
-      const merged = isRefresh ? myNewOrders : [...this.data.orders, ...myNewOrders];
+      const merged = isRefresh ? myNewOrders : this.data.orders.concat(myNewOrders);
       const hasMore = orders.length >= pageSize;
 
       this.setData({
@@ -226,7 +226,7 @@ Page({
 
   groupItemsByPhase(items) {
     if (!items || items.length === 0) return [];
-    const sorted = [...items].sort(
+    const sorted = items.slice().sort(
       (a, b) => (Number(a.add_more_round) || 0) - (Number(b.add_more_round) || 0)
     );
     const groups = [];

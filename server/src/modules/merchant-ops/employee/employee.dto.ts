@@ -87,3 +87,16 @@ export class ChangePasswordDto {
   @Length(8, 64)
   newPassword!: string;
 }
+
+export class ChangeUsernameDto {
+  @IsString()
+  @IsNotEmpty()
+  @Length(3, 30)
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: '用户名只能包含字母、数字与下划线' })
+  newUsername!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Length(8, 64)
+  password!: string;
+}

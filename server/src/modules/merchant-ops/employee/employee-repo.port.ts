@@ -47,6 +47,7 @@ export interface NewEmployee {
 }
 
 export interface EmployeePatch {
+  username?: string;
   nickname?: string | null;
   role?: Role;
   status?: 'active' | 'disabled';

@@ -30,6 +30,8 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   PASSWORD_RESET: OWNER_ONLY,
   // 改自己的密码任何登录员工都允许（不含 customer）
   PASSWORD_CHANGE: ALL_STAFF,
+  // 改自己的用户名任何登录员工都允许（不含 customer）；要求验证当前密码 + 用户名唯一
+  USERNAME_CHANGE: ALL_STAFF,
 
   // ====== 订单业务 ======
   // 结账/加菜：收银员及以上

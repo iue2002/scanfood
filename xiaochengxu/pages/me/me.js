@@ -15,7 +15,8 @@ Page({
     tempNickname: '',
     avatarError: false,
     avatarLetter: 'U',
-    statusBarHeight: 0
+    statusBarHeight: 0,
+    _refreshing: false
   },
 
   onLoad() {
@@ -46,6 +47,16 @@ Page({
       console.error('下拉刷新失败', err);
       wx.stopPullDownRefresh();
     }
+  },
+
+  async onScrollRefresh() {
+    this.setData({ _refreshing: true });
+    try {
+      this.loadUserInfo();
+    } catch (err) {
+      console.error('下拉刷新失败', err);
+    }
+    setTimeout(() => this.setData({ _refreshing: false }), 300);
   },
 
   updateTabBar() {

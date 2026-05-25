@@ -8,8 +8,18 @@
     </view>
   </view>
 
-  <!-- 用户卡 -->
-  <view class="om-userblock">
+  <!-- 主体（scroll-view 包裹，支持下拉刷新） -->
+  <scroll-view
+    class="om-page-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="{{false}}"
+    refresher-enabled
+    refresher-triggered="{{_refreshing}}"
+    bindrefresherrefresh="onScrollRefresh"
+  >
+    <!-- 用户卡 -->
+    <view class="om-userblock">
     <view class="om-user-card" wx:if="{{userInfo}}" bindtap="showAuthModal">
       <block wx:if="{{(userInfo.avatar_url || userInfo.avatarUrl) && !avatarError}}">
         <image
@@ -73,6 +83,7 @@
 
   <!-- 版本信息 -->
   <view class="om-version"><text>扫码点餐 · v1.0</text></view>
+  </scroll-view>
 
   <!-- 授权弹窗 -->
   <view class="om-auth-modal" wx:if="{{showAuthModal}}">

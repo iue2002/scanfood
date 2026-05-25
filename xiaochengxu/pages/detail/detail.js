@@ -36,7 +36,8 @@ Page({
     editDishName: '',
     editDishCount: 0,
     statusBarHeight: 0,
-    storeInfo: null
+    storeInfo: null,
+    _refreshing: false
   },
 
   // WebSocket 状态管理（实例字段）
@@ -138,6 +139,17 @@ Page({
     wx.navigateBack().catch(() => {
       wx.switchTab({ url: '/pages/order/order' });
     });
+  },
+
+  /** 下拉刷新订单详情（Skyline scroll-view refresher） */
+  async onScrollRefresh() {
+    this.setData({ _refreshing: true });
+    try {
+      if (this.data.orderId) {
+        await this.fetchOrderDetail(this.data.orderId);
+      }
+    } catch (err) { /* ignore */ }
+    setTimeout(() => this.setData({ _refreshing: false }), 300);
   },
 
   // ====== 锁定模式核心：用 my-active 兜底（onShow 触发） ======

@@ -117,14 +117,15 @@
   transition: all 0.12s ease;
 }
 
-/* 店铺信息�?*/
+/* 店铺信息条（订单卡顶部）*/
 .om-store {
   display: flex;
   align-items: center;
   gap: 12rpx;
   padding: 16rpx 24rpx;
-  background: #F8FAFC;
-  border-bottom: 2rpx solid #F1F5F9;
+  /* 浅蓝品牌底色（与卡片白底 + 页面浅灰底有明显区分，跟主流外卖小程序一致） */
+  background: #EFF6FF;
+  border-bottom: 2rpx solid #DBEAFE;
 }
 .om-store-avatar {
   width: 44rpx;

@@ -28,6 +28,8 @@ Page({
     // 购物车弹窗
     showCartPanel: false,
     cartItems: [],
+    // 下拉刷新状态（Skyline 模式下 enablePullDownRefresh 不生效，必须用 scroll-view refresher）
+    _refreshing: false,
     // === 自定义导航栏：状态栏高度（custom 模式必需） ===
     statusBarHeight: 0,
     // === 自定义导航栏：店铺品牌信息（启动时 app.js 已预加载到 globalData，这里同步过来） ===
@@ -263,6 +265,19 @@ Page({
   },
 
   async onPullDownRefresh() {
+    // 兼容老 webview 模式（Skyline 已被 onScrollRefresh 替代）
+    await this._doRefresh();
+    wx.stopPullDownRefresh();
+  },
+
+  async onScrollRefresh() {
+    // Skyline 下 scroll-view 触发的下拉刷新
+    this.setData({ _refreshing: true });
+    await this._doRefresh();
+    this.setData({ _refreshing: false });
+  },
+
+  async _doRefresh() {
     try {
       // 用户主动下拉：强制刷新店铺信息（绕过 5 分钟节流）
       const app = getApp();
@@ -273,10 +288,8 @@ Page({
       if (this.data.tableId) {
         await this.fetchCurrentCart();
       }
-      wx.stopPullDownRefresh();
     } catch (err) {
       console.error('下拉刷新失败', err);
-      wx.stopPullDownRefresh();
     }
   },
 

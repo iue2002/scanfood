@@ -58,7 +58,15 @@
     </scroll-view>
 
     <!-- 右侧菜品列表 -->
-    <scroll-view class="om-dish" scroll-y enhanced show-scrollbar="{{false}}">
+    <scroll-view
+      class="om-dish"
+      scroll-y
+      enhanced
+      show-scrollbar="{{false}}"
+      refresher-enabled
+      refresher-triggered="{{_refreshing}}"
+      bindrefresherrefresh="onScrollRefresh"
+    >
       <view class="om-dish-cat-title"><text>{{currentCategoryName}}</text></view>
 
       <view wx:for="{{dishes}}" wx:key="id" class="om-dish-card">

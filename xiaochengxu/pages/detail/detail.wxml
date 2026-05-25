@@ -19,6 +19,9 @@
     scroll-y
     enhanced
     show-scrollbar="{{false}}"
+    refresher-enabled
+    refresher-triggered="{{_refreshing}}"
+    bindrefresherrefresh="onScrollRefresh"
   >
     <view wx:if="{{isLoading && !order}}" class="om-skeleton">
       <view class="om-skel-card">

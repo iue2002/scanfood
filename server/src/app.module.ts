@@ -12,6 +12,7 @@ import { StatisticsModule } from '@/modules/statistics/statistics.module';
 import { RefundsModule } from '@/modules/refunds/refunds.module';
 import { UploadModule } from '@/modules/upload/upload.module';
 import { MerchantOpsModule } from '@/modules/merchant-ops/merchant-ops.module';
+import { NotifModule } from '@/modules/notif/notif.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MerchantOpsModule } from '@/modules/merchant-ops/merchant-ops.module';
     RefundsModule,
     UploadModule,
     MerchantOpsModule,
+    NotifModule,
   ],
   controllers: [AppController],
   providers: [AppService],

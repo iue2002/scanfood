@@ -67,6 +67,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
+        // 注入额外 SW 代码：notificationclick 处理（点通知打开/聚焦 admin + 跳到订单）
+        importScripts: ['/notification-click.js'],
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/.*\/api\/.*/i,

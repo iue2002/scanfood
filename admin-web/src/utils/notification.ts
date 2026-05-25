@@ -82,11 +82,17 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 interface ShowNotificationOptions extends NotificationOptions {
   onClick?: () => void
+  /**
+   * 点击通知后的目标 URL（相对路径，如 "/orders?focus=123"）
+   * 走 SW path 时，SW 会通过 postMessage 把这个 URL 转发给前端，
+   * 前端 NotificationClickHandler 收到后用 react-router navigate 跳转。
+   * legacy `new Notification()` path 也会用这个 URL（onclick 调 navigate）。
+   */
+  clickUrl?: string
 }
 
 /**
- * 内部：用 SW 路径发通知（fallback）
- * 仅在 legacy `new Notification()` 失败时才走（大多数情况用不到）
+ * 内部：用 SW 路径发通知（用于手机锁屏 / 后台 / PWA 场景，可被 notificationclick 拦截）
  */
 async function showViaServiceWorker(title: string, options: NotificationOptions): Promise<boolean> {
   if (!('serviceWorker' in navigator)) return false
@@ -94,7 +100,7 @@ async function showViaServiceWorker(title: string, options: NotificationOptions)
     const reg = await navigator.serviceWorker.getRegistration()
     if (reg && typeof reg.showNotification === 'function') {
       await reg.showNotification(title, options)
-      console.log('[notification] shown via SW (fallback):', title)
+      console.log('[notification] shown via SW:', title)
       return true
     }
   } catch (err) {
@@ -105,8 +111,12 @@ async function showViaServiceWorker(title: string, options: NotificationOptions)
 
 /**
  * 发送系统通知（通知栏/锁屏）
- * 优先 legacy `new Notification()`（YouTube/Twitter 同款方案，最稳定）
- * 失败时回退 ServiceWorker（PWA 环境兜底）
+ *
+ * 策略（关键！）：
+ *   - 优先 SW 路径（PWA / 手机锁屏 / 桌面后台时点击通知能被 notificationclick 捕获，跳转到目标页面）
+ *   - SW 不可用时回退 `new Notification()`（dev 环境 / SW 还没注册）
+ *
+ * 这是 YouTube / Twitter / Discord 等大厂的标准做法。
  */
 export async function showNotification(title: string, options?: ShowNotificationOptions) {
   const can = canUseNotification()
@@ -119,35 +129,44 @@ export async function showNotification(title: string, options?: ShowNotification
     return
   }
 
-  const { onClick, ...rest } = options || {}
+  const { onClick, clickUrl, ...rest } = options || {}
+  // 把 clickUrl 塞进 data 里，让 SW 的 notificationclick 监听器能读到
+  const swData = { url: clickUrl || '/', ...((rest as any).data || {}) }
   const notificationOptions: NotificationOptions = {
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: String(Date.now()),
     ...rest,
+    data: swData,
   }
 
-  // 优先：直接 new Notification()——这是 tab 打开时最可靠的方式，YouTube/Twitter 同款
+  // 优先：SW 路径 —— 关键场景（手机锁屏 / PWA 后台 / 桌面后台）必须走这里
+  const swOk = await showViaServiceWorker(title, notificationOptions)
+  if (swOk) return
+
+  // 兜底：legacy `new Notification()` —— dev 环境 / SW 还没就绪时
   try {
     const n = new Notification(title, notificationOptions)
     n.onclick = () => {
       window.focus()
       n.close()
+      // legacy path 的 click 处理：直接跳转
+      if (clickUrl) {
+        try {
+          // 用 location.href 触发 react-router 路由（前端拦截 popstate）
+          // 但更稳的是直接 navigate（这里没法访问 react-router context，让 NotificationClickHandler 监听 postMessage 也覆盖不到）
+          // 解决：派发一个自定义事件，让 NotificationClickHandler 监听
+          window.dispatchEvent(new CustomEvent('app:notification-click', { detail: { url: clickUrl } }))
+        } catch { /* ignore */ }
+      }
       onClick?.()
     }
     n.onerror = (err) => {
       console.warn('[notification] runtime error:', err)
     }
     console.log('[notification] shown (legacy):', title)
-    return
   } catch (err) {
-    console.warn('[notification] legacy failed, trying SW fallback:', err)
-  }
-
-  // 兜底：SW 路径（少数 PWA 环境 legacy 不可用）
-  const ok = await showViaServiceWorker(title, notificationOptions)
-  if (!ok) {
-    console.error('[notification] all paths failed for:', title)
+    console.error('[notification] all paths failed:', err)
   }
 }
 

@@ -24,6 +24,7 @@ import { ModalProvider } from './components/ModalProvider'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { UnreadProvider } from './components/UnreadProvider'
 import NotificationCenter from './components/NotificationCenter'
+import NotificationClickHandler from './components/NotificationClickHandler'
 import { RoleGuard } from './rbac/RoleGuard'
 import { useAuthStore } from './stores/auth'
 
@@ -109,6 +110,7 @@ export default function App() {
       <WebSocketProvider>
         <UnreadProvider>
           <NotificationCenter />
+          <NotificationClickHandler />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/force-password-change" element={

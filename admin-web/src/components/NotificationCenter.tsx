@@ -46,7 +46,7 @@ export default function NotificationCenter() {
   }, [isLoggedIn])
 
   const handleEvent = useCallback(
-    (event: DesktopEvent, params: { toastMsg: string; toastType: 'success' | 'info' | 'warning' | 'error'; desktopTitle: string; desktopBody: string }) => {
+    (event: DesktopEvent, params: { toastMsg: string; toastType: 'success' | 'info' | 'warning' | 'error'; desktopTitle: string; desktopBody: string; clickUrl?: string }) => {
       const pref = getNotifPref()
       const permission: 'granted' | 'denied' | 'default' =
         typeof Notification !== 'undefined' ? Notification.permission : 'denied'
@@ -58,9 +58,12 @@ export default function NotificationCenter() {
         showToast(params.toastMsg, params.toastType)
       }
 
-      // 2) 桌面通知（按权限 + 偏好）
+      // 2) 桌面通知（按权限 + 偏好），点击后跳转到 clickUrl
       if (decision.showDesktop) {
-        showNotification(params.desktopTitle, { body: params.desktopBody }).catch(() => { /* 通知失败不影响 toast/sound */ })
+        showNotification(params.desktopTitle, {
+          body: params.desktopBody,
+          clickUrl: params.clickUrl,
+        }).catch(() => { /* 通知失败不影响 toast/sound */ })
       }
 
       // 3) 声音（按偏好），失败仅记日志，不影响上面两个通道
@@ -99,6 +102,7 @@ export default function NotificationCenter() {
             toastType: 'success',
             desktopTitle: `${tableLabel} 新订单`,
             desktopBody: `订单 ${orderNo}，总额 ¥${data.total_amount || '-'}`,
+            clickUrl: `/orders?focus=${data.id}`,
           })
         } else if (data.status === 'settled') {
           showToast(`${orderNo}（${tableLabel}）已结账`, 'info')
@@ -129,6 +133,7 @@ export default function NotificationCenter() {
           toastType: 'success',
           desktopTitle: `${tableLabel} 加餐`,
           desktopBody: `订单 ${orderNo} 新增菜品，总额 ¥${data.total_amount || '-'}`,
+          clickUrl: `/orders?focus=${data.id}`,
         })
       },
       [hasRecentLocalAction, handleEvent]
@@ -148,6 +153,7 @@ export default function NotificationCenter() {
           toastType: 'warning',
           desktopTitle: '收到退款申请',
           desktopBody: `订单 #${data.order_id} 申请退款 ¥${data.amount}，原因：${data.reason || '-'}`,
+          clickUrl: '/refunds',
         })
       },
       [hasRecentLocalAction, handleEvent]

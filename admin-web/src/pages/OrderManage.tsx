@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import request from '@/api/request'
 import { CheckCircle, XCircle, Eye, Calendar, Tag, Filter, ChevronDown, ChevronUp, Copy, User, ChevronLeft, ChevronRight, Minus, Plus, PlusCircle, Printer, Search, ShoppingCart, ShoppingBag, X } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
@@ -87,6 +88,8 @@ export default function OrderManage() {
   const [detail, setDetail] = useState<Order | null>(null)
   const [addDishOrder, setAddDishOrder] = useState<Order | null>(null)
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
+  const focusRef = useRef<Map<number, HTMLElement>>(new Map())
+  const [searchParams, setSearchParams] = useSearchParams()
   const { showToast, showConfirm, markLocalAction } = useModal()
   const { markAllRead } = useUnread()
   const [loading, setLoading] = useState(false)
@@ -148,6 +151,30 @@ export default function OrderManage() {
     // 进入订单页：清零订单未读徽标
     markAllRead('orders')
   }, [fetchOrders, markAllRead])
+
+  // 处理通知点击跳转：?focus=订单ID 时滚到该订单 + 高亮 1.5s + 清掉 query 参数
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (!focusId || orders.length === 0) return
+    const id = parseInt(focusId, 10)
+    if (isNaN(id)) return
+
+    // 等下一帧让卡片渲染完
+    const t = setTimeout(() => {
+      const el = focusRef.current.get(id)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // 加临时高亮 class，1.5s 后移除
+        el.classList.add('order-card-flash')
+        setTimeout(() => el.classList.remove('order-card-flash'), 1800)
+      }
+      // 清掉 ?focus 参数（避免刷新时反复滚动）
+      const next = new URLSearchParams(searchParams)
+      next.delete('focus')
+      setSearchParams(next, { replace: true })
+    }, 100)
+    return () => clearTimeout(t)
+  }, [orders, searchParams, setSearchParams])
 
   // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
   useWebSocketEvent('orderUpdated', fetchOrders)
@@ -686,7 +713,11 @@ export default function OrderManage() {
               const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
               return (
-                <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr
+                  key={order.id}
+                  ref={(el) => { if (el) focusRef.current.set(order.id, el); else focusRef.current.delete(order.id); }}
+                  className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-4 py-3">
                     {isTakeawayOrder(order) ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 text-sm font-bold border border-purple-300">
@@ -782,7 +813,10 @@ export default function OrderManage() {
           const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
           return (
-            <div key={order.id}>
+            <div
+              key={order.id}
+              ref={(el) => { if (el) focusRef.current.set(order.id, el); else focusRef.current.delete(order.id); }}
+            >
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* 主信息栏 */}
                 <div className="p-4 flex flex-wrap items-center justify-between gap-3">
@@ -927,7 +961,10 @@ export default function OrderManage() {
           const canSettle = order.status === 'submitted' || order.status === 'printed'
 
           return (
-            <div key={order.id}>
+            <div
+              key={order.id}
+              ref={(el) => { if (el) focusRef.current.set(order.id, el); else focusRef.current.delete(order.id); }}
+            >
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {/* 紧凑头部：桌号 + 时间用户 + 状态胶囊 */}
                 <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3">

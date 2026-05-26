@@ -28,9 +28,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.svg', 'icon-512.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: '扫码点餐管理系统',
-        short_name: '点餐管理',
-        description: '扫码点餐商家管理端',
+        name: '艾力的项目',
+        short_name: '艾力的项目',
+        description: '艾力的项目',
         theme_color: '#2563EB',
         background_color: '#F8FAFC',
         display: 'standalone',

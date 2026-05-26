@@ -151,7 +151,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       </nav>
 
       <div className="px-3 lg:px-4 py-3 lg:py-4 border-t border-gray-100">
-        <p className="text-xs text-[#94A3B8]">扫码点餐管理系统 v1.0</p>
+        <p className="text-xs text-[#94A3B8]">艾力的项目 v1.0</p>
       </div>
     </aside>
   )

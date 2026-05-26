@@ -116,7 +116,7 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
   // 同步浏览器 title：有未读时加 (N) 前缀，方便用户在标签栏看到
   useEffect(() => {
     const total = orderIds.size + refundIds.size
-    const baseTitle = '扫码点餐管理系统'
+    const baseTitle = '艾力的项目'
     document.title = total > 0 ? `(${total > 99 ? '99+' : total}) ${baseTitle}` : baseTitle
   }, [orderIds, refundIds])
 

@@ -174,7 +174,7 @@ export default function Login() {
             <UtensilsCrossed size={28} className="text-white sm:hidden" />
             <UtensilsCrossed size={32} className="text-white hidden sm:block" />
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A]">扫码点餐管理系统</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A]">艾力的项目</h1>
           <p className="text-xs sm:text-sm text-[#94A3B8] mt-2">商家后台登录</p>
         </div>
 

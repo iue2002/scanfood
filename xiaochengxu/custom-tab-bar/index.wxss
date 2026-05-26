@@ -48,9 +48,11 @@
   justify-content: center;
 }
 .om-tab-text {
+  width: 100%;
   font-size: 22rpx;
   letter-spacing: 0.3rpx;
   line-height: 1;
+  text-align: center;
   color: inherit;
 }
 

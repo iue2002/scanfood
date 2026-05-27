@@ -88,7 +88,7 @@
             <view class="om-head-row1">
               <view class="om-table-wrap">
                 <block wx:if="{{item.order_type === 'takeaway'}}">
-                  <text class="om-takeaway-tag">🛍 外带</text>
+                  <text class="om-takeaway-tag">🛍 {{item.pickup_no ? ('外带 ' + item.pickup_no + '号') : '外带'}}</text>
                 </block>
                 <block wx:else>
                   <text class="om-table-num">{{item.tableNumber || item.table_id || '-'}}</text>

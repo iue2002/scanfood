@@ -67,7 +67,7 @@
       <view class="om-status-meta">
         <view class="om-meta-item">
           <block wx:if="{{order.order_type === 'takeaway'}}">
-            <text class="om-meta-takeaway">🛍 外带打包</text>
+            <text class="om-meta-takeaway">🛍 {{order.pickup_no ? ('外带 ' + order.pickup_no + '号') : '外带'}}</text>
           </block>
           <block wx:else>
             <text class="om-meta-label">桌号</text>

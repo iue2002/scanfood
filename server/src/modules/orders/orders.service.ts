@@ -30,7 +30,7 @@ export class OrdersService {
     return await db.transaction(async (tx) => {
       await tx.execute(sql`
         INSERT INTO daily_pickup_counters (biz_date, current_no)
-        VALUES (${bizDate}, 1)
+        VALUES (${bizDate}, LAST_INSERT_ID(1))
         ON DUPLICATE KEY UPDATE current_no = LAST_INSERT_ID(current_no + 1)
       `);
       const rows = await tx.execute(sql`SELECT LAST_INSERT_ID() AS current_no`);

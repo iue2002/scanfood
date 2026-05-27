@@ -31,17 +31,18 @@ export class StoreSettingsService {
         id: store_settings.id,
         store_name: store_settings.store_name,
         store_avatar: store_settings.store_avatar,
+        pickup_reset_time: store_settings.pickup_reset_time,
       })
       .from(store_settings)
       .limit(1);
 
     if (settings.length === 0) {
-      return { store_name: '我的小店', store_avatar: '' };
+      return { store_name: '我的小店', store_avatar: '', pickup_reset_time: '00:00' };
     }
     return settings[0];
   }
 
-  async updateStoreSettings(data: { store_name: string; store_avatar?: string }) {
+  async updateStoreSettings(data: { store_name: string; store_avatar?: string; pickup_reset_time?: string }) {
     const existing = await db
       .select()
       .from(store_settings)
@@ -53,19 +54,22 @@ export class StoreSettingsService {
         .values({
           store_name: data.store_name,
           store_avatar: data.store_avatar || null,
+          pickup_reset_time: data.pickup_reset_time || '00:00',
         });
       
-      return { store_name: data.store_name, store_avatar: data.store_avatar || '' };
+      return { store_name: data.store_name, store_avatar: data.store_avatar || '', pickup_reset_time: data.pickup_reset_time || '00:00' };
     }
     
     const oldAvatar = existing[0].store_avatar ?? null;
     const nextAvatar = data.store_avatar !== undefined ? data.store_avatar : oldAvatar;
+    const nextReset = data.pickup_reset_time !== undefined ? data.pickup_reset_time : existing[0].pickup_reset_time || '00:00';
 
     await db
       .update(store_settings)
       .set({
         store_name: data.store_name,
         store_avatar: nextAvatar,
+        pickup_reset_time: nextReset,
       })
       .where(eq(store_settings.id, existing[0].id));
 
@@ -76,7 +80,8 @@ export class StoreSettingsService {
     
     return { 
       store_name: data.store_name, 
-      store_avatar: nextAvatar
+      store_avatar: nextAvatar,
+      pickup_reset_time: nextReset
     };
   }
 

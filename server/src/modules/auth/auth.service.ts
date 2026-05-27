@@ -272,6 +272,10 @@ export class AuthService {
   async wechatLogin(code: string, nickname?: string, avatar_url?: string) {
     const openid = await this.getOpenIdFromCode(code);
     console.log('获取到openid:', openid);
+
+    if (!openid || openid.startsWith('local_') || !/^[0-9A-Za-z_-]{16,64}$/.test(openid)) {
+      throw new BadRequestException('openid 无效');
+    }
     
     // 根据openid查找用户，如果找不到则自动注册
     const existing = await db.select().from(users).where(eq(users.openid, openid));
@@ -288,25 +292,42 @@ export class AuthService {
     // 新用户自动注册
     console.log('新用户，开始自动注册');
     const hashedPassword = await bcrypt.hash(Math.random().toString(36), 10);
-    const insertResult = await db.insert(users).values({
-      username: `wx_${openid.substring(0, 10)}`,
-      password: hashedPassword,
-      role: 'customer',
-      openid,
-      nickname: nickname || '微信用户',
-      avatar_url: avatar_url || '',
-    });
+    try {
+      const insertResult = await db.insert(users).values({
+        username: `wx_${openid.substring(0, 10)}`,
+        password: hashedPassword,
+        role: 'customer',
+        openid,
+        nickname: nickname || '微信用户',
+        avatar_url: avatar_url || '',
+      });
 
-    const newId = (insertResult as any)[0].insertId;
-    const newUserResult = await db.select().from(users).where(eq(users.id, newId));
-    const newUser = newUserResult[0];
-    const { password, ...userInfo } = newUser;
-    console.log('新用户注册成功:', newUser.id);
-    return {
-      user: userInfo,
-      token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),
-      isNewUser: true,
-    };
+      const newId = (insertResult as any)[0].insertId;
+      const newUserResult = await db.select().from(users).where(eq(users.id, newId));
+      const newUser = newUserResult[0];
+      const { password, ...userInfo } = newUser;
+      console.log('新用户注册成功:', newUser.id);
+      return {
+        user: userInfo,
+        token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),
+        isNewUser: true,
+      };
+    } catch (err: any) {
+      // 可能是并发导致 openid 已被插入，回查后复用
+      if (err?.code === 'ER_DUP_ENTRY') {
+        const again = await db.select().from(users).where(eq(users.openid, openid));
+        if (again.length > 0) {
+          const user = again[0];
+          const { password, ...userInfo } = user;
+          return {
+            user: userInfo,
+            token: this.jwtService.sign({ userId: user.id, role: user.role }),
+            isNewUser: false,
+          };
+        }
+      }
+      throw err;
+    }
   }
 
   async updateProfile(userId: number, dto: UpdateProfileDto) {

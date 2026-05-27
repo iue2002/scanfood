@@ -36,6 +36,7 @@ export const users = mysqlTable(
     index("users_username_idx").on(table.username),
     index("users_role_idx").on(table.role),
     index("users_openid_idx").on(table.openid),
+    uniqueIndex("users_openid_unique").on(table.openid),
     index("users_status_idx").on(table.status),
     index("users_deleted_at_idx").on(table.deleted_at),
   ]

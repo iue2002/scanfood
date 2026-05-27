@@ -53,7 +53,8 @@ function formatTableLabel(payload: PrintPayload): { label: string; value: string
   const isTakeaway = payload.order_type === 'takeaway' || payload.table_number === TAKEAWAY_TABLE_SENTINEL;
   if (isTakeaway) {
     // 外带订单：不显示桌号字段名，只标"外带"
-    return { label: '类型', value: '🛍️ 外带' };
+    const pickupNo = payload.pickup_no;
+    return { label: '类型', value: pickupNo ? `🛍️ 外带 ${pickupNo}号` : '🛍️ 外带' };
   }
   return { label: '桌号', value: payload.table_number ?? '-' };
 }
@@ -741,6 +742,7 @@ export class PrintCore {
       fields,
       store_name: order.store_name,
       table_number: order.table_number,
+      pickup_no: order.pickup_no ?? null,
       order_type: order.order_type,
       order_no: dispatch.label
         ? `${order.order_no} · ${dispatch.label}`
@@ -802,6 +804,7 @@ export class PrintCore {
       fields,
       store_name: order.store_name,
       table_number: order.table_number,
+      pickup_no: order.pickup_no ?? null,
       order_type: order.order_type,
       order_no: printLabel ? `${order.order_no} · ${printLabel}` : order.order_no,
       order_time: this.fmtDateTime(order.created_at),

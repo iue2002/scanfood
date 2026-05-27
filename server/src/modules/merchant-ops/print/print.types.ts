@@ -125,6 +125,8 @@ export interface PrintPayload {
   store_name?: string;
   /** 真实桌号（外带订单为内部哨兵 '__TAKEAWAY__'，由 order_type 区分） */
   table_number?: string;
+  /** 外带取餐号（堂食为空） */
+  pickup_no?: number | null;
   /** 'dine_in' | 'takeaway'；不传时按堂食处理 */
   order_type?: string;
   order_no?: string;
@@ -144,6 +146,8 @@ export interface OrderProjection {
   order_no: string;
   /** 真实桌号字符串（外带订单为内部哨兵 '__TAKEAWAY__'，渲染层自行识别） */
   table_number: string;
+  /** 外带取餐号（堂食为空） */
+  pickup_no?: number | null;
   /** 'dine_in' | 'takeaway' — 渲染时按外带特殊显示 */
   order_type: string;
   store_name: string;

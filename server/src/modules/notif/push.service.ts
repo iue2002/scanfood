@@ -208,8 +208,9 @@ export class PushNotificationService {
                 .where(eq(push_subscriptions.id, sub.id))
                 .catch(() => { /* ignore */ });
             }
+            const errBody = typeof err?.body === 'string' ? err.body.slice(0, 300) : (err?.body ? JSON.stringify(err.body).slice(0, 300) : '');
             this.logger.warn(
-              `[push] send failed sub=${sub.id} status=${statusCode} attempt=${newFailedCount}/5: ${err?.message?.slice(0, 100)}`,
+              `[push] send failed sub=${sub.id} status=${statusCode} attempt=${newFailedCount}/5: ${err?.message?.slice(0, 100)}${errBody ? ' body=' + errBody : ''}`,
             );
           }
         }),

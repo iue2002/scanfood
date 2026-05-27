@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, timestamp, decimal, index, boolean, mysqlEnum, json, bigint, uniqueIndex, text } from "drizzle-orm/mysql-core"
+import { mysqlTable, int, varchar, timestamp, decimal, index, boolean, mysqlEnum, json, bigint, uniqueIndex, text, date } from "drizzle-orm/mysql-core"
 
 // 系统表（禁止删除）
 export const healthCheck = mysqlTable("health_check", {
@@ -274,7 +274,7 @@ export const store_settings = mysqlTable(
 export const daily_pickup_counters = mysqlTable(
   "daily_pickup_counters",
   {
-    biz_date: varchar("biz_date", { length: 10 }).primaryKey(),
+    biz_date: date("biz_date").primaryKey(),
     current_no: int("current_no").notNull().default(0),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   }

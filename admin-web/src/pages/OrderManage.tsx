@@ -10,6 +10,7 @@ import PrintActionModal from '@/components/PrintActionModal'
 
 // 外带订单标识
 const isTakeawayOrder = (order: { order_type?: string }) => order.order_type === 'takeaway'
+const formatTakeawayLabel = (order: { pickup_no?: number | null }) => order.pickup_no ? `外带 ${order.pickup_no}号` : '外带'
 
 interface OrderItem {
   id: number
@@ -35,6 +36,7 @@ interface Order {
   total_amount: string
   status: string
   order_type?: string  // dine_in 堂食 / takeaway 外带
+  pickup_no?: number | null
   created_at: string
   remark?: string
   order_items?: OrderItem[]
@@ -728,7 +730,7 @@ export default function OrderManage() {
                   <td className="px-4 py-3">
                     {isTakeawayOrder(order) ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 text-sm font-bold border border-purple-300">
-                        <ShoppingBag size={16} /> 外带
+                        <ShoppingBag size={16} /> {formatTakeawayLabel(order)}
                       </span>
                     ) : (
                       <div className="text-xl font-bold text-[#2563EB]">{order.tables?.table_number || '-'}</div>
@@ -835,7 +837,7 @@ export default function OrderManage() {
                   <div className="flex items-center gap-2.5">
                     {isTakeawayOrder(order) ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-100 text-purple-700 text-sm font-bold leading-none">
-                        <ShoppingBag size={14} /> 外带
+                        <ShoppingBag size={14} /> {formatTakeawayLabel(order)}
                       </span>
                     ) : (
                       <div className="flex items-baseline gap-1">
@@ -968,7 +970,7 @@ export default function OrderManage() {
                   <div className="flex items-center gap-2 min-w-0">
                     {isTakeawayOrder(order) ? (
                       <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-100 text-purple-700 text-xs font-bold leading-none">
-                        <ShoppingBag size={12} /> 外带
+                        <ShoppingBag size={12} /> {formatTakeawayLabel(order)}
                       </span>
                     ) : (
                       <div className="flex items-baseline gap-1 min-w-0">
@@ -1128,7 +1130,7 @@ export default function OrderManage() {
               <div className="bg-[#F8FAFC] rounded-lg p-3 mb-3 text-center">
                 {isTakeawayOrder(detail) ? (
                   <div className="text-3xl font-bold text-purple-600 flex items-center justify-center gap-2 py-1">
-                    <ShoppingBag size={28} /> 外带打包
+                    <ShoppingBag size={28} /> {formatTakeawayLabel(detail)}
                   </div>
                 ) : (
                   <div className="text-2xl font-bold text-[#0F172A]">{detail.tables?.table_number || '-'}桌</div>

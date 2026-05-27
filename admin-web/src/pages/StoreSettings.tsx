@@ -24,6 +24,7 @@ export default function StoreSettings() {
 
   const [storeName, setStoreName] = useState('');
   const [storeAvatar, setStoreAvatar] = useState('');
+  const [pickupResetTime, setPickupResetTime] = useState('00:00');
   const [previewUrl, setPreviewUrl] = useState('');
   const [imgBroken, setImgBroken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +46,7 @@ export default function StoreSettings() {
         const avatar = data.store_avatar || '';
         setStoreAvatar(avatar);
         setPreviewUrl(resolveImageUrl(avatar));
+        setPickupResetTime(data.pickup_reset_time || '00:00');
         setImgBroken(false);
       }
     } catch (err) {
@@ -113,7 +115,7 @@ export default function StoreSettings() {
     if (!storeName.trim()) { showToast('请输入店铺名称', 'warning'); return }
     try {
       setIsSaving(true);
-      await request.put('/store-settings', { store_name: storeName.trim(), store_avatar: storeAvatar });
+      await request.put('/store-settings', { store_name: storeName.trim(), store_avatar: storeAvatar, pickup_reset_time: pickupResetTime || '00:00' });
       showToast('保存成功', 'success');
       setTimeout(() => fetchSettings(), 300);
     } catch (err: any) {
@@ -143,6 +145,12 @@ export default function StoreSettings() {
           <div>
             <label className="block text-sm font-medium text-[#334155] mb-2">店铺名称</label>
             <input className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] outline-none focus:border-[#2563EB] transition-colors" placeholder="请输入店铺名称" value={storeName} onChange={(e) => setStoreName(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#334155] mb-2">取餐号重置时间</label>
+            <input type="time" className="w-full h-10 px-3 border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] outline-none focus:border-[#2563EB] transition-colors" value={pickupResetTime} onChange={(e) => setPickupResetTime(e.target.value)} />
+            <p className="text-xs text-[#94A3B8] mt-2">到达该时间后，外带取餐号将从 1 重新开始</p>
           </div>
 
           <div>

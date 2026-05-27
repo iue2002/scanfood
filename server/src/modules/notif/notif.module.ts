@@ -16,24 +16,31 @@ import { PushNotificationService } from './push.service';
 import { EmailNotificationService } from './email.service';
 import { RobotNotificationService } from './robot.service';
 import { NotificationDispatcherService } from './notification-dispatcher.service';
+import { NotifTemplateController } from './notif-template/notif-template.controller';
+import { NotifTemplateCore } from './notif-template/notif-template.core';
+import { DrizzleNotifTemplateRepo } from './notif-template/notif-template.repo.drizzle';
+import { NOTIF_TEMPLATE_REPO_TOKEN } from './notif-template/notif-template.repo.port';
 import { AuthModule } from '../auth/auth.module';
 import { AesEncryptorService } from '../merchant-ops/print/aes-encryptor';
 
 @Module({
   imports: [AuthModule],
-  controllers: [NotifController],
+  controllers: [NotifController, NotifTemplateController],
   providers: [
     PushNotificationService,
     EmailNotificationService,
     RobotNotificationService,
     NotificationDispatcherService,
     AesEncryptorService,
+    { provide: NOTIF_TEMPLATE_REPO_TOKEN, useClass: DrizzleNotifTemplateRepo },
+    { provide: NotifTemplateCore, useFactory: (repo) => new NotifTemplateCore(repo), inject: [NOTIF_TEMPLATE_REPO_TOKEN] },
   ],
   exports: [
     PushNotificationService,
     EmailNotificationService,
     RobotNotificationService,
     NotificationDispatcherService,
+    NotifTemplateCore,
   ],
 })
 export class NotifModule {}

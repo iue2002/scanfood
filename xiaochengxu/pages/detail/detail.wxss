@@ -1,9 +1,9 @@
 /* pages/detail/detail.wxss
- * 订单详情真页面：�?components/detail-sheet/index.wxss 1:1 迁移
- * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
+ * 订单详情真页面：�?components/detail-sheet/index.wxss 1:1 迁移
+ * 唯一差异：根容器�?.om-sheet-root (fixed + transform) 改为 .om-page (普�?flex)
  *           入场动画交给 wx.navigateTo 原生处理
- *           .om-action-bar / .om-modal �?position: absolute 改为 position: fixed
- *           .om-page-locked 替代 .om-sheet-root-locked（锁定模式仍然盖�?TabBar�?
+ *           .om-action-bar / .om-modal �?position: absolute 改为 position: fixed
+ *           .om-page-locked 替代 .om-sheet-root-locked（锁定模式仍然盖�?TabBar�?
  */
 
 .om-page {
@@ -20,7 +20,7 @@
   flex-direction: column;
 }
 
-/* 锁定模式：盖住底�?TabBar（页面用 z-index 提到 TabBar 之上�?*/
+/* 锁定模式：盖住底�?TabBar（页面用 z-index 提到 TabBar 之上�?*/
 .om-page-locked {
   position: fixed;
   top: 0;
@@ -86,7 +86,7 @@
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
-/* ====== 店铺信息�?====== */
+/* ====== 店铺信息�?====== */
 .om-store {
   display: flex;
   align-items: center;
@@ -449,7 +449,7 @@
   letter-spacing: 0.5rpx;
 }
 
-/* ====== 底部操作栏（贴底 + 安全区，真页面下�?fixed 定位�?viewport�?====== */
+/* ====== 底部操作栏（贴底 + 安全区，真页面下�?fixed 定位�?viewport�?====== */
 .om-action-bar {
   position: fixed;
   left: 0;
@@ -460,7 +460,8 @@
   border-top: 2rpx solid #F1F5F9;
   display: flex;
   gap: 16rpx;
-  z-index: 50;
+  z-index: 1510;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
 }
 .om-action-btn {
   flex: 1;
@@ -489,7 +490,7 @@
   background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: flex-end;
-  z-index: 1100;
+  z-index: 1520;
 }
 .om-modal-card-fullsheet {
   width: 100%;
@@ -737,7 +738,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1120;
+  z-index: 1530;
 }
 .om-qty-card {
   width: calc(100% - 64rpx);
@@ -845,7 +846,7 @@
   border: none;
 }
 
-/* 详情骨架�?*/
+/* 详情骨架�?*/
 .om-skeleton {
   padding: 0 0 24rpx 0;
 }

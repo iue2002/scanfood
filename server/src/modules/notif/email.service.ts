@@ -19,6 +19,7 @@ import * as nodemailer from 'nodemailer';
 import { db } from '@/storage/database/mysql-client';
 import { store_settings } from '@/storage/database/shared/schema';
 import { AesEncryptorService } from '../merchant-ops/print/aes-encryptor';
+import { NotifTemplateCore } from './notif-template/notif-template.core';
 
 interface SmtpConfig {
   host: string;
@@ -64,7 +65,10 @@ export class EmailNotificationService {
   private cachedTransporter: nodemailer.Transporter | null = null;
   private cachedFingerprint: string | null = null;
 
-  constructor(private readonly aes: AesEncryptorService) {}
+  constructor(
+    private readonly aes: AesEncryptorService,
+    private readonly templateCore: NotifTemplateCore,
+  ) {}
 
   /**
    * 检查 SMTP 是否可用（任一模式有完整配置即可）
@@ -234,17 +238,15 @@ export class EmailNotificationService {
     try {
       const transporter = this.getTransporter(config);
 
-      const subject = this.buildSubject(params);
-      const html = this.buildHtml(params);
-      const text = this.buildText(params);
+      const rendered = await this.renderEmailTemplate(params);
 
       await this.withTimeout(
         transporter.sendMail({
           from: config.from,
           to: params.to,
-          subject,
-          html,
-          text,
+          subject: rendered.subject,
+          html: rendered.html || rendered.text.replace(/\n/g, '<br>'),
+          text: rendered.text,
         }),
         SEND_TIMEOUT_MS,
         '[email] sendMail',
@@ -252,7 +254,7 @@ export class EmailNotificationService {
 
       this.trackRateLimit(params.to, Date.now());
       this.globalSentCount++;
-      this.logger.log(`[email] sent to ${params.to}: ${subject}`);
+      this.logger.log(`[email] sent to ${params.to}: ${rendered.subject}`);
       return { ok: true };
     } catch (err: any) {
       this.logger.warn(`[email] send failed to ${params.to}: ${err?.message?.slice(0, 200)}`);
@@ -327,87 +329,26 @@ export class EmailNotificationService {
 
   // ========== 邮件内容构造 ==========
 
-  private buildSubject(p: OrderEmailParams): string {
-    const eventLabel = {
-      NEW_ORDER: '新订单',
-      ADD_ITEM: '订单加菜',
-      REFUND: '退款申请',
-    }[p.event];
-    return `【${p.storeName}】${eventLabel} ${p.orderNumber}（${p.tableLabel}）`;
-  }
-
-  private buildText(p: OrderEmailParams): string {
-    const itemsStr = p.items
-      .map((i) => `  - ${i.name} × ${i.quantity}   ¥${i.subtotal}`)
+  private async renderEmailTemplate(
+    p: OrderEmailParams,
+  ): Promise<{ subject: string; text: string; html: string | null }> {
+    const eventLabel = { NEW_ORDER: '新订单', ADD_ITEM: '加菜通知', REFUND: '退款申请' }[p.event];
+    const itemsSummary = p.items
+      .map((i) => `- ${i.name} × ${i.quantity}  ¥${i.subtotal}`)
       .join('\n');
-    const greeting = p.recipientName ? `亲爱的 ${p.recipientName}，\n\n` : '';
-    const detail = p.detailUrl ? `\n查看详情：${p.detailUrl}\n` : '';
-    return `${greeting}收到一笔${this.eventLabel(p.event)}：
 
-订单号：${p.orderNumber}
-桌台：${p.tableLabel}
-总额：¥${p.totalAmount}
-菜品：
-${itemsStr}
-下单时间：${p.createdAt}
-${detail}
-—— ${p.storeName} 通知服务`;
-  }
+    const rendered = await this.templateCore.render(p.event, 'email', {
+      storeName: p.storeName,
+      tableLabel: p.tableLabel,
+      orderNumber: p.orderNumber,
+      totalAmount: p.totalAmount,
+      createdAt: p.createdAt,
+      itemsSummary,
+      detailUrl: p.detailUrl || '',
+      eventLabel,
+      recipientName: p.recipientName || '',
+    });
 
-  private buildHtml(p: OrderEmailParams): string {
-    const itemsHtml = p.items
-      .map(
-        (i) =>
-          `<tr><td style="padding:6px 12px;border-bottom:1px solid #F1F5F9;">${this.escape(i.name)}</td>
-           <td style="padding:6px 12px;border-bottom:1px solid #F1F5F9;text-align:center;">× ${i.quantity}</td>
-           <td style="padding:6px 12px;border-bottom:1px solid #F1F5F9;text-align:right;">¥${i.subtotal}</td></tr>`,
-      )
-      .join('');
-    const detailLink = p.detailUrl
-      ? `<p style="margin:24px 0;"><a href="${this.escape(p.detailUrl)}" style="display:inline-block;padding:10px 20px;background:#2563EB;color:#fff;text-decoration:none;border-radius:6px;">查看订单详情</a></p>`
-      : '';
-    const greeting = p.recipientName
-      ? `<p style="color:#475569;">亲爱的 ${this.escape(p.recipientName)}，</p>`
-      : '';
-    return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>${this.escape(this.buildSubject(p))}</title></head>
-<body style="font-family:'PingFang SC','Helvetica Neue',Arial,sans-serif;background:#F8FAFC;padding:20px;color:#0F172A;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h2 style="margin:0 0 8px 0;color:#2563EB;">${this.escape(p.storeName)} · ${this.eventLabel(p.event)}</h2>
-    <p style="color:#94A3B8;margin:0 0 24px 0;font-size:14px;">${this.escape(p.tableLabel)}　${this.escape(p.createdAt)}</p>
-    ${greeting}
-    <table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
-      <thead>
-        <tr style="background:#F8FAFC;">
-          <th style="padding:8px 12px;text-align:left;color:#64748B;font-weight:600;">菜品</th>
-          <th style="padding:8px 12px;text-align:center;color:#64748B;font-weight:600;">数量</th>
-          <th style="padding:8px 12px;text-align:right;color:#64748B;font-weight:600;">小计</th>
-        </tr>
-      </thead>
-      <tbody>${itemsHtml}</tbody>
-      <tfoot>
-        <tr><td colspan="2" style="padding:12px;text-align:right;font-weight:600;">合计</td>
-            <td style="padding:12px;text-align:right;font-weight:600;color:#DC2626;font-size:18px;">¥${p.totalAmount}</td></tr>
-      </tfoot>
-    </table>
-    <p style="font-size:14px;color:#475569;">订单号：<code style="background:#F1F5F9;padding:2px 6px;border-radius:4px;">${this.escape(p.orderNumber)}</code></p>
-    ${detailLink}
-    <hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0;">
-    <p style="color:#94A3B8;font-size:12px;margin:0;">本邮件由扫码点餐通知服务自动发送，请勿直接回复。</p>
-  </div>
-</body></html>`;
-  }
-
-  private eventLabel(e: OrderEmailParams['event']): string {
-    return { NEW_ORDER: '新订单', ADD_ITEM: '加菜通知', REFUND: '退款申请' }[e];
-  }
-
-  private escape(s: string): string {
-    return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return { subject: rendered.title, text: rendered.body, html: rendered.html };
   }
 }

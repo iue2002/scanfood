@@ -8,6 +8,27 @@
       "when": 1779648466622,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1779658800000,
+      "tag": "0001_notification_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1779658860000,
+      "tag": "0002_robot_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1779750000000,
+      "tag": "0003_notification_templates",
+      "breakpoints": true
     }
   ]
 }

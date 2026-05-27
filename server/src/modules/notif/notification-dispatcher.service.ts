@@ -27,6 +27,8 @@ import { eq, inArray } from 'drizzle-orm';
 import { PushNotificationService } from './push.service';
 import { EmailNotificationService } from './email.service';
 import { RobotNotificationService } from './robot.service';
+import { NotifTemplateCore } from './notif-template/notif-template.core';
+import type { TemplateEvent, TemplateChannel } from './notif-template/notif-template.types';
 
 export type NotifEvent = 'NEW_ORDER' | 'ADD_ITEM' | 'REFUND';
 
@@ -49,6 +51,7 @@ export class NotificationDispatcherService {
     private readonly pushService: PushNotificationService,
     private readonly emailService: EmailNotificationService,
     private readonly robotService: RobotNotificationService,
+    private readonly templateCore: NotifTemplateCore,
   ) {}
 
   /**
@@ -57,7 +60,7 @@ export class NotificationDispatcherService {
    */
   async notifyOrderEvent(event: NotifEvent, orderId: number): Promise<void> {
     try {
-      const ctx = await this.loadOrderContext(orderId);
+      const ctx = await this.loadOrderContext(orderId, event);
       if (!ctx) return;
 
       // 拉所有有效员工 + 偏好
@@ -83,35 +86,38 @@ export class NotificationDispatcherService {
     try {
       const storeName = await this.getStoreName();
       const detailUrl = this.buildDetailUrl(ctx.orderId);
-      const title = this.buildTitle(event, ctx);
-      const markdown = this.buildRobotMarkdown(event, ctx, storeName);
-      await this.robotService.sendForEvent(event, { title, markdown, url: detailUrl }, 1);
+      const eventLabel = { NEW_ORDER: '新订单', ADD_ITEM: '加菜通知', REFUND: '退款申请' }[event];
+      const itemsSummary = this.buildItemsSummary(ctx.items);
+
+      // 机器人通道共享模板：任意通道有自定义模板就使用
+      const robotChannels: TemplateChannel[] = ['dingtalk', 'wecom', 'feishu'];
+      const channel = await this.templateCore.resolveChannel(event as TemplateEvent, robotChannels);
+      // 加餐/退款未设模板时回退到新订单模板
+      const templateEvent = (event === 'ADD_ITEM' || event === 'REFUND')
+        ? await this.templateCore.resolveEvent(event as TemplateEvent, 'NEW_ORDER', channel)
+        : event as TemplateEvent;
+      const rendered = await this.templateCore.render(templateEvent, channel, {
+        storeName,
+        tableLabel: ctx.tableLabel,
+        orderNumber: ctx.orderNumber,
+        totalAmount: ctx.totalAmount,
+        createdAt: ctx.createdAt,
+        itemsSummary,
+        detailUrl: detailUrl || '',
+        eventLabel,
+      });
+      await this.robotService.sendForEvent(event, { title: rendered.title, markdown: rendered.body, url: detailUrl }, 1);
     } catch (err) {
       this.logger.warn(`[notif] robot dispatch error (吞掉): ${(err as Error).message}`);
     }
   }
 
-  private buildRobotMarkdown(event: NotifEvent, ctx: OrderContext, storeName: string): string {
-    const itemSummary = ctx.items
-      .slice(0, 5)
+  private buildItemsSummary(items: OrderContext['items']): string {
+    if (items.length === 0) return '（无菜品）';
+    return items
+      .slice(0, 10)
       .map((i) => `- ${i.name} × **${i.quantity}** ¥${i.subtotal}`)
-      .join('\n');
-    const more = ctx.items.length > 5 ? `\n... 共 ${ctx.items.length} 项` : '';
-    const eventLine = {
-      NEW_ORDER: '🛎 **新订单**',
-      ADD_ITEM: '🍽 **订单加菜**',
-      REFUND: '💸 **退款申请**',
-    }[event];
-    return [
-      `### ${storeName} · ${eventLine}`,
-      `**桌台**：${ctx.tableLabel}`,
-      `**订单号**：${ctx.orderNumber}`,
-      `**金额**：¥**${ctx.totalAmount}**`,
-      `**下单时间**：${ctx.createdAt}`,
-      ``,
-      `**菜品**：`,
-      itemSummary + more,
-    ].join('\n');
+      .join('\n') + (items.length > 10 ? `\n... 共 ${items.length} 项` : '');
   }
 
   // ============================================================
@@ -202,7 +208,7 @@ export class NotificationDispatcherService {
   // 上下文准备
   // ============================================================
 
-  private async loadOrderContext(orderId: number): Promise<OrderContext | null> {
+  private async loadOrderContext(orderId: number, event?: NotifEvent): Promise<OrderContext | null> {
     const orderRows = await db
       .select()
       .from(orders)
@@ -211,10 +217,16 @@ export class NotificationDispatcherService {
     if (orderRows.length === 0) return null;
     const order = orderRows[0] as any;
 
-    const items = await db
+    let items = await db
       .select()
       .from(order_items)
       .where(eq(order_items.order_id, orderId));
+
+    // 加餐通知只带最新一轮的菜品，不重复展示整单
+    if (event === 'ADD_ITEM' && items.length > 0) {
+      const maxRound = Math.max(...items.map((i: any) => i.add_more_round ?? 0));
+      items = items.filter((i: any) => (i.add_more_round ?? 0) === maxRound);
+    }
 
     const tableRows = await db
       .select()

@@ -105,6 +105,8 @@ export default function OrderManage() {
   // 订单号搜索（输入框值 + 防抖后用于查询的值）
   const [orderSearchInput, setOrderSearchInput] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
+  // 筛选面板折叠（默认收起，点击状态筛选后展开）
+  const [filterExpanded, setFilterExpanded] = useState(false)
   // 日期/时段筛选抽屉（< lg 用；桌面端直接平铺）
   const [dateDrawerOpen, setDateDrawerOpen] = useState(false)
   // 输入 300ms 后才真发请求，避免每个字符都查
@@ -382,7 +384,7 @@ export default function OrderManage() {
         groups.push({
           time: currentGroup[0].created_at,
           items: currentGroup,
-          label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
+          label: currentRound === 0 ? '' : `第${currentRound}次加餐`,
           phase: currentRound === 0 ? 'order' : 'add_more'
         })
         currentGroup = [sorted[i]]
@@ -392,7 +394,7 @@ export default function OrderManage() {
     groups.push({
       time: currentGroup[0].created_at,
       items: currentGroup,
-      label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
+      label: currentRound === 0 ? '' : `第${currentRound}次加餐`,
       phase: currentRound === 0 ? 'order' : 'add_more'
     })
     return groups
@@ -458,7 +460,7 @@ export default function OrderManage() {
 
       {/* 筛选区域 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-5 space-y-3">
-        {/* 第 1 行：订单号搜索 + 日期按钮（< lg 显示按钮） */}
+        {/* 第 1 行：订单号搜索 + 状态切换 + 日期按钮 */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
@@ -466,7 +468,7 @@ export default function OrderManage() {
               type="text"
               value={orderSearchInput}
               onChange={(e) => setOrderSearchInput(e.target.value)}
-              placeholder="按订单号搜索（支持部分匹配）"
+              placeholder="按订单号搜索"
               className="w-full pl-9 pr-9 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             />
             {orderSearchInput && (
@@ -480,7 +482,24 @@ export default function OrderManage() {
               </button>
             )}
           </div>
-          {/* 日期按钮：仅 < lg 显示（桌面端有完整日期/时段行） */}
+
+          {/* 状态芯片（点击展开/选择后自动收起） */}
+          <button
+            onClick={() => setFilterExpanded(v => !v)}
+            className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+              filterStatus
+                ? 'bg-[#2563EB] text-white'
+                : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+            }`}
+          >
+            <span className="max-w-[4em] truncate">
+              {filterStatus
+                ? [{ value: 'submitted', label: '已提交' },{ value: 'printed', label: '已打印' },{ value: 'unpaid', label: '待支付' },{ value: 'settled', label: '已结账' },{ value: 'cancelled', label: '已取消' },{ value: 'refunded', label: '已退款' },{ value: 'draft', label: '待提交' }].find(i => i.value === filterStatus)?.label
+                : '全部'}
+            </span>
+            {filterExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
           <button
             type="button"
             onClick={() => setDateDrawerOpen(true)}
@@ -491,26 +510,14 @@ export default function OrderManage() {
             }`}
           >
             <Calendar size={16} />
-            <span>
-              {activeTag
-                ? presetTags.find(t => t.key === activeTag)?.label
-                : (dateFrom || dateTo)
-                  ? '日期'
-                  : '日期'}
-            </span>
-            {(activeTag || dateFrom || dateTo) && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
-            )}
+            <span>{activeTag ? presetTags.find(t => t.key === activeTag)?.label : '日期'}</span>
+            {(activeTag || dateFrom || dateTo) && <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />}
           </button>
         </div>
 
-        {/* 第 2 行：状态胶囊（所有屏幕显示，高频功能） */}
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
-            <Filter size={12} />
-            <span>状态筛选</span>
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 -mx-1 px-1">
+        {/* 第 2 行：展开的状态筛选胶囊 */}
+        {filterExpanded && (
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap -mx-1 px-1 pb-1">
             {[
               { value: '', label: '全部' },
               { value: 'submitted', label: '已提交' },
@@ -523,7 +530,7 @@ export default function OrderManage() {
             ].map((item) => (
               <button
                 key={item.value || 'all'}
-                onClick={() => setFilterStatus(item.value)}
+                onClick={() => { setFilterStatus(item.value); setFilterExpanded(false) }}
                 className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                   filterStatus === item.value
                     ? 'bg-[#2563EB] text-white'
@@ -534,9 +541,9 @@ export default function OrderManage() {
               </button>
             ))}
           </div>
-        </div>
+        )}
 
-        {/* 第 3 / 4 行：时段 + 自定义日期（仅 lg 桌面端平铺；移动/平板进抽屉） */}
+        {/* 第 3 / 4 行：时段 + 自定义日期（仅 lg 桌面端） */}
         <div className="hidden lg:block space-y-3">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-[#94A3B8] mb-1.5">
@@ -582,7 +589,7 @@ export default function OrderManage() {
           </div>
         </div>
 
-        {/* 条件行：清除全部筛选 */}
+        {/* 清除全部筛选 */}
         {(dateFrom || dateTo || filterStatus || orderSearchInput || activeTag) && (
           <div className="flex items-center justify-end pt-1 border-t border-gray-100">
             <button
@@ -811,134 +818,121 @@ export default function OrderManage() {
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
           const groupedItems = isExpanded ? groupItemsByPhase(items) : []
+          const totalCount = items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)
+          const canSettle = order.status === 'submitted' || order.status === 'printed'
 
           return (
             <div
               key={order.id}
               ref={(el) => { if (el) focusRef.current.set(order.id, el); else focusRef.current.delete(order.id); }}
             >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                {/* 主信息栏 */}
-                <div className="p-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-4">
-                    {/* 桌号 / 外带 */}
-                    <div className="text-center">
-                      {isTakeawayOrder(order) ? (
-                        <>
-                          <div className="text-3xl font-bold text-purple-600 flex items-center justify-center"><ShoppingBag size={28} /></div>
-                          <div className="text-sm text-purple-600 font-bold mt-1">外带</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-2xl font-bold text-[#0F172A]">{order.tables?.table_number || '-'}</div>
-                          <div className="text-xs text-[#94A3B8]">桌</div>
-                        </>
-                      )}
-                    </div>
-                    
-                    {/* 订单信息 */}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm text-[#334155]">{order.order_number}</span>
-                        <button
-                          onClick={() => copyOrderNumber(order.order_number)}
-                          className="p-1 text-[#94A3B8] hover:text-[#2563EB] cursor-pointer"
-                        >
-                          <Copy size={14} />
-                        </button>
+              <div
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:border-[#2563EB]/30 hover:shadow-md transition-all"
+                onClick={() => openDetail(order)}
+              >
+                {/* 头部：桌号 + 状态 + 时间 */}
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    {isTakeawayOrder(order) ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-100 text-purple-700 text-sm font-bold leading-none">
+                        <ShoppingBag size={14} /> 外带
+                      </span>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-bold text-[#0F172A] leading-none">{order.tables?.table_number || '-'}</span>
+                        <span className="text-xs text-[#94A3B8]">号桌</span>
                       </div>
-                      <div className="text-xs text-[#94A3B8]">{formatFullDateTime(order.created_at)}</div>
-                    </div>
+                    )}
+                    <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${s.color}`}>{s.label}</span>
                   </div>
-                  
-                  <div className="flex items-center gap-4">
-                    {/* 金额 */}
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-[#2563EB]">¥{order.total_amount}</div>
-                    </div>
-                    
-                    {/* 状态 */}
-                    <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${s.color}`}>{s.label}</span>
-                  </div>
+                  <span className="text-xs text-[#94A3B8] shrink-0">{formatDateTime(order.created_at)}</span>
                 </div>
 
                 {/* 菜品摘要/明细 */}
                 <div className="border-t border-gray-100">
                   {!isExpanded ? (
-                    <div className="px-4 py-3 flex items-center justify-between">
-                      <div className="text-sm text-[#64748B]">
+                    <div
+                      onClick={(e) => { e.stopPropagation(); toggleExpand(order.id) }}
+                      className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                    >
+                      <span className="text-sm text-[#64748B] truncate min-w-0">
                         {items.length > 0
                           ? items.map(i => `${i.dish_name}×${i.quantity}`).join('、')
                           : '无菜品'}
-                      </div>
-                      <button
-                        onClick={() => toggleExpand(order.id)}
-                        className="text-sm text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
+                      </span>
+                      <span className="shrink-0 text-sm text-[#2563EB] flex items-center gap-1">
+                        共{totalCount}件
                         <ChevronDown size={14} />
-                        展开明细 ({items.length}道)
-                      </button>
+                      </span>
                     </div>
                   ) : (
                     <div className="px-4 pb-4 pt-3">
-                      {groupedItems.map((group, gi) => (
-                        <div key={gi} className="mb-3 last:mb-0">
-                          {/* 分组标题 */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                              {group.label}
-                            </span>
-                            <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>
-                          </div>
-                          
-                          {/* 菜品列表 */}
-                          <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-2">
-                            {group.items.map((item, ii) => (
-                              <div key={ii} className="flex justify-between items-center">
-                                <div className="flex-1">
-                                  <span className="text-sm text-[#0F172A]">
-                                    {item.dish_name}
-                                    {item.spec_name && <span className="text-[#94A3B8]">({item.spec_name})</span>}
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          {groupedItems.map((group, gi) => (
+                            <div key={gi} className="mb-3 last:mb-0">
+                              {group.label ? (
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                                    {group.label}
                                   </span>
-                                  <span className="text-xs text-[#64748B] ml-2 bidi-iso">×{item.quantity}</span>
+                                  <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>
                                 </div>
-                                <span className="text-sm font-medium text-[#0F172A] ml-4">¥{item.subtotal}</span>
+                              ) : null}
+                              <div className="bg-[#F0F4FF] border border-[#E0E7FF] rounded-lg p-3 space-y-2">
+                                {group.items.map((item, ii) => (
+                                  <div key={ii} className="flex justify-between items-center">
+                                    <div className="flex-1">
+                                      <span className="text-sm text-[#0F172A]">
+                                        {item.dish_name}
+                                        {item.spec_name && <span className="text-[#94A3B8]">({item.spec_name})</span>}
+                                      </span>
+                                      <span className="text-xs text-[#64748B] ml-2 bidi-iso">×{item.quantity}</span>
+                                    </div>
+                                    <span className="text-sm font-medium text-[#0F172A] ml-4">¥{item.subtotal}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                      
-                      {/* 收起按钮 */}
-                      <button
-                        onClick={() => toggleExpand(order.id)}
-                        className="w-full mt-3 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm flex items-center justify-center gap-1 hover:bg-[#E2E8F0] transition-colors cursor-pointer"
-                      >
-                        <ChevronUp size={14} />
-                        收起明细
-                      </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleExpand(order.id) }}
+                          className="shrink-0 mt-1 text-[#CBD5E1] hover:text-[#64748B] transition-colors cursor-pointer"
+                          title="收起"
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* 操作按钮 */}
-                <div className="px-4 pb-4 flex items-center justify-end gap-2">
-                  <button onClick={() => openDetail(order)} className="px-4 py-2 bg-[#F1F5F9] text-[#64748B] rounded-lg text-sm font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1">
-                    <Eye size={14} /> 详情
-                  </button>
-                  <button onClick={() => handleReprint(order.id)} className="px-4 py-2 bg-purple-50 text-[#9333EA] rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-1" title="补打小票">
-                    <Printer size={14} /> 打印
-                  </button>
-                  {order.status === 'submitted' || order.status === 'printed' ? (
-                    <>
-                      <button onClick={() => handleSettle(order.id)} className="px-4 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1">
-                        <CheckCircle size={14} /> 结账
-                      </button>
-                      <button onClick={() => openAddDish(order)} className="px-4 py-2 bg-[#F59E0B] text-white rounded-lg text-sm font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center gap-1">
-                        <PlusCircle size={14} /> 加餐
-                      </button>
-                    </>
-                  ) : null}
+                {/* 底栏：合计 + 操作 */}
+                <div
+                  className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-lg font-bold text-[#2563EB]">¥{order.total_amount}</span>
+                  <div className="flex items-center gap-1.5">
+                    {canSettle ? (
+                      <>
+                        <button
+                          onClick={() => handleSettle(order.id)}
+                          className="px-3 py-2 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors flex items-center gap-1"
+                        >
+                          <CheckCircle size={13} /> 结账
+                        </button>
+                        <button
+                          onClick={() => openAddDish(order)}
+                          className="px-3 py-2 bg-[#F59E0B] text-white rounded-lg text-xs font-medium hover:bg-[#D97706] transition-colors flex items-center gap-1"
+                        >
+                          <PlusCircle size={13} /> 加餐
+                        </button>
+                      </>
+                    ) : null}
+                    {/* 已结账/取消等状态下保留一个操作入口，提示点击卡片查看详情 */}
+                  </div>
                 </div>
               </div>
               {index < orders.length - 1 ? renderCardSeparator(`tablet-separator-${order.id}`) : null}
@@ -947,7 +941,7 @@ export default function OrderManage() {
         })}
       </div>
 
-      {/* 订单列表 - 移动端卡片（紧凑布局）*/}
+      {/* 订单列表 - 移动端卡片 */}
       <div className="lg:hidden space-y-3">
         {orders.map((order, index) => {
           const s = statusMap[order.status] || statusMap.submitted
@@ -965,38 +959,33 @@ export default function OrderManage() {
               key={order.id}
               ref={(el) => { if (el) focusRef.current.set(order.id, el); else focusRef.current.delete(order.id); }}
             >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                {/* 紧凑头部：桌号 + 时间用户 + 状态胶囊 */}
-                <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0 flex items-baseline flex-wrap gap-x-3 gap-y-0.5">
-                    <div className="flex items-baseline gap-1 shrink-0">
-                      {isTakeawayOrder(order) ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 text-sm font-bold border border-purple-300 leading-none">
-                          <ShoppingBag size={14} /> 外带
-                        </span>
-                      ) : (
-                        <>
-                          <span className="text-xl font-bold text-[#0F172A] leading-none">{order.tables?.table_number || '-'}</span>
-                          <span className="text-xs text-[#94A3B8]">桌</span>
-                        </>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-[#94A3B8] leading-tight">{formatFullDateTime(order.created_at)}</span>
-                    {(order.user || order.users) && (
-                      <span className="text-[11px] text-[#64748B] leading-tight inline-flex items-center gap-0.5">
-                        <User size={10} className="text-[#94A3B8]" />
-                        {(order.user || order.users)?.nickname || (order.user || order.users)?.username || '未知用户'}
+              <div
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:border-[#2563EB]/30 active:bg-[#FAFBFC] transition-all"
+                onClick={() => openDetail(order)}
+              >
+                {/* 头部：桌号 + 状态 + 时间 */}
+                <div className="px-4 py-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isTakeawayOrder(order) ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-100 text-purple-700 text-xs font-bold leading-none">
+                        <ShoppingBag size={12} /> 外带
                       </span>
+                    ) : (
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="text-xl font-bold text-[#0F172A] leading-none">{order.tables?.table_number || '-'}</span>
+                        <span className="text-[11px] text-[#94A3B8]">号桌</span>
+                      </div>
                     )}
+                    <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${s.color}`}>{s.label}</span>
                   </div>
-                  <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${s.color}`}>{s.label}</span>
+                  <span className="text-[11px] text-[#94A3B8] shrink-0">{formatDateTime(order.created_at)}</span>
                 </div>
 
-                {/* 单行菜品摘要（点击切换展开/收起，展开时不显示）*/}
+                {/* 单行菜品摘要（阻止冒泡） */}
                 {!isExpanded && (
                   <div
-                    onClick={() => toggleExpand(order.id)}
-                    className="px-4 pb-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-[#F8FAFC] active:bg-[#F1F5F9] transition-colors"
+                    onClick={(e) => { e.stopPropagation(); toggleExpand(order.id) }}
+                    className="px-4 pb-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-[#F8FAFC] transition-colors"
                   >
                     <span className="flex-1 min-w-0 truncate text-xs text-[#64748B]">{summaryText}</span>
                     <span className="shrink-0 inline-flex items-center gap-0.5 text-[11px] text-[#94A3B8]">
@@ -1009,80 +998,76 @@ export default function OrderManage() {
                 {/* 展开的明细 */}
                 {isExpanded && (
                   <div className="px-4 py-3 border-t border-gray-100">
-                    {groupedItems.map((group, gi) => (
-                      <div key={gi} className="mb-3 last:mb-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                            {group.label}
-                          </span>
-                          <div className="flex-1 h-px bg-gray-200"></div>
-                          <span className="text-[11px] text-[#94A3B8]">{formatDateTime(group.time)}</span>
-                        </div>
-                        <div className="bg-[#F8FAFC] rounded-lg px-3 py-2 space-y-1.5">
-                          {group.items.map((item, ii) => (
-                            <div key={ii} className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0 text-sm text-[#0F172A] leading-snug">
-                                <span className="truncate">{item.dish_name}</span>
-                                {item.spec_name && <span className="text-[#94A3B8] text-xs ml-1">({item.spec_name})</span>}
-                                <span className="text-[#64748B] text-xs ml-1 bidi-iso">×{item.quantity}</span>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        {groupedItems.map((group, gi) => (
+                          <div key={gi} className="mb-3 last:mb-0">
+                            {group.label ? (
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                                  {group.label}
+                                </span>
+                                <div className="flex-1 h-px bg-gray-200"></div>
+                                <span className="text-[11px] text-[#94A3B8]">{formatDateTime(group.time)}</span>
                               </div>
-                              <span className="shrink-0 text-xs font-medium text-[#0F172A] bidi-iso">¥{item.subtotal}</span>
+                            ) : null}
+                            <div className="bg-[#F0F4FF] border border-[#E0E7FF] rounded-lg px-3 py-2 space-y-1.5">
+                              {group.items.map((item, ii) => (
+                                <div key={ii} className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0 text-sm text-[#0F172A] leading-snug">
+                                    <span className="truncate">{item.dish_name}</span>
+                                    {item.spec_name && <span className="text-[#94A3B8] text-xs ml-1">({item.spec_name})</span>}
+                                    <span className="text-[#64748B] text-xs ml-1 bidi-iso">×{item.quantity}</span>
+                                  </div>
+                                  <span className="shrink-0 text-xs font-medium text-[#0F172A] bidi-iso">¥{item.subtotal}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
+                        {order.remark && (
+                          <div className="mt-2 p-2 bg-[#FEF3C7] rounded-lg text-xs text-[#92400E]">
+                            备注：{order.remark}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    {order.remark && (
-                      <div className="mt-2 p-2 bg-[#FEF3C7] rounded-lg text-xs text-[#92400E]">
-                        备注：{order.remark}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => toggleExpand(order.id)}
-                      className="w-full mt-2 py-1 text-[11px] text-[#94A3B8] flex items-center justify-center gap-1 hover:text-[#64748B] cursor-pointer"
-                    >
-                      <ChevronUp size={12} />
-                      收起明细
-                    </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleExpand(order.id) }}
+                        className="shrink-0 mt-1 text-[#CBD5E1] hover:text-[#64748B] cursor-pointer"
+                        title="收起"
+                      >
+                        <ChevronUp size={15} />
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {/* 底栏：合计 + 操作（一行） */}
-                <div className="px-4 py-2.5 border-t border-gray-100 flex items-center justify-between gap-3">
-                  <div className="flex items-baseline gap-1 shrink-0">
-                    <span className="text-[11px] text-[#94A3B8]">合计</span>
-                    <span className="text-lg font-bold text-[#2563EB] leading-none">¥{order.total_amount}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => openDetail(order)}
-                      className="h-8 px-3 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer flex items-center gap-1"
-                    >
-                      <Eye size={12} /> 详情
-                    </button>
-                    <button
-                      onClick={() => handleReprint(order.id)}
-                      className="h-8 px-3 bg-purple-50 text-[#9333EA] rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-1"
-                      title="补打小票"
-                    >
-                      <Printer size={12} /> 打印
-                    </button>
-                    {canSettle && (
+                {/* 底栏：合计 + 操作（阻止冒泡） */}
+                <div
+                  className="px-4 py-2.5 border-t border-gray-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-baseline gap-1 mr-auto">
+                      <span className="text-[11px] text-[#94A3B8]">合计</span>
+                      <span className="text-base font-bold text-[#2563EB] leading-none">¥{order.total_amount}</span>
+                    </div>
+                    {canSettle ? (
                       <>
                         <button
                           onClick={() => handleSettle(order.id)}
-                          className="h-8 px-3 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer flex items-center gap-1"
+                          className="h-7 px-2.5 bg-[#10B981] text-white rounded-lg text-[11px] font-medium hover:bg-[#059669] transition-colors flex items-center gap-0.5"
                         >
-                          <CheckCircle size={12} /> 结账
+                          <CheckCircle size={11} /> 结账
                         </button>
                         <button
                           onClick={() => openAddDish(order)}
-                          className="h-8 px-3 bg-[#F59E0B] text-white rounded-lg text-xs font-medium hover:bg-[#D97706] transition-colors cursor-pointer flex items-center gap-1"
+                          className="h-7 px-2.5 bg-[#F59E0B] text-white rounded-lg text-[11px] font-medium hover:bg-[#D97706] transition-colors flex items-center gap-0.5"
                         >
-                          <PlusCircle size={12} /> 加餐
+                          <PlusCircle size={11} /> 加餐
                         </button>
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -1158,14 +1143,16 @@ export default function OrderManage() {
                   <div className="space-y-2.5">
                     {groupItemsByPhase(detail.order_items).map((group, gi) => (
                       <div key={gi}>
-                        {/* 分组标题 */}
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <div className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                            {group.label}
+                        {/* 分组标题（仅加餐轮次显示） */}
+                        {group.label ? (
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                              {group.label}
+                            </div>
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                            <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
                           </div>
-                          <div className="flex-1 h-px bg-gray-200"></div>
-                          <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
-                        </div>
+                        ) : null}
                         
                         {/* 菜品列表 */}
                         <div className="bg-[#F8FAFC] rounded-lg p-2.5 space-y-2">
@@ -1258,6 +1245,12 @@ export default function OrderManage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => setDetail(null)} className="flex-1 min-w-[80px] py-2.5 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer min-h-[40px]">
                   关闭
+                </button>
+                <button
+                  onClick={() => { handleReprint(detail.id); setDetail(null) }}
+                  className="flex-1 min-w-[80px] py-2.5 bg-purple-50 text-[#9333EA] rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[40px]"
+                >
+                  <Printer size={14} /> 打印
                 </button>
                 {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
                   <button

@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, timestamp, decimal, index, boolean, mysqlEnum, json, bigint, uniqueIndex } from "drizzle-orm/mysql-core"
+import { mysqlTable, int, varchar, timestamp, decimal, index, boolean, mysqlEnum, json, bigint, uniqueIndex, text } from "drizzle-orm/mysql-core"
 
 // 系统表（禁止删除）
 export const healthCheck = mysqlTable("health_check", {
@@ -584,5 +584,26 @@ export const robot_webhooks = mysqlTable(
   },
   (t) => [
     uniqueIndex("uk_robot_store_provider").on(t.store_id, t.provider),
+  ]
+);
+
+// ============================================================
+// 多通道通知 - 自定义消息模板
+// 店铺级配置：每 (event_type, channel) 一行，空时回退代码默认值
+// ============================================================
+export const notification_templates = mysqlTable(
+  "notification_templates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    event_type: varchar("event_type", { length: 20 }).notNull(),
+    channel: varchar("channel", { length: 20 }).notNull(),
+    title_template: varchar("title_template", { length: 500 }).notNull(),
+    body_template: text("body_template").notNull(),
+    html_template: text("html_template"),
+    updated_at: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+    updated_by: int("updated_by").notNull().references(() => users.id),
+  },
+  (t) => [
+    uniqueIndex("uk_notif_template_event_channel").on(t.event_type, t.channel),
   ]
 );

@@ -5,18 +5,39 @@ import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/ord
 import { eq, and, inArray, desc, sql, like } from 'drizzle-orm';
 import { OrdersGateway } from './orders.gateway';
 import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
+import { StoreSettingsService } from '../store-settings/store-settings.service';
+import { computeBizDate } from './pickup-no.core';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly ordersGateway: OrdersGateway,
     private readonly notifDispatcher: NotificationDispatcherService,
+    private readonly storeSettingsService: StoreSettingsService,
   ) {}
   private generateOrderNumber(): string {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
     const timeStr = Date.now().toString().slice(-6);
     return `ORD${dateStr}${timeStr}`;
+  }
+
+  private async allocatePickupNo(now: Date): Promise<number> {
+    const settings = await this.storeSettingsService.getStoreSettings();
+    const reset = settings?.pickup_reset_time || '00:00';
+    const bizDate = computeBizDate(now, reset);
+
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        INSERT INTO daily_pickup_counters (biz_date, current_no)
+        VALUES (${bizDate}, 1)
+        ON DUPLICATE KEY UPDATE current_no = LAST_INSERT_ID(current_no + 1)
+      `);
+      const rows = await tx.execute(sql`SELECT LAST_INSERT_ID() AS current_no`);
+      const value = (rows as any)[0]?.current_no ?? (rows as any)[0]?.[0]?.current_no;
+      if (!value) throw new Error('pickup_no allocate failed');
+      return Number(value);
+    });
   }
 
   // 外带订单虚拟桌：所有外带订单共享，永远 idle，前端看板里隐藏
@@ -309,6 +330,8 @@ export class OrdersService {
 
     const orderNumber = this.generateOrderNumber();
     const isTakeaway = dto.order_type === 'takeaway';
+    const now = new Date();
+    const pickupNo = isTakeaway ? await this.allocatePickupNo(now) : null;
 
     // 外带：自动指向虚拟"打包"桌，避免外键约束失败
     let tableId: number | undefined = dto.table_id;
@@ -328,6 +351,7 @@ export class OrdersService {
       remark: dto.remark,
       status: 'submitted',
       order_type: isTakeaway ? 'takeaway' : 'dine_in',
+      pickup_no: pickupNo,
     });
 
     const orderId = (insertResult as any)[0].insertId;

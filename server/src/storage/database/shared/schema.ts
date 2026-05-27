@@ -127,6 +127,7 @@ export const orders = mysqlTable(
     total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default('0'),
     status: varchar("status", { length: 20 }).notNull().default('submitted'), // submitted/printed/settled/cancelled/refunded
     order_type: varchar("order_type", { length: 20 }).notNull().default('dine_in'), // dine_in=堂食, takeaway=外带打包
+    pickup_no: int("pickup_no"),
     user_id: int("user_id").references(() => users.id), // 下单用户（可为空，支持游客点餐）
     remark: varchar("remark", { length: 500 }), // 备注
     printed_at: timestamp("printed_at"), // 打印时间
@@ -264,7 +265,17 @@ export const store_settings = mysqlTable(
     smtp_pass_enc: varchar("smtp_pass_enc", { length: 512 }),
     smtp_from: varchar("smtp_from", { length: 255 }),
     smtp_secure: boolean("smtp_secure").notNull().default(true),
+    pickup_reset_time: varchar("pickup_reset_time", { length: 5 }).notNull().default('00:00'),
     created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().notNull(),
+  }
+);
+
+export const daily_pickup_counters = mysqlTable(
+  "daily_pickup_counters",
+  {
+    biz_date: varchar("biz_date", { length: 10 }).primaryKey(),
+    current_no: int("current_no").notNull().default(0),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   }
 );

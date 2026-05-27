@@ -1245,9 +1245,11 @@ export default function OrderManage() {
             {/* 操作按钮（固定在底部） */}
             <div className="p-4 border-t border-gray-100 bg-white">
               <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={() => setDetail(null)} className="flex-1 min-w-[80px] py-2.5 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer min-h-[40px]">
-                  关闭
-                </button>
+                {(detail.status === 'submitted' || detail.status === 'printed') && (
+                  <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="flex-1 min-w-[80px] py-2.5 bg-[#EF4444] text-white rounded-lg text-xs font-medium hover:bg-[#DC2626] transition-colors cursor-pointer min-h-[40px]">
+                    取消订单
+                  </button>
+                )}
                 <button
                   onClick={() => { handleReprint(detail.id); setDetail(null) }}
                   className="flex-1 min-w-[80px] py-2.5 bg-purple-50 text-[#9333EA] rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[40px]"
@@ -1264,17 +1266,14 @@ export default function OrderManage() {
                     加餐
                   </button>
                 )}
-                {detail.status === 'submitted' || detail.status === 'printed' ? (
-                  <>
-                    {/* 取消订单是危险操作：在小屏单独占一行避免误触确认结账 */}
-                    <button onClick={() => { handleCancel(detail.id); setDetail(null) }} className="basis-full sm:basis-auto sm:flex-1 sm:min-w-[80px] py-2.5 bg-[#EF4444] text-white rounded-lg text-xs font-medium hover:bg-[#DC2626] transition-colors cursor-pointer min-h-[40px] order-3 sm:order-none">
-                      取消订单
-                    </button>
-                    <button onClick={() => { handleSettle(detail.id); setDetail(null) }} className="flex-1 min-w-[80px] py-2.5 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer min-h-[40px]">
-                      确认结账
-                    </button>
-                  </>
-                ) : null}
+                {(detail.status === 'submitted' || detail.status === 'printed') && (
+                  <button onClick={() => { handleSettle(detail.id); setDetail(null) }} className="flex-1 min-w-[80px] py-2.5 bg-[#10B981] text-white rounded-lg text-xs font-medium hover:bg-[#059669] transition-colors cursor-pointer min-h-[40px]">
+                    确认结账
+                  </button>
+                )}
+                <button onClick={() => setDetail(null)} className="flex-1 min-w-[80px] py-2.5 bg-[#F1F5F9] text-[#64748B] rounded-lg text-xs font-medium hover:bg-[#E2E8F0] transition-colors cursor-pointer min-h-[40px]">
+                  关闭
+                </button>
               </div>
             </div>
           </div>

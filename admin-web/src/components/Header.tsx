@@ -88,7 +88,7 @@ export default function Header(_: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 h-14 lg:h-16 bg-white border-b border-gray-200 z-30 shrink-0 flex items-center justify-between px-3 sm:px-4 lg:px-6">
+      <header className="sticky top-0 pt-[env(safe-area-inset-top)] h-[calc(3.5rem+env(safe-area-inset-top))] lg:h-[calc(4rem+env(safe-area-inset-top))] bg-white border-b border-gray-200 z-30 shrink-0 flex items-center justify-between px-3 sm:px-4 lg:px-6">
         <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-base sm:text-lg font-semibold text-[#0F172A] truncate">后台管理系统</h1>
         </div>

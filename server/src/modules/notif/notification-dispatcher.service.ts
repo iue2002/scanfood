@@ -131,19 +131,17 @@ export class NotificationDispatcherService {
   ): Promise<void> {
     if (!this.pushService.isEnabled()) return;
     try {
-      // Web Push 是独立通道：用户既然主动订阅了，所有 3 类事件都该推。
-      // 不再用 desktop_events 过滤（那是浏览器端 Notification API 的开关，
-      // 与 Web Push 后台推送是两套机制）。
-      const allUserIds = staff.map((s) => s.userId);
-      if (allUserIds.length === 0) return;
+      const recipients = staff.filter((s) => s.desktop_events.includes(event));
+      if (recipients.length === 0) return;
 
+      const userIds = recipients.map((s) => s.userId);
       const title = this.buildTitle(event, ctx);
       const body = this.buildPushBody(event, ctx);
       const url = `/orders?focus=${ctx.orderId}`;
       const tag = `${event}-${ctx.orderId}`;
 
       // sendToUsers 内部按 push_subscriptions 表查订阅；没订阅的员工自动跳过
-      await this.pushService.sendToUsers(allUserIds, { title, body, url, tag });
+      await this.pushService.sendToUsers(userIds, { title, body, url, tag });
     } catch (err) {
       this.logger.warn(`[notif] push dispatch error (吞掉): ${(err as Error).message}`);
     }

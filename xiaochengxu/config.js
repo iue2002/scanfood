@@ -27,7 +27,7 @@ const ENV = {
 // - 开发者工具本地调试：使用 'LOCAL'
 // - 真机开发版/体验版测试：使用 'TUNNEL'（需要先配置内网穿透）
 // - 正式发布：使用 'PROD'
-const CURRENT_ENV = 'LOCAL';
+const CURRENT_ENV = 'TUNNEL';
 
 const config = {
   // 当前环境信息

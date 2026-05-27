@@ -236,7 +236,10 @@ export class NotificationDispatcherService {
     const table = tableRows[0] as any;
     const isTakeaway =
       order.order_type === 'takeaway' || table?.table_number === '__TAKEAWAY__';
-    const tableLabel = isTakeaway ? '外带' : `${table?.table_number || '?'} 号桌`;
+    const pickupNo = order.pickup_no as number | null | undefined;
+    const tableLabel = isTakeaway
+      ? (pickupNo ? `外带 ${pickupNo}号` : '外带')
+      : `${table?.table_number || '?'} 号桌`;
 
     return {
       orderId: order.id,

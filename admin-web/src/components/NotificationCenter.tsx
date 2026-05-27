@@ -88,7 +88,10 @@ export default function NotificationCenter() {
         if (!data) return
         const isTakeaway = data.order_type === 'takeaway'
         const tableNum = data.tables?.table_number || data.table_id
-        const tableLabel = isTakeaway ? '🛍️ 外带' : `${tableNum}号桌`
+        const pickupNo = data.pickup_no
+        const tableLabel = isTakeaway
+          ? (pickupNo ? `🛍️ 外带 ${pickupNo}号` : '🛍️ 外带')
+          : `${tableNum}号桌`
         const orderNo = data.order_number || `#${data.id}`
 
         const localKey = `order:${data.status}:${data.id}`
@@ -122,7 +125,10 @@ export default function NotificationCenter() {
         if (!data) return
         const isTakeaway = data.order_type === 'takeaway'
         const tableNum = data.tables?.table_number || data.table_id
-        const tableLabel = isTakeaway ? '🛍️ 外带' : `${tableNum}号桌`
+        const pickupNo = data.pickup_no
+        const tableLabel = isTakeaway
+          ? (pickupNo ? `🛍️ 外带 ${pickupNo}号` : '🛍️ 外带')
+          : `${tableNum}号桌`
         const orderNo = data.order_number || `#${data.id}`
 
         const localKey = `order:updated:${data.id}`

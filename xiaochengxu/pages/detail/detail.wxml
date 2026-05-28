@@ -96,7 +96,7 @@
           </view>
           <view class="om-group-body">
             <view class="om-dish-row" wx:for="{{group.items}}" wx:key="id" wx:for-item="dish">
-              <image class="om-dish-img" src="{{dish.dish_image || '/images/default-dish.png'}}" mode="aspectFill" />
+              <image class="om-dish-img" src="{{dish.dish_thumbnail || dish.dish_image || '/images/default-dish.png'}}" mode="aspectFill" />
               <view class="om-dish-info">
                 <view class="om-dish-name-row">
                   <text class="om-dish-name">{{dish.dish_name}}</text>
@@ -117,7 +117,7 @@
 
       <view class="om-group-body" wx:else>
         <view class="om-dish-row" wx:for="{{order.order_items}}" wx:key="id">
-          <image class="om-dish-img" src="{{item.dish_image || '/images/default-dish.png'}}" mode="aspectFill" />
+          <image class="om-dish-img" src="{{item.dish_thumbnail || item.dish_image || '/images/default-dish.png'}}" mode="aspectFill" />
           <view class="om-dish-info">
             <view class="om-dish-name-row">
               <text class="om-dish-name">{{item.dish_name}}</text>

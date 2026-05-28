@@ -74,7 +74,11 @@ async function bootstrap() {
   if (!existsSync(uploadsDir)) {
     mkdirSync(uploadsDir, { recursive: true });
   }
-  app.use('/uploads', express.static(uploadsDir));
+  app.use('/uploads', express.static(uploadsDir, {
+    maxAge: '30d',
+    etag: true,
+    lastModified: true,
+  }));
 
   app.setGlobalPrefix('api');
   // 限制请求体大小为 10MB，防止大 payload 攻击

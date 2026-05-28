@@ -278,6 +278,11 @@
   flex-shrink: 0;
   background: #F8FAFC;
   display: block;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.om-dish-img-loaded {
+  opacity: 1;
 }
 .om-dish-info {
   flex: 1;

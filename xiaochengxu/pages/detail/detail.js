@@ -7,6 +7,7 @@
 const { request } = require('../../utils/request');
 const { SERVER_URL } = require('../../config');
 const dishesCache = require('../../utils/dishes-cache');
+const { resolveImageUrl, toThumbnailUrl } = require('../../utils/image-url');
 
 Page({
   data: {
@@ -405,11 +406,8 @@ Page({
       if (order.order_items && order.order_items.length > 0) {
         order.order_items = order.order_items.map(item => {
           const dish = dishes.find(d => d.id === item.dish_id);
-          let dishImage = dish ? dish.image_url : '';
-          if (dishImage && !dishImage.startsWith('http')) {
-            dishImage = SERVER_URL + (dishImage.startsWith('/') ? '' : '/') + dishImage;
-          }
-          return { ...item, dish_image: dishImage };
+          const dishImage = resolveImageUrl(dish ? dish.image_url : '');
+          return { ...item, dish_image: dishImage, dish_thumbnail: toThumbnailUrl(dishImage) };
         });
         order.groupedItems = this.groupItemsByRound(order.order_items);
       }
@@ -511,13 +509,8 @@ Page({
         dishesCache.getDishes()
       ]);
       const processed = (allDishes || []).map(dish => {
-        if (dish.image_url && !dish.image_url.startsWith('http')) {
-          if (dish.image_url.includes('__tmp__') || dish.image_url.includes('tmp/')) {
-            dish.image_url = '';
-          } else {
-            dish.image_url = SERVER_URL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
-          }
-        }
+        dish.image_url = resolveImageUrl(dish.image_url);
+        dish.thumbnail_url = toThumbnailUrl(dish.image_url);
         return dish;
       });
 

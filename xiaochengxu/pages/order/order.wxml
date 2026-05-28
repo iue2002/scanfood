@@ -71,10 +71,12 @@
 
       <view wx:for="{{dishes}}" wx:key="id" class="om-dish-card">
         <image
-          class="om-dish-img"
-          src="{{item.image_url || '/images/default-dish.png'}}"
+          class="om-dish-img om-dish-img-fade {{loadedImages[item.id] ? 'om-dish-img-loaded' : ''}}"
+          src="{{item.thumbnail_url || item.image_url || '/images/default-dish.png'}}"
           mode="aspectFill"
           lazy-load
+          data-id="{{item.id}}"
+          bindload="onDishImageLoad"
         />
         <view class="om-dish-info">
           <view class="om-dish-name-row">
@@ -198,7 +200,7 @@
       </view>
 
       <view class="om-cart-row" wx:for="{{cartItems}}" wx:key="id">
-        <image class="om-cart-row-img" src="{{item.image_url || '/images/default-dish.png'}}" mode="aspectFill" />
+        <image class="om-cart-row-img" src="{{item.thumbnail_url || item.image_url || '/images/default-dish.png'}}" mode="aspectFill" />
         <view class="om-cart-row-info">
           <text class="om-cart-row-name">{{item.dish_name}}</text>
           <view class="om-cart-row-price-row">

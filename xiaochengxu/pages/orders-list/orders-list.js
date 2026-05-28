@@ -4,6 +4,7 @@
 const { request } = require('../../utils/request');
 const dishesCache = require('../../utils/dishes-cache');
 const ordersPrefetch = require('../../utils/orders-prefetch');
+const { resolveImageUrl, toThumbnailUrl } = require('../../utils/image-url');
 
 Page({
   data: {
@@ -136,7 +137,6 @@ Page({
       if (!userInfo || !userInfo.id) {
         userInfo = wx.getStorageSync('userInfo');
       }
-      const { SERVER_URL } = require('../../config');
       if (!userInfo || !userInfo.id) {
         this._isFetching = false;
         this._isLoadingMore = false;
@@ -177,15 +177,8 @@ Page({
           if (order.order_items) {
             order.order_items = order.order_items.map(item => {
               const dish = dishes.find(d => d.id === item.dish_id);
-              let dishImage = '';
-              if (dish && dish.image_url) {
-                if (dish.image_url.startsWith('http')) {
-                  dishImage = dish.image_url;
-                } else {
-                  dishImage = SERVER_URL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
-                }
-              }
-              return { ...item, dish_image: dishImage };
+              const dishImage = resolveImageUrl(dish && dish.image_url ? dish.image_url : '');
+              return { ...item, dish_image: dishImage, dish_thumbnail: toThumbnailUrl(dishImage) };
             });
             order.groupedItems = this.groupItemsByPhase(order.order_items);
           }
@@ -198,7 +191,7 @@ Page({
             : '无菜品';
           order.totalItems = (order.order_items || []).reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
           const firstWithImage = (order.order_items || []).find(it => it.dish_image);
-          order.firstDishImage = firstWithImage ? firstWithImage.dish_image : '';
+          order.firstDishImage = firstWithImage ? (firstWithImage.dish_thumbnail || firstWithImage.dish_image) : '';
           return order;
         });
 

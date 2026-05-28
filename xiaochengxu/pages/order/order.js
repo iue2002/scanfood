@@ -1,5 +1,6 @@
 // pages/order/order.js
 const { request, serverURL } = require('../../utils/request');
+const { resolveImageUrl, toThumbnailUrl } = require('../../utils/image-url');
 
 function generateIdempotencyKey() {
   return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
@@ -24,6 +25,8 @@ Page({
     isAddMore: false,
     // 外带模式：用户从右上角"打包带走"进入；不需扫码 / 不走共享桌台 cart / 不调 ws 同步
     isTakeaway: false,
+    // 图片加载状态（淡入过渡）
+    loadedImages: {},
     // 数量输入弹窗
     showQtyModal: false,
     editDishId: null,
@@ -294,6 +297,16 @@ Page({
     // 异步检查未付款订单（已节流），不阻塞页面显示
     if (!isSecondShow) {
       this.checkActiveOrderAsync();
+    }
+  },
+
+  // 菜品图片加载完成，触发淡入
+  onDishImageLoad(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    const key = `loadedImages.${id}`;
+    if (!this.data.loadedImages[id]) {
+      this.setData({ [key]: true });
     }
   },
 
@@ -642,7 +655,8 @@ Page({
               price: parseFloat(dish.price).toFixed(2),
               quantity: c,
               subtotal: (c * parseFloat(dish.price)).toFixed(2),
-              image_url: dish.image_url || ''
+              image_url: dish.image_url || '',
+              thumbnail_url: dish.thumbnail_url || ''
             });
           }
         }
@@ -778,15 +792,9 @@ Page({
       const categories = await request({ url: '/dishes/categories', noLoading: true });
       let allDishes = await request({ url: '/dishes', noLoading: true });
 
-      const { serverURL } = require('../../utils/request');
       allDishes = allDishes.map(dish => {
-        if (dish.image_url && !dish.image_url.startsWith('http')) {
-          if (dish.image_url.includes('__tmp__') || dish.image_url.includes('tmp/')) {
-            dish.image_url = '';
-          } else {
-            dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
-          }
-        }
+        dish.image_url = resolveImageUrl(dish.image_url);
+        dish.thumbnail_url = toThumbnailUrl(dish.image_url);
         return dish;
       });
 
@@ -814,15 +822,9 @@ Page({
   /** 菜品缓存变更回调：商家在 admin 改完菜品后，自动同步到 UI */
   _applyDishesUpdate(newDishes) {
     if (!Array.isArray(newDishes) || newDishes.length === 0) return;
-    const { serverURL } = require('../../utils/request');
     const allDishes = newDishes.map(dish => {
-      if (dish.image_url && !dish.image_url.startsWith('http')) {
-        if (dish.image_url.includes('__tmp__') || dish.image_url.includes('tmp/')) {
-          dish.image_url = '';
-        } else {
-          dish.image_url = serverURL + (dish.image_url.startsWith('/') ? '' : '/') + dish.image_url;
-        }
-      }
+      dish.image_url = resolveImageUrl(dish.image_url);
+      dish.thumbnail_url = toThumbnailUrl(dish.image_url);
       return dish;
     });
     this.setData({ allDishes });
@@ -1085,7 +1087,8 @@ Page({
               price: parseFloat(dish.price).toFixed(2),
               quantity: c,
               subtotal: (c * parseFloat(dish.price)).toFixed(2),
-              image_url: dish.image_url || ''
+              image_url: dish.image_url || '',
+              thumbnail_url: dish.thumbnail_url || ''
             });
           }
         }
@@ -1373,7 +1376,8 @@ Page({
             price: parseFloat(dish.price).toFixed(2),
             quantity: count,
             subtotal: (count * parseFloat(dish.price)).toFixed(2),
-            image_url: dish.image_url || ''
+            image_url: dish.image_url || '',
+            thumbnail_url: dish.thumbnail_url || ''
           });
         }
       }

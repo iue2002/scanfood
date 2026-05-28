@@ -152,12 +152,19 @@ Page({
     setTimeout(() => this.setData({ _refreshing: false }), 300);
   },
 
-  // ====== 锁定模式核心：用 my-active 兜底（onShow 触发） ======
+  // ====== 锁定模式核心：核对当前订单状态（onShow 触发） ======
+  // 支持两种场景：
+  // 1) 订单创建者：自己名下的订单被结账/取消后自动退出
+  // 2) 桌台订阅者（扫码加入的同伙）：只要当前桌台订单还在活跃就保留，不弹出去
   async _refreshLockedOrderStatus(orderId) {
     try {
-      const order = await request({ url: '/orders/my-active', noLoading: true });
+      const id = orderId || this.data.orderId;
+      if (!id) return;
+      // 用当前显示的 orderId 查订单详情，而不是只查 my-active
+      //（桌台订阅者查不到 my-active，但应能继续查看桌台订单）
+      const order = await request({ url: `/orders/${id}`, noLoading: true });
       if (!order || !order.id) {
-        // 后端无活跃订单 → 顾客已被结账/取消 → 自动解锁释放
+        // 订单已被删除 → 自动解锁释放
         this.releaseTableResources();
         this._unlockAndExit();
         return;

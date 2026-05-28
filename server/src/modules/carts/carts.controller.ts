@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CartsService } from './carts.service';
-import { CreateCartDto } from './dto/cart.dto';
+import { CreateCartDto, SyncCartOpsDto } from './dto/cart.dto';
 
 @Controller('carts')
 export class CartsController {
@@ -17,6 +17,12 @@ export class CartsController {
   @Post('sync')
   async syncCart(@Body() dto: CreateCartDto) {
     return await this.cartsService.syncCart(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sync-ops')
+  async syncCartOps(@Body() dto: SyncCartOpsDto) {
+    return await this.cartsService.syncCartOps(dto);
   }
 
   @UseGuards(JwtAuthGuard)

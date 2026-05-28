@@ -1,6 +1,10 @@
 // pages/order/order.js
 const { request, serverURL } = require('../../utils/request');
 
+function generateIdempotencyKey() {
+  return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
 Page({
   data: {
     tableId: '',
@@ -44,6 +48,7 @@ Page({
   _lastSyncAt: 0,             // 最近一次本地同步发起时间，用于忽略 ws 回声
   _lastActiveCheckAt: 0,      // 最近一次检查 my-active 时间，节流避免 onShow 反复请求
   _lastOnShowAt: 0,           // 最近一次 onShow 时间，用于跳过短时间频繁切换的请求
+  _pendingOps: [],            // 增量操作指令累积队列（用于 sync-ops）
 
   async onLoad(options) {
     // === 自定义导航栏：读取手机状态栏高度（用于占位） ===
@@ -109,9 +114,10 @@ Page({
     this.checkActiveOrderAsync();
   },
 
-  async checkActiveOrderAsync() {
+  async checkActiveOrderAsync(force = false) {
     // 30 秒内只查一次，避免 TabBar 来回切时反复请求
-    if (this._lastActiveCheckAt && Date.now() - this._lastActiveCheckAt < 30000) {
+    // force=true 用于扫码进入后桌台信息就绪时的强制兜底检查
+    if (!force && this._lastActiveCheckAt && Date.now() - this._lastActiveCheckAt < 30000) {
       return;
     }
     this._lastActiveCheckAt = Date.now();
@@ -333,6 +339,7 @@ Page({
   },
 
   onUnload() {
+    this._pendingOps = [];
     if (this._syncTimer) {
       clearTimeout(this._syncTimer);
       this._syncTimer = null;
@@ -573,8 +580,9 @@ Page({
   },
 
   handleCartUpdate(cart) {
-    // 忽略本地刚刚同步上去的回声（1.5 秒内）——避免输入抖动闪屏
-    if (this._lastSyncAt && Date.now() - this._lastSyncAt < 1500) {
+    // 忽略本地刚刚同步上去的回声（500ms 内）——避免输入抖动闪屏
+    // 增量操作流下，其他人的操作广播不应被长时间忽略
+    if (this._lastSyncAt && Date.now() - this._lastSyncAt < 500) {
       return;
     }
 
@@ -591,7 +599,7 @@ Page({
 
     const cartCount = {};
     cart.cart_items.forEach(item => {
-      cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
+      cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + Number(item.quantity || 0);
     });
 
     // 与本地状态完全一致就 ignore，避免无意义重渲染
@@ -703,6 +711,8 @@ Page({
       this.setData({ tableId: table.id, tableNumber: table.table_number });
       getApp().globalData.tableId = table.id;
       this.initWebSocket();
+      // 桌台信息就绪后，强制检查该桌台是否有活跃订单
+      this.checkActiveOrderAsync(true);
     } catch (err) {
       console.error('获取桌台信息失败', err);
       wx.showToast({
@@ -733,6 +743,8 @@ Page({
       this.bindTable(tableNumber);
       this.initWebSocket();
       this.fetchCurrentCart();
+      // 桌台信息就绪后，强制检查该桌台是否有活跃订单（新用户扫码进入时直接跳转详情）
+      this.checkActiveOrderAsync(true);
     } catch (err) {
       console.error('获取桌台信息失败', err);
       wx.showToast({
@@ -832,7 +844,7 @@ Page({
       if (cart && cart.cart_items && cart.cart_items.length > 0) {
         const cartCount = {};
         cart.cart_items.forEach(item => {
-          cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + item.quantity;
+          cartCount[item.dish_id] = (cartCount[item.dish_id] || 0) + Number(item.quantity || 0);
         });
         this.setData({ cartCount, currentCartId: cart.id });
         const localCart = getApp().getCart(this.data.tableId);
@@ -1097,7 +1109,32 @@ Page({
     const cart = isAddMore ? getApp().getAddMoreCart(tableId) : getApp().getCart(tableId);
     cart.cartCount = { ...nextCartCount };
 
-    // ⑥ 防抖同步到后端，连续点击只发最后一次
+    // ⑥ 普通模式下累积增量操作指令（多人同时加菜时不互相覆盖）
+    if (!isAddMore && !this.data.isTakeaway) {
+      const delta = nextCount - count;
+      const userInfo = getApp().globalData.userInfo;
+      if (delta > 0) {
+        this._pendingOps.push({
+          idempotencyKey: generateIdempotencyKey(),
+          action: 'add',
+          dish_id: parseInt(id),
+          quantity: delta,
+          added_by_user_id: userInfo?.id,
+          added_by_nickname: userInfo?.nickname || '未知用户'
+        });
+      } else if (delta < 0) {
+        this._pendingOps.push({
+          idempotencyKey: generateIdempotencyKey(),
+          action: 'remove',
+          dish_id: parseInt(id),
+          quantity: -delta,
+          added_by_user_id: userInfo?.id,
+          added_by_nickname: userInfo?.nickname || '未知用户'
+        });
+      }
+    }
+
+    // ⑦ 防抖同步到后端，连续点击只发最后一次
     this.scheduleSyncCart();
   },
 
@@ -1145,6 +1182,38 @@ Page({
   async syncCartToBackend() {
     const { cartCount, allDishes, tableId, currentCartId, currentOrderId, isAddMore } = this.data;
     if (!tableId) return;
+
+    // 增量操作流：普通模式下优先发送累积的操作指令（多人同时加菜时不互相覆盖）
+    if (!isAddMore && this._pendingOps && this._pendingOps.length > 0) {
+      const ops = this._pendingOps.splice(0, this._pendingOps.length);
+      this._lastSyncAt = Date.now();
+
+      try {
+        const result = await request({
+          url: '/carts/sync-ops',
+          method: 'POST',
+          data: {
+            table_id: parseInt(tableId),
+            ops,
+            user_id: getApp().globalData.userInfo?.id
+          },
+          noLoading: true
+        });
+        if (result && result.id) {
+          const localCart = getApp().getCart(tableId);
+          localCart.currentCartId = result.id;
+          if (this.data.currentCartId !== result.id) {
+            this.setData({ currentCartId: result.id });
+          }
+        }
+      } catch (err) {
+        console.error('增量同步购物车失败', err);
+        // 网络失败：将操作恢复到队列头部，下次重试（幂等键保证服务端不会重复执行）
+        this._pendingOps = ops.concat(this._pendingOps);
+      }
+      return;
+    }
+
     // 标记本次本地同步时间，handleCartUpdate 在窗口内会忽略 ws 回声
     this._lastSyncAt = Date.now();
 
@@ -1279,13 +1348,20 @@ Page({
   clearCart() {
     if (this.data.totalCount === 0) return;
     const doClear = () => {
-      if (this.data.isAddMore) {
-        getApp().clearAddMoreCart(this.data.tableId);
+      const { isAddMore, currentCartId, tableId } = this.data;
+      if (isAddMore) {
+        getApp().clearAddMoreCart(tableId);
+        this.setData({ cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00' });
+        this.syncCartToBackend();
       } else {
-        getApp().clearCart(this.data.tableId);
+        getApp().clearCart(tableId);
+        const cid = currentCartId;
+        this.setData({ cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00', currentCartId: null });
+        // 普通模式直接调用 DELETE API 清空购物车，避免发送一堆 remove 操作
+        if (cid) {
+          request({ url: `/carts/${cid}`, method: 'DELETE', noLoading: true }).catch(() => {});
+        }
       }
-      this.setData({ cartCount: {}, cartItems: [], totalCount: 0, totalPrice: '0.00' });
-      this.syncCartToBackend();
     };
     if (this.modal) {
       this.modal.show({
@@ -1624,6 +1700,8 @@ Page({
     const { editDishId, editDishCount, cartCount, isAddMore } = this.data;
     if (editDishId === null) return;
 
+    const oldCount = cartCount[editDishId] || 0;
+
     if (editDishCount <= 0) {
       delete cartCount[editDishId];
     } else {
@@ -1634,6 +1712,34 @@ Page({
     const cart = isAddMore ? getApp().getAddMoreCart(this.data.tableId) : getApp().getCart(this.data.tableId);
     cart.cartCount = { ...cartCount };
     this.calculateTotal();
+
+    // 普通模式下累积增量操作指令（用 add/remove delta 代替 set，避免并发覆盖）
+    if (!isAddMore) {
+      const userInfo = getApp().globalData.userInfo;
+      // 用最新的 cartCount 计算 delta（弹窗期间可能被其他人的 WS 推送更新过）
+      const latestOldCount = this.data.cartCount[editDishId] || 0;
+      const delta = editDishCount - latestOldCount;
+      if (delta > 0) {
+        this._pendingOps.push({
+          idempotencyKey: generateIdempotencyKey(),
+          action: 'add',
+          dish_id: parseInt(editDishId),
+          quantity: delta,
+          added_by_user_id: userInfo?.id,
+          added_by_nickname: userInfo?.nickname || '未知用户'
+        });
+      } else if (delta < 0) {
+        this._pendingOps.push({
+          idempotencyKey: generateIdempotencyKey(),
+          action: 'remove',
+          dish_id: parseInt(editDishId),
+          quantity: -delta,
+          added_by_user_id: userInfo?.id,
+          added_by_nickname: userInfo?.nickname || '未知用户'
+        });
+      }
+    }
+
     this.syncCartToBackend();
   },
 

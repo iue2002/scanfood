@@ -179,6 +179,7 @@ export const carts = mysqlTable(
     table_id: int("table_id").notNull().references(() => tables.id),
     user_id: int("user_id").references(() => users.id),
     total_amount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+    version: int("version").notNull().default(0), // 乐观锁：并发更新时版本号递增
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -210,6 +211,7 @@ export const cart_items = mysqlTable(
     index("cart_items_cart_id_idx").on(table.cart_id),
     index("cart_items_dish_id_idx").on(table.dish_id),
     index("cart_items_added_by_user_id_idx").on(table.added_by_user_id),
+    uniqueIndex("cart_items_cart_dish_unique").on(table.cart_id, table.dish_id),
   ]
 );
 

@@ -72,13 +72,6 @@ export class CartsService {
       return null;
     }
 
-    const activeCartResult = await db.select().from(carts)
-      .where(eq(carts.table_id, dto.table_id))
-      .orderBy(desc(carts.updated_at))
-      .limit(1);
-
-    const activeCart = activeCartResult[0];
-
     let totalAmount = 0;
     const itemsToInsert = dto.items.map(item => {
       const subtotal = item.price * item.quantity;
@@ -96,26 +89,40 @@ export class CartsService {
       };
     });
 
-    let cartId = activeCart?.id;
+    const cartId = await db.transaction(async (tx) => {
+      // FOR UPDATE 串行化同一桌台的全量同步
+      const activeCartResult = await tx.select().from(carts)
+        .where(eq(carts.table_id, dto.table_id))
+        .orderBy(desc(carts.updated_at))
+        .limit(1)
+        .for('update');
 
-    if (cartId && activeCart) {
-      await db.update(carts).set({
-        total_amount: totalAmount.toFixed(2),
-        user_id: dto.user_id || activeCart.user_id,
-        updated_at: new Date(),
-      }).where(eq(carts.id, cartId));
+      const activeCart = activeCartResult[0];
+      let cid = activeCart?.id;
 
-      await db.delete(cart_items).where(eq(cart_items.cart_id, cartId));
-      await db.insert(cart_items).values(itemsToInsert.map(item => ({ ...item, cart_id: cartId as number })));
-    } else {
-      const insertResult = await db.insert(carts).values({
-        table_id: dto.table_id,
-        user_id: dto.user_id,
-        total_amount: totalAmount.toFixed(2),
-      });
-      cartId = (insertResult as any)[0].insertId;
-      await db.insert(cart_items).values(itemsToInsert.map(item => ({ ...item, cart_id: cartId as number })));
-    }
+      if (cid && activeCart) {
+        await tx.update(carts).set({
+          total_amount: totalAmount.toFixed(2),
+          user_id: dto.user_id || activeCart.user_id,
+          updated_at: new Date(),
+          version: sql`version + 1`,
+        }).where(eq(carts.id, cid));
+
+        await tx.delete(cart_items).where(eq(cart_items.cart_id, cid));
+        await tx.insert(cart_items).values(itemsToInsert.map(item => ({ ...item, cart_id: cid as number })));
+      } else {
+        const insertResult = await tx.insert(carts).values({
+          table_id: dto.table_id,
+          user_id: dto.user_id,
+          total_amount: totalAmount.toFixed(2),
+          version: 0,
+        });
+        cid = (insertResult as any)[0].insertId;
+        await tx.insert(cart_items).values(itemsToInsert.map(item => ({ ...item, cart_id: cid as number })));
+      }
+
+      return cid;
+    });
 
     const cart = await this.getCartById(cartId as number);
     this.ordersGateway.notifyTableCartUpdate(dto.table_id, cart);
@@ -182,11 +189,12 @@ export class CartsService {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         const txResult = await db.transaction(async (tx) => {
-          // 2.1 找到当前桌台的活跃购物车
+          // 2.1 找到当前桌台的活跃购物车，FOR UPDATE 串行化同一桌台的所有操作
           const activeCartResult = await tx.select().from(carts)
             .where(eq(carts.table_id, dto.table_id))
             .orderBy(desc(carts.updated_at))
-            .limit(1);
+            .limit(1)
+            .for('update');
 
           let cartId = activeCartResult[0]?.id;
           let currentVersion = activeCartResult[0]?.version ?? 0;

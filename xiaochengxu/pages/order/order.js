@@ -1236,6 +1236,8 @@ Page({
             patch.cartCount = cartCount;
           }
           this.setData(patch);
+          // 重新计算总价和购物车列表，保持 UI 一致性
+          this.calculateTotal();
         }
       } catch (err) {
         console.error('增量同步购物车失败', err);
@@ -1331,8 +1333,12 @@ Page({
         const cart = getApp().getCart(this.data.tableId);
         cart.currentCartId = result?.id || null;
         const nextCartId = result?.id || null;
-        // 仅在变化时 setData，避免无意义渲染
-        if (this.data.currentCartId !== nextCartId) {
+        // 用后端返回的 cart_items 更新本地状态（叠加未同步操作），保持各客户端一致
+        if (result && result.cart_items) {
+          const cartCount = this._mergeBackendCartWithPendingOps(result.cart_items);
+          this.setData({ cartCount, currentCartId: nextCartId });
+          this.calculateTotal();
+        } else if (this.data.currentCartId !== nextCartId) {
           this.setData({ currentCartId: nextCartId });
         }
       }

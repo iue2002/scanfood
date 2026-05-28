@@ -121,10 +121,19 @@ Page({
       if (!token) {
         return;
       }
-      const order = await request({ url: '/orders/my-active', noLoading: true });
-      if (order && order.id) {
+      // 1) 先检查自己名下的活跃订单
+      const myOrder = await request({ url: '/orders/my-active', noLoading: true });
+      if (myOrder && myOrder.id) {
         // 自动检测：跳转到 detail 真页面（锁定模式）
-        this.navigateToDetail(order.id, true);
+        this.navigateToDetail(myOrder.id, true);
+        return;
+      }
+      // 2) 再检查当前桌台的活跃订单（即使不是自己的，作为桌台订阅者也要跟进）
+      if (this.data.tableId && !this.data.isTakeaway) {
+        const tableOrder = await request({ url: `/orders/current/${this.data.tableId}`, noLoading: true });
+        if (tableOrder && tableOrder.id && ['submitted', 'printed', 'unpaid'].includes(tableOrder.status)) {
+          this.navigateToDetail(tableOrder.id, true);
+        }
       }
     } catch (err) {
       console.log('没有未完成的订单', err);
@@ -452,6 +461,8 @@ Page({
       // 重连后补拉一次最新订单状态：避免断线期间错过 orderStatusChanged 导致 UI 不刷新
       // 关键场景：商家结账时 ws 刚好断开，重连后小程序看到的还是旧状态
       try { this.fetchCurrentCart(); } catch (e) { /* ignore */ }
+      // 重连后兜底检查桌台是否有活跃订单（断线期间可能错过 orderStatusChanged）
+      try { this.checkActiveOrderAsync(); } catch (e) { /* ignore */ }
     });
 
     this.ws.onMessage((res) => {
@@ -544,13 +555,18 @@ Page({
   },
 
   handleOrderUpdate(order) {
-    if (order && (order.status === 'submitted' || order.status === 'printed' || order.status === 'unpaid')) {
+    if (!order) return;
+    if (['submitted', 'printed', 'unpaid'].includes(order.status)) {
       if (this.data.isAddMore) {
         return;
       }
+      if (this._hasAutoNavigated) {
+        return;
+      }
+      this._hasAutoNavigated = true;
       // ws 推送的未付款订单：跳到 detail 真页面（锁定模式）
       this.navigateToDetail(order.id, true);
-    } else if (order && (order.status === 'settled' || order.status === 'cancelled')) {
+    } else if (['settled', 'cancelled'].includes(order.status)) {
       // 订单已结账或取消，立即释放所有桌号资源
       this.releaseTableResources();
     }
@@ -673,6 +689,9 @@ Page({
         wx.setStorageSync('userInfo', app.globalData.userInfo);
       }
     }
+
+    // 重置自动跳转标记
+    this._hasAutoNavigated = false;
 
     // 断开 WebSocket
     this.closeWebSocket();
@@ -1517,8 +1536,8 @@ Page({
     if (!orderId) return;
     const lockedFlag = locked ? '1' : '0';
     if (locked) {
-      // 锁定模式：用 redirectTo 替换栈，避免按返回回到 confirm（已提交）页
-      wx.redirectTo({ url: `/pages/detail/detail?orderId=${orderId}&locked=${lockedFlag}` });
+      // 锁定模式：用 reLaunch 清空页面栈跳转（Skyline 下 redirectTo 从 tab 页跳转不可靠）
+      wx.reLaunch({ url: `/pages/detail/detail?orderId=${orderId}&locked=${lockedFlag}` });
     } else {
       wx.navigateTo({ url: `/pages/detail/detail?orderId=${orderId}&locked=${lockedFlag}` });
     }

@@ -47,12 +47,6 @@ interface Dish {
   category_name?: string
 }
 
-interface GroupedItems {
-  label: string
-  time?: string
-  items: OrderItem[]
-}
-
 const statusMap: Record<string, { label: string; bg: string; border: string; text: string; badge: string }> = {
   idle: {
     label: '空闲',
@@ -330,12 +324,12 @@ export default function TableBoard() {
   const selectedOrder = selectedTable?.current_order || null
   const settleOrder = settleTable?.current_order || null
   const servedCount = selectedOrder?.order_items.filter((item) => Boolean(item.served_at)).length || 0
-  const selectedOrderGroups = useMemo(
-    () => groupItemsByRound(selectedOrder?.order_items || []),
+  const selectedOrderItems = useMemo(
+    () => [...(selectedOrder?.order_items || [])].sort((a, b) => a.add_more_round - b.add_more_round),
     [selectedOrder?.order_items],
   )
-  const settleOrderGroups = useMemo(
-    () => groupItemsByRound(settleOrder?.order_items || []),
+  const settleOrderItems = useMemo(
+    () => [...(settleOrder?.order_items || [])].sort((a, b) => a.add_more_round - b.add_more_round),
     [settleOrder?.order_items],
   )
 
@@ -462,24 +456,30 @@ export default function TableBoard() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-3 bg-white">
-              {selectedOrderGroups.length === 0 ? (
+              {selectedOrderItems.length === 0 ? (
                 <div className="text-center text-sm text-[#94A3B8] py-8">暂无待处理菜品</div>
               ) : (
-                <div className="space-y-3">
-                  {selectedOrderGroups.map((group) => (
-                    <div key={`${group.label}-${group.time || 'no-time'}`} className="bg-white rounded-lg border border-gray-100">
-                      <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-                        <span className="text-sm font-medium text-[#334155]">{group.label}</span>
-                        {group.time && <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>}
-                      </div>
-                      <div className="p-2 space-y-1.5">
-                        {group.items.map((item) => (
+                <div className="bg-white rounded-lg border border-gray-100">
+                  <div className="p-2">
+                    {(() => {
+                      const elems: React.ReactNode[] = []
+                      let prevRound = -1
+                      selectedOrderItems.forEach((item, ii) => {
+                        if (item.add_more_round !== prevRound && item.add_more_round > 0) {
+                          elems.push(
+                            <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] px-1 pt-2 mt-1 border-t border-amber-100">
+                              第{item.add_more_round}次加餐
+                            </div>
+                          )
+                        }
+                        prevRound = item.add_more_round
+                        elems.push(
                           <button
                             key={item.id}
                             type="button"
                             onClick={() => handleToggleServed(selectedTable.id, selectedOrder.id, item)}
                             disabled={loading}
-                            className={`w-full text-left rounded-lg border px-3 py-2.5 transition-all cursor-pointer disabled:opacity-60 ${
+                            className={`w-full text-left rounded-lg border px-3 py-2.5 transition-all cursor-pointer disabled:opacity-60 mt-1.5 ${ii === 0 ? 'mt-0' : ''} ${
                               item.served_at
                                 ? 'border-green-200 bg-green-50'
                                 : 'border-blue-200 bg-blue-50 hover:border-blue-300'
@@ -515,10 +515,11 @@ export default function TableBoard() {
                               </div>
                             </div>
                           </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                        )
+                      })
+                      return elems
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
@@ -554,37 +555,44 @@ export default function TableBoard() {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 bg-[#F8FAFC]">
               <div className="space-y-4">
-                {settleOrderGroups.map((group) => (
-                  <div key={`${group.label}-${group.time || 'no-time'}-settle`} className="bg-white rounded-3xl border border-[#E2E8F0] overflow-hidden">
-                    <div className="px-4 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-semibold text-[#0F172A]">{group.label}</div>
-                        {group.time && <div className="text-xs text-[#64748B]">{formatDateTime(group.time)}</div>}
-                      </div>
-                    </div>
-                    <div className="px-4 py-2">
-                      {group.items.map((item) => (
-                        <div key={item.id} className="flex items-start justify-between gap-4 py-3 border-b border-[#F1F5F9] last:border-0">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium text-[#0F172A]">{item.dish_name}</span>
-                              {item.spec_name && <span className="text-xs text-[#94A3B8]">({item.spec_name})</span>}
-                              <span className={`text-xs px-2 py-1 rounded-full ${item.served_at ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'}`}>
-                                {item.served_at ? '已上菜' : '未上菜'}
-                              </span>
+                <div className="bg-white rounded-3xl border border-[#E2E8F0] overflow-hidden">
+                  <div className="px-4 py-2">
+                    {(() => {
+                      const elems: React.ReactNode[] = []
+                      let prevRound = -1
+                      settleOrderItems.forEach((item, ii) => {
+                        if (item.add_more_round !== prevRound && item.add_more_round > 0) {
+                          elems.push(
+                            <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] pt-2 mt-1 border-t border-amber-100">
+                              第{item.add_more_round}次加餐
                             </div>
-                            <div className="mt-1 text-sm text-[#64748B]">
-                              单价 ¥{item.price} × {item.quantity}
+                          )
+                        }
+                        prevRound = item.add_more_round
+                        elems.push(
+                          <div key={item.id} className="flex items-start justify-between gap-4 py-3 border-b border-[#F1F5F9] last:border-0">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-[#0F172A]">{item.dish_name}</span>
+                                {item.spec_name && <span className="text-xs text-[#94A3B8]">({item.spec_name})</span>}
+                                <span className={`text-xs px-2 py-1 rounded-full ${item.served_at ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'}`}>
+                                  {item.served_at ? '已上菜' : '未上菜'}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-sm text-[#64748B]">
+                                单价 ¥{item.price} × {item.quantity}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="font-semibold text-[#0F172A]">¥{item.subtotal}</div>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <div className="font-semibold text-[#0F172A]">¥{item.subtotal}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        )
+                      })
+                      return elems
+                    })()}
                   </div>
-                ))}
+                </div>
 
                 {settleOrder.remark && (
                   <div className="bg-white rounded-3xl border border-[#E2E8F0] p-4">
@@ -765,44 +773,6 @@ export default function TableBoard() {
       )}
     </div>
   )
-}
-
-function groupItemsByRound(items: OrderItem[]): GroupedItems[] {
-  if (!items.length) return []
-  const sorted = [...items].sort((left, right) => {
-    if (left.add_more_round !== right.add_more_round) {
-      return left.add_more_round - right.add_more_round
-    }
-    return new Date(left.created_at || 0).getTime() - new Date(right.created_at || 0).getTime()
-  })
-
-  const groups: GroupedItems[] = []
-  let currentRound = sorted[0].add_more_round
-  let currentItems: OrderItem[] = []
-
-  sorted.forEach((item) => {
-    if (item.add_more_round !== currentRound) {
-      groups.push({
-        label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
-        time: currentItems[0]?.created_at,
-        items: currentItems,
-      })
-      currentRound = item.add_more_round
-      currentItems = [item]
-      return
-    }
-    currentItems.push(item)
-  })
-
-  if (currentItems.length > 0) {
-    groups.push({
-      label: currentRound === 0 ? '首次点餐' : `第${currentRound}次加餐`,
-      time: currentItems[0]?.created_at,
-      items: currentItems,
-    })
-  }
-
-  return groups
 }
 
 function formatDateTime(dateStr?: string | null) {

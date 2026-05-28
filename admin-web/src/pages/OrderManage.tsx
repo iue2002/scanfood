@@ -58,13 +58,6 @@ interface Dish {
   category_name?: string
 }
 
-interface GroupedItems {
-  time: string
-  items: OrderItem[]
-  label: string
-  phase: 'order' | 'add_more'
-}
-
 const statusMap: Record<string, { label: string; color: string }> = {
   draft: { label: '待提交', color: 'text-[#94A3B8] bg-[#F1F5F9]' },
   submitted: { label: '已提交', color: 'text-[#F59E0B] bg-[#FEF3C7]' },
@@ -370,36 +363,6 @@ export default function OrderManage() {
       }
       return next
     })
-  }
-
-  const groupItemsByPhase = (items: OrderItem[]): GroupedItems[] => {
-    if (!items || items.length === 0) return []
-    const sorted = [...items].sort((a, b) => a.add_more_round - b.add_more_round)
-    const groups: GroupedItems[] = []
-    let currentGroup: OrderItem[] = [sorted[0]]
-    let currentRound = sorted[0].add_more_round
-
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i].add_more_round === currentRound) {
-        currentGroup.push(sorted[i])
-      } else {
-        groups.push({
-          time: currentGroup[0].created_at,
-          items: currentGroup,
-          label: currentRound === 0 ? '' : `第${currentRound}次加餐`,
-          phase: currentRound === 0 ? 'order' : 'add_more'
-        })
-        currentGroup = [sorted[i]]
-        currentRound = sorted[i].add_more_round
-      }
-    }
-    groups.push({
-      time: currentGroup[0].created_at,
-      items: currentGroup,
-      label: currentRound === 0 ? '' : `第${currentRound}次加餐`,
-      phase: currentRound === 0 ? 'order' : 'add_more'
-    })
-    return groups
   }
 
   const formatDateTime = (dateStr: string) => {
@@ -719,7 +682,6 @@ export default function OrderManage() {
               const s = statusMap[order.status] || statusMap.submitted
               const isExpanded = expandedOrders.has(order.id)
               const items = order.order_items || []
-              const groupedItems = isExpanded ? groupItemsByPhase(items) : []
 
               return (
                 <tr
@@ -744,26 +706,33 @@ export default function OrderManage() {
                           : '无菜品'}
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {groupedItems.map((group, gi) => (
-                          <div key={gi} className="bg-[#F8FAFC] rounded-lg p-2">
-                            <div className="text-xs font-medium text-[#2563EB] mb-1">
-                              {group.label} · {formatDateTime(group.time)}
-                            </div>
-                            <div className="space-y-0.5">
-                              {group.items.map((item, ii) => (
-                                <div key={ii} className="flex justify-between text-xs">
-                                  <span className="text-[#0F172A]">
-                                    {item.dish_name}
-                                    {item.spec_name ? `(${item.spec_name})` : ''}
-                                    <span className="text-[#64748B]"> × {item.quantity}</span>
-                                  </span>
-                                  <span className="text-[#64748B]">¥{item.subtotal}</span>
+                      <div className="bg-[#F8FAFC] rounded-lg p-2">
+                        {(() => {
+                          const sorted = [...items].sort((a, b) => a.add_more_round - b.add_more_round)
+                          const elems: React.ReactNode[] = []
+                          let prevRound = -1
+                          sorted.forEach((item, ii) => {
+                            if (item.add_more_round !== prevRound && item.add_more_round > 0) {
+                              elems.push(
+                                <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] pt-1.5 mt-0.5 border-t border-amber-100">
+                                  第{item.add_more_round}次加餐
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                              )
+                            }
+                            prevRound = item.add_more_round
+                            elems.push(
+                              <div key={ii} className="flex justify-between text-xs mt-0.5">
+                                <span className="text-[#0F172A]">
+                                  {item.dish_name}
+                                  {item.spec_name ? `(${item.spec_name})` : ''}
+                                  <span className="text-[#64748B]"> × {item.quantity}</span>
+                                </span>
+                                <span className="text-[#64748B]">¥{item.subtotal}</span>
+                              </div>
+                            )
+                          })
+                          return elems
+                        })()}
                       </div>
                     )}
                     <button
@@ -819,7 +788,6 @@ export default function OrderManage() {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
-          const groupedItems = isExpanded ? groupItemsByPhase(items) : []
           const totalCount = items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)
           const canSettle = order.status === 'submitted' || order.status === 'printed'
 
@@ -871,19 +839,22 @@ export default function OrderManage() {
                     <div className="px-4 pb-4 pt-3">
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          {groupedItems.map((group, gi) => (
-                            <div key={gi} className="mb-3 last:mb-0">
-                              {group.label ? (
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className={`text-sm font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                                    {group.label}
-                                  </span>
-                                  <span className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</span>
-                                </div>
-                              ) : null}
-                              <div className="bg-[#F0F4FF] border border-[#E0E7FF] rounded-lg p-3 space-y-2">
-                                {group.items.map((item, ii) => (
-                                  <div key={ii} className="flex justify-between items-center">
+                          <div className="bg-[#F0F4FF] border border-[#E0E7FF] rounded-lg p-3">
+                            {(() => {
+                              const sorted = [...items].sort((a, b) => a.add_more_round - b.add_more_round)
+                              const elems: React.ReactNode[] = []
+                              let prevRound = -1
+                              sorted.forEach((item, ii) => {
+                                if (item.add_more_round !== prevRound && item.add_more_round > 0) {
+                                  elems.push(
+                                    <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] pt-2 mt-1 border-t border-amber-100">
+                                      第{item.add_more_round}次加餐
+                                    </div>
+                                  )
+                                }
+                                prevRound = item.add_more_round
+                                elems.push(
+                                  <div key={ii} className="flex justify-between items-center mt-2 first:mt-0">
                                     <div className="flex-1">
                                       <span className="text-sm text-[#0F172A]">
                                         {item.dish_name}
@@ -893,10 +864,11 @@ export default function OrderManage() {
                                     </div>
                                     <span className="text-sm font-medium text-[#0F172A] ml-4">¥{item.subtotal}</span>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                                )
+                              })
+                              return elems
+                            })()}
+                          </div>
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleExpand(order.id) }}
@@ -949,7 +921,6 @@ export default function OrderManage() {
           const s = statusMap[order.status] || statusMap.submitted
           const isExpanded = expandedOrders.has(order.id)
           const items = order.order_items || []
-          const groupedItems = isExpanded ? groupItemsByPhase(items) : []
           const summaryText = items.length > 0
             ? items.map(i => `${i.dish_name}×${i.quantity}`).join('，')
             : '无菜品'
@@ -1002,20 +973,22 @@ export default function OrderManage() {
                   <div className="px-4 py-3 border-t border-gray-100">
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        {groupedItems.map((group, gi) => (
-                          <div key={gi} className="mb-3 last:mb-0">
-                            {group.label ? (
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <span className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                                  {group.label}
-                                </span>
-                                <div className="flex-1 h-px bg-gray-200"></div>
-                                <span className="text-[11px] text-[#94A3B8]">{formatDateTime(group.time)}</span>
-                              </div>
-                            ) : null}
-                            <div className="bg-[#F0F4FF] border border-[#E0E7FF] rounded-lg px-3 py-2 space-y-1.5">
-                              {group.items.map((item, ii) => (
-                                <div key={ii} className="flex items-start justify-between gap-3">
+                        <div className="bg-[#F0F4FF] border border-[#E0E7FF] rounded-lg px-3 py-2">
+                          {(() => {
+                            const sorted = [...items].sort((a, b) => a.add_more_round - b.add_more_round)
+                            const elems: React.ReactNode[] = []
+                            let prevRound = -1
+                            sorted.forEach((item, ii) => {
+                              if (item.add_more_round !== prevRound && item.add_more_round > 0) {
+                                elems.push(
+                                  <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] pt-1.5 mt-1 border-t border-amber-100">
+                                    第{item.add_more_round}次加餐
+                                  </div>
+                                )
+                              }
+                              prevRound = item.add_more_round
+                              elems.push(
+                                <div key={ii} className="flex items-start justify-between gap-3 mt-1.5 first:mt-0">
                                   <div className="flex-1 min-w-0 text-sm text-[#0F172A] leading-snug">
                                     <span className="truncate">{item.dish_name}</span>
                                     {item.spec_name && <span className="text-[#94A3B8] text-xs ml-1">({item.spec_name})</span>}
@@ -1023,10 +996,11 @@ export default function OrderManage() {
                                   </div>
                                   <span className="shrink-0 text-xs font-medium text-[#0F172A] bidi-iso">¥{item.subtotal}</span>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                              )
+                            })
+                            return elems
+                          })()}
+                        </div>
                         {order.remark && (
                           <div className="mt-2 p-2 bg-[#FEF3C7] rounded-lg text-xs text-[#92400E]">
                             备注：{order.remark}
@@ -1140,64 +1114,62 @@ export default function OrderManage() {
 
               {/* 菜品明细 */}
               <div>
-                <p className="text-xs font-medium text-[#334155] mb-2">菜品明细（按点餐类型分组）</p>
+                <p className="text-xs font-medium text-[#334155] mb-2">菜品明细</p>
                 {detail.order_items && detail.order_items.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {groupItemsByPhase(detail.order_items).map((group, gi) => (
-                      <div key={gi}>
-                        {/* 分组标题（仅加餐轮次显示） */}
-                        {group.label ? (
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <div className={`text-xs font-semibold ${gi === 0 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
-                              {group.label}
+                  <div className="bg-[#F8FAFC] rounded-lg p-2.5">
+                    {(() => {
+                      const sorted = [...detail.order_items].sort((a, b) => a.add_more_round - b.add_more_round)
+                      const elems: React.ReactNode[] = []
+                      let prevRound = -1
+                      sorted.forEach((item, ii) => {
+                        if (item.add_more_round !== prevRound && item.add_more_round > 0) {
+                          elems.push(
+                            <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] pt-2 mt-1 border-t border-amber-100">
+                              第{item.add_more_round}次加餐
                             </div>
-                            <div className="flex-1 h-px bg-gray-200"></div>
-                            <div className="text-xs text-[#94A3B8]">{formatDateTime(group.time)}</div>
-                          </div>
-                        ) : null}
-                        
-                        {/* 菜品列表 */}
-                        <div className="bg-[#F8FAFC] rounded-lg p-2.5 space-y-2">
-                          {group.items.map((item, ii) => (
-                            <div key={ii} className="flex justify-between items-start">
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-medium text-[#0F172A] truncate">
-                                  {item.dish_name}
-                                  {item.spec_name && <span className="text-[#94A3B8] font-normal">({item.spec_name})</span>}
+                          )
+                        }
+                        prevRound = item.add_more_round
+                        elems.push(
+                          <div key={ii} className="flex justify-between items-start mt-2 first:mt-0">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-[#0F172A] truncate">
+                                {item.dish_name}
+                                {item.spec_name && <span className="text-[#94A3B8] font-normal">({item.spec_name})</span>}
+                              </div>
+                              <div className="text-xs text-[#64748B] mt-0.5">¥{item.price} × {item.quantity}</div>
+                              {item.added_by_nickname && (
+                                <div className="text-xs text-[#94A3B8] flex items-center gap-1 mt-0.5">
+                                  <User size={9} /> {item.added_by_nickname}
                                 </div>
-                                <div className="text-xs text-[#64748B] mt-0.5">¥{item.price} × {item.quantity}</div>
-                                {item.added_by_nickname && (
-                                  <div className="text-xs text-[#94A3B8] flex items-center gap-1 mt-0.5">
-                                    <User size={9} /> {item.added_by_nickname}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-right ml-2">
-                                <div className="text-xs font-semibold text-[#0F172A]">¥{item.subtotal}</div>
-                                {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
-                                  <div className="flex items-center gap-1 mt-1 justify-end">
-                                    <button
-                                      onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity - 1)}
-                                      className="p-1 text-[#EF4444] hover:bg-red-50 rounded cursor-pointer"
-                                      disabled={loading}
-                                    >
-                                      <Minus size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity + 1)}
-                                      className="p-1 text-[#2563EB] hover:bg-[#EFF6FF] rounded cursor-pointer"
-                                      disabled={loading}
-                                    >
-                                      <Plus size={12} />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                            <div className="text-right ml-2">
+                              <div className="text-xs font-semibold text-[#0F172A]">¥{item.subtotal}</div>
+                              {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
+                                <div className="flex items-center gap-1 mt-1 justify-end">
+                                  <button
+                                    onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity - 1)}
+                                    className="p-1 text-[#EF4444] hover:bg-red-50 rounded cursor-pointer"
+                                    disabled={loading}
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity + 1)}
+                                    className="p-1 text-[#2563EB] hover:bg-[#EFF6FF] rounded cursor-pointer"
+                                    disabled={loading}
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })
+                      return elems
+                    })()}
                   </div>
                 ) : (
                   <p className="text-xs text-[#94A3B8] text-center py-3">暂无菜品</p>

@@ -262,7 +262,29 @@ Page({
       try {
         const message = JSON.parse(res.data);
         if (message.event === 'orderUpdated' || message.event === 'orderStatusChanged') {
+          // 节流：5 秒内不重复全量刷新，避免商家批量操作导致页面抖动
+          if (this._lastFetchAt && Date.now() - this._lastFetchAt < 5000) {
+            return;
+          }
+          this._lastFetchAt = Date.now();
           this.fetchOrderDetail(this.data.orderId || orderId);
+        } else if (message.event === 'orderItemServedChanged') {
+          // 局部更新上菜状态，避免全量刷新
+          const { itemId, served } = message.data;
+          const order = this.data.order;
+          if (order && order.order_items) {
+            const updatedItems = order.order_items.map(item => {
+              if (item.id === itemId) {
+                return { ...item, served_at: served ? new Date().toISOString() : null };
+              }
+              return item;
+            });
+            const updatedOrder = { ...order, order_items: updatedItems };
+            if (updatedOrder.groupedItems) {
+              updatedOrder.groupedItems = this.groupItemsByRound(updatedItems);
+            }
+            this.setData({ order: updatedOrder });
+          }
         }
       } catch (e) {
         console.error('[WS-detail] 消息解析失败', e);

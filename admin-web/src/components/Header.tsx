@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import {
   User, LogOut, X, MoreHorizontal,
   LayoutDashboard, Armchair, UtensilsCrossed, RotateCcw, BarChart3, Settings,
@@ -49,6 +50,7 @@ const groupOrder: MoreItem['group'][] = ['业务管理', '数据中心', '运营
 
 export default function Header(_: HeaderProps) {
   const { user, logout } = useAuthStore()
+  const { fontSize, setFontSize } = useUiStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -122,6 +124,26 @@ export default function Header(_: HeaderProps) {
                     <p className="text-xs text-[#94A3B8] mt-0.5 truncate">
                       {user?.username ? `@${user.username}` : ''}{role ? ` · ${role}` : ''}
                     </p>
+                  </div>
+                  {/* 字体大小 */}
+                  <div className="px-4 py-2.5 border-t border-[#E2E8F0]">
+                    <p className="text-xs text-[#94A3B8] mb-1.5">字体大小</p>
+                    <div className="flex gap-1">
+                      {(['small', 'medium', 'large'] as const).map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => setFontSize(size)}
+                          className={`flex-1 py-1 text-xs rounded-md border transition-colors cursor-pointer ${
+                            fontSize === size
+                              ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB] font-medium'
+                              : 'bg-white border-[#E2E8F0] text-[#334155] hover:bg-[#F8FAFC]'
+                          }`}
+                        >
+                          {size === 'small' ? '小' : size === 'medium' ? '中' : '大'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -236,6 +258,30 @@ export default function Header(_: HeaderProps) {
                   </div>
                 )
               })}
+
+              {/* 字体大小 */}
+              <div className="mt-2 mb-4">
+                <p className="text-xs font-medium text-[#94A3B8] mb-2 px-1">显示设置</p>
+                <div className="bg-[#F8FAFC] rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-[#94A3B8] mb-1.5">字体大小</p>
+                  <div className="flex gap-2">
+                    {(['small', 'medium', 'large'] as const).map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setFontSize(size)}
+                        className={`flex-1 py-1.5 text-sm rounded-lg border transition-colors cursor-pointer ${
+                          fontSize === size
+                            ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB] font-medium'
+                            : 'bg-white border-[#E2E8F0] text-[#334155]'
+                        }`}
+                      >
+                        {size === 'small' ? '小' : size === 'medium' ? '中' : '大'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

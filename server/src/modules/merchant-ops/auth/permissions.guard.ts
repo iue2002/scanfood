@@ -37,7 +37,12 @@ export class PermissionsGuard implements CanActivate {
     const role: Role | undefined = req?.user?.role;
 
     if (!role) {
-      // JwtAuthGuard 没运行 / token 过期 / 未登录 → 401（语义：未认证，非未授权）
+      // 全局 APP_GUARD 在方法级 JwtAuthGuard 之前执行；此时 req.user 可能尚未设置
+      // 返回 true 让 JwtAuthGuard 处理认证；方法级 PermissionsGuard（如有）会再次检查
+      if (!req.user) {
+        return true;
+      }
+      // req.user 存在但 role 缺失：JWT payload 异常
       throw new UnauthorizedException({ code: 'TOKEN_MISSING', msg: '请先登录' });
     }
 

@@ -1,16 +1,30 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import type { Request } from 'express';
 import { db } from '@/storage/database/mysql-client';
 import { users } from '@/storage/database/shared/schema';
 import { eq } from 'drizzle-orm';
 import { getJwtSecret } from './jwt-secret';
 
+/**
+ * 自定义 JWT 提取器：Authorization Bearer header → cookie fallback
+ * 解决登录后导航竞态导致 Authorization header 偶发缺失的问题
+ */
+const fromAuthHeaderOrCookie = ExtractJwt.fromExtractors([
+  ExtractJwt.fromAuthHeaderAsBearerToken(),
+  (req: Request) => {
+    // cookie 作为兜底传输通道，确保 header 竞态时也不丢 token
+    const cookieToken = req.cookies?.['admin_token'];
+    return cookieToken || null;
+  },
+]);
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: fromAuthHeaderOrCookie,
       ignoreExpiration: false,
       secretOrKey: getJwtSecret(),
     });

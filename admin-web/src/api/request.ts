@@ -82,6 +82,8 @@ request.interceptors.response.use(
         localStorage.removeItem('admin_token')
         localStorage.removeItem('admin_user')
         localStorage.removeItem('admin_last_login')
+        // 同步清除 cookie 兜底通道
+        try { document.cookie = 'admin_token=; path=/; max-age=0' } catch { /* ignore */ }
         // 用 replace 避免回退被卡在受保护页面
         window.location.replace('/login')
         return Promise.reject(buildErr(reason))
@@ -111,6 +113,7 @@ request.interceptors.response.use(
           } catch { /* ignore */ }
           localStorage.removeItem('admin_token')
           localStorage.removeItem('admin_user')
+          try { document.cookie = 'admin_token=; path=/; max-age=0' } catch { /* ignore */ }
           window.location.replace('/login')
           return Promise.reject(buildErr('登录已过期（会话失效），请重新登录'))
         }

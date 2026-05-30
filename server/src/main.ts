@@ -5,6 +5,7 @@ import { AppModule } from '@/app.module';
 import * as express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import * as cookieParser from 'cookie-parser';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
 import { RequestIdInterceptor } from '@/interceptors/request-id.interceptor';
 import { AllExceptionsFilter } from '@/filters/all-exceptions.filter';
@@ -26,6 +27,9 @@ function parsePort(): number {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // cookie 解析：用于 JWT cookie 兜底传输 + 验证码 token 等
+  app.use(cookieParser());
 
   // ===== 安全加固: CORS 白名单 =====
   // 仅允许已知域名跨域请求，禁止任意 origin

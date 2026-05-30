@@ -665,6 +665,30 @@ export const eventOutbox = mysqlTable('event_outbox', {
 ]);
 
 // ============================================================
+// P1-5：上传图片资源元数据
+// ============================================================
+export const imageAssets = mysqlTable('image_assets', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey(),
+  url: varchar('url', { length: 500 }).notNull(),
+  thumbnail_url: varchar('thumbnail_url', { length: 500 }),
+  mime: varchar('mime', { length: 100 }).notNull(),
+  original_size_bytes: bigint('original_size_bytes', { mode: 'number' }).notNull(),
+  compressed_size_bytes: bigint('compressed_size_bytes', { mode: 'number' }),
+  main_width: int('main_width'),
+  main_height: int('main_height'),
+  output_format: varchar('output_format', { length: 10 }),
+  owner_user_id: int('owner_user_id'),
+  source: varchar('source', { length: 20 }).notNull().default('upload'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  deleted_at: timestamp('deleted_at'),
+}, (t) => [
+  index('idx_img_owner').on(t.owner_user_id),
+  index('idx_img_source').on(t.source),
+  index('idx_img_created').on(t.created_at),
+  index('idx_img_deleted').on(t.deleted_at),
+]);
+
+// ============================================================
 // P1-2：TTL 键值存储
 // ============================================================
 export const ttlKvStore = mysqlTable('ttl_kv_store', {

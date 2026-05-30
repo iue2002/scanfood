@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY, PERMISSIONS_KEY } from './decorators';
 import { isAllowed } from './permission-matrix';
@@ -37,8 +37,8 @@ export class PermissionsGuard implements CanActivate {
     const role: Role | undefined = req?.user?.role;
 
     if (!role) {
-      // JwtAuthGuard 没运行 / 没解析出用户：拒
-      throw new ForbiddenException({ code: 'FORBIDDEN', msg: '需要登录后才能访问' });
+      // JwtAuthGuard 没运行 / token 过期 / 未登录 → 401（语义：未认证，非未授权）
+      throw new UnauthorizedException({ code: 'TOKEN_MISSING', msg: '请先登录' });
     }
 
     // @Roles 校验

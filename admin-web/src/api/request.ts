@@ -73,6 +73,35 @@ request.interceptors.response.use(
       ))
     }
 
+    // 403 处理：真实权限拒绝（已登录但角色/权限不够）→ 拒绝并给友好文案
+    // 注意：未登录的 403 现在应该走 401（后端已修复 PermissionsGuard），但保留兜底
+    if (status === 403) {
+      const code = errData?.code
+      const msg = errData?.msg || errData?.message
+
+      // 兜底：某些边缘情况下 403 实际是"未登录"（旧版本后端 / 网关误判）
+      if (msg === '需要登录后才能访问' || code === 'TOKEN_MISSING') {
+        const hasToken = localStorage.getItem('admin_token')
+        if (hasToken) {
+          try {
+            sessionStorage.setItem('login_redirect_reason', JSON.stringify({
+              code: 'TOKEN_EXPIRED',
+              reason: '登录已过期（会话失效），请重新登录',
+              at: Date.now(),
+            }))
+          } catch { /* ignore */ }
+          localStorage.removeItem('admin_token')
+          localStorage.removeItem('admin_user')
+          window.location.replace('/login')
+          return Promise.reject(buildErr('登录已过期（会话失效），请重新登录'))
+        }
+      }
+
+      // 真实权限拒绝 → 友好文案
+      const friendlyMsg = msg || '当前角色无权执行该操作'
+      return Promise.reject(buildErr(friendlyMsg))
+    }
+
     // 其它错误
     if (errData?.message) {
       const msg = Array.isArray(errData.message) ? errData.message[0] : errData.message

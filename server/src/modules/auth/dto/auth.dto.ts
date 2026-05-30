@@ -41,8 +41,9 @@ export class RegisterDto {
   @MaxLength(128)
   password: string;
 
-  @IsIn(['customer', 'admin', 'staff'])
-  role: string;
+  @IsOptional()
+  @IsIn(['customer'])
+  role?: 'customer';
 
   @IsOptional()
   @IsString()

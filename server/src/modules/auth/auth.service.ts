@@ -254,7 +254,7 @@ export class AuthService {
     const insertResult = await db.insert(users).values({
       username: dto.username,
       password: hashedPassword,
-      role: dto.role,
+      role: 'customer',
       nickname: dto.nickname || dto.username,
       avatar_url: dto.avatar_url,
     });

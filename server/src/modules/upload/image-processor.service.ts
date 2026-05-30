@@ -74,10 +74,11 @@ export class ImageProcessorService {
         return { success: false, message: `图片超过 ${MAX_INPUT_BYTES / 1024 / 1024} MB 上限` };
       }
 
-      // 1. 用 sharp 读元数据，校验是真实图片
+      // 1. 创建 sharp 实例，取 metadata 后 clone 避免重复解码
+      const image = sharp(file.buffer);
       let metadata: sharp.Metadata;
       try {
-        metadata = await sharp(file.buffer).metadata();
+        metadata = await image.metadata();
       } catch {
         return { success: false, message: '图片格式无法识别或已损坏' };
       }
@@ -103,10 +104,9 @@ export class ImageProcessorService {
       // 确保目录存在
       await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
-      // 3. 同时生成主图 + 缩略图
-      // 注意：从 buffer 重新建 pipeline，因为 sharp pipeline 不可重用
+      // 3. 用 clone() 避免重复解码，从同一 vips image 派生两个 pipeline
       const [mainBuf, thumbBuf] = await Promise.all([
-        sharp(file.buffer)
+        image.clone()
           .rotate() // EXIF 方向自动校正
           .resize({
             width: MAIN_MAX_DIM,
@@ -116,7 +116,7 @@ export class ImageProcessorService {
           })
           .webp({ quality: MAIN_QUALITY, effort: WEBP_EFFORT })
           .toBuffer({ resolveWithObject: true }),
-        sharp(file.buffer)
+        image.clone()
           .rotate()
           .resize({
             width: THUMB_MAX_DIM,

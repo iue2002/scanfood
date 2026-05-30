@@ -112,6 +112,7 @@ Page({
       }
     }
     this.fetchData();
+    this._initialDataLoaded = true;
 
     // 异步检查未付款订单，不阻塞页面渲染
     this.checkActiveOrderAsync();
@@ -268,7 +269,7 @@ Page({
           });
           this.calculateTotal();
         }
-      } else if (!isSecondShow) {
+      } else if (!isSecondShow && !this._initialDataLoaded) {
         this.fetchCurrentCart();
       }
     } else if (this.data.tableId && this.data.isAddMore) {
@@ -1749,10 +1750,27 @@ Page({
       cartCount[editDishId] = editDishCount;
     }
 
-    this.setData({ cartCount, showQtyModal: false, editDishId: null });
+    this.setData({ editDishId: null, showQtyModal: false });
+
+    // 内联计算 total 并合并 setData，避免 confirmQty 内连续 3 次渲染
+    const totals = { count: 0, price: 0 };
+    const allDishes = this.data.allDishes;
+    for (const dishId in cartCount) {
+      const cnt = cartCount[dishId];
+      if (cnt > 0) {
+        const dish = allDishes.find(d => d.id == dishId);
+        if (dish) { totals.count += cnt; totals.price += cnt * parseFloat(dish.price); }
+      }
+    }
+    this.setData({ cartCount, totalCount: totals.count, totalPrice: totals.price.toFixed(2) });
     const cart = isAddMore ? getApp().getAddMoreCart(this.data.tableId) : getApp().getCart(this.data.tableId);
     cart.cartCount = { ...cartCount };
-    this.calculateTotal();
+
+    // 弹窗打开时同步刷新 cartItems
+    if (this.data.showCartPanel) {
+      this.refreshCartItems();
+    }
+    this.syncExitGuard();
 
     // 普通模式下累积增量操作指令（用 add/remove delta 代替 set，避免并发覆盖）
     if (!isAddMore) {

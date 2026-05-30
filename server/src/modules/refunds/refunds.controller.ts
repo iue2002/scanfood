@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { RefundsService } from './refunds.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
@@ -12,8 +12,13 @@ export class RefundsController {
 
   @Permissions('REFUND_READ')
   @Get()
-  async getRefunds() {
-    return await this.refundsService.getRefunds();
+  async getRefunds(
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
+    const p = page ? parseInt(page, 10) : 1;
+    const ps = pageSize ? parseInt(pageSize, 10) : 20;
+    return await this.refundsService.getRefunds(p, ps);
   }
 
   @Permissions('REFUND_READ')

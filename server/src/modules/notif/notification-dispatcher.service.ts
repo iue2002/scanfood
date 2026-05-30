@@ -207,24 +207,21 @@ export class NotificationDispatcherService {
   // ============================================================
 
   private async loadOrderContext(orderId: number, event?: NotifEvent): Promise<OrderContext | null> {
-    const orderRows = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.id, orderId))
-      .limit(1);
+    // 并行加载 order + items（两者只依赖 orderId，互不依赖）
+    const [orderRows, items] = await Promise.all([
+      db.select().from(orders).where(eq(orders.id, orderId)).limit(1),
+      db.select().from(order_items).where(eq(order_items.order_id, orderId)),
+    ]);
     if (orderRows.length === 0) return null;
     const order = orderRows[0] as any;
 
-    let items = await db
-      .select()
-      .from(order_items)
-      .where(eq(order_items.order_id, orderId));
-
     // 加餐通知只带最新一轮的菜品，不重复展示整单
-    if (event === 'ADD_ITEM' && items.length > 0) {
-      const maxRound = Math.max(...items.map((i: any) => i.add_more_round ?? 0));
-      items = items.filter((i: any) => (i.add_more_round ?? 0) === maxRound);
-    }
+    const filteredItems = event === 'ADD_ITEM' && items.length > 0
+      ? (() => {
+          const maxRound = Math.max(...items.map((i: any) => i.add_more_round ?? 0));
+          return items.filter((i: any) => (i.add_more_round ?? 0) === maxRound);
+        })()
+      : items;
 
     const tableRows = await db
       .select()
@@ -244,7 +241,7 @@ export class NotificationDispatcherService {
       orderNumber: order.order_number,
       tableLabel,
       totalAmount: String(order.total_amount ?? '0.00'),
-      items: items.map((i: any) => ({
+      items: filteredItems.map((i: any) => ({
         name: this.composeItemName(i.dish_name, i.spec_name),
         quantity: i.quantity,
         subtotal: String(i.subtotal ?? '0.00'),

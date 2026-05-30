@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { db } from '@/storage/database/mysql-client';
 import { refunds, orders } from '@/storage/database/shared/schema';
 import { CreateRefundDto, UpdateRefundStatusDto } from './dto/refund.dto';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
 
@@ -13,8 +13,13 @@ export class RefundsService {
     private readonly notifDispatcher: NotificationDispatcherService,
   ) {}
 
-  async getRefunds() {
-    return await db.select().from(refunds).orderBy(desc(refunds.created_at));
+  async getRefunds(page: number = 1, pageSize: number = 20) {
+    const offset = (page - 1) * pageSize;
+    const [rows, totalResult] = await Promise.all([
+      db.select().from(refunds).orderBy(desc(refunds.created_at)).limit(pageSize).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(refunds),
+    ]);
+    return { data: rows, total: totalResult[0].count, page, pageSize };
   }
 
   async getRefundById(id: number) {

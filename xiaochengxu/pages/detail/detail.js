@@ -277,22 +277,35 @@ Page({
           this._lastFetchAt = Date.now();
           this.fetchOrderDetail(this.data.orderId || orderId);
         } else if (message.event === 'orderItemServedChanged') {
-          // 局部更新上菜状态，避免全量刷新
-          const { itemId, served } = message.data;
-          const order = this.data.order;
-          if (order && order.order_items) {
-            const updatedItems = order.order_items.map(item => {
-              if (item.id === itemId) {
-                return { ...item, served_at: served ? new Date().toISOString() : null };
-              }
-              return item;
-            });
-            const updatedOrder = { ...order, order_items: updatedItems };
-            if (updatedOrder.groupedItems) {
-              updatedOrder.groupedItems = this.groupItemsByRound(updatedItems);
-            }
-            this.setData({ order: updatedOrder });
+          // 节流 200ms：商家快速连续上菜时合并处理，避免 map+group+setData 连续触发
+          if (this._servedThrottle) {
+            this._servedThrottle.pending = message.data;
+            return;
           }
+          this._servedThrottle = { pending: null };
+          const processServed = (data) => {
+            const { itemId, served } = data;
+            const order = this.data.order;
+            if (order && order.order_items) {
+              const updatedItems = order.order_items.map(item => {
+                if (item.id === itemId) {
+                  return { ...item, served_at: served ? new Date().toISOString() : null };
+                }
+                return item;
+              });
+              const updatedOrder = { ...order, order_items: updatedItems };
+              if (updatedOrder.groupedItems) {
+                updatedOrder.groupedItems = this.groupItemsByRound(updatedItems);
+              }
+              this.setData({ order: updatedOrder });
+            }
+          };
+          processServed(message.data);
+          setTimeout(() => {
+            const pending = this._servedThrottle?.pending;
+            this._servedThrottle = null;
+            if (pending) processServed(pending);
+          }, 200);
         }
       } catch (e) {
         console.error('[WS-detail] 消息解析失败', e);

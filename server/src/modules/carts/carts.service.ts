@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { db } from '@/storage/database/mysql-client';
 import { carts, cart_items, tables, dishes } from '@/storage/database/shared/schema';
 import { CreateCartDto, SyncCartOpsDto } from './dto/cart.dto';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import { OrdersGateway } from '@/modules/orders/orders.gateway';
 
 // 内存级幂等去重：最近 5 分钟内处理过的 idempotencyKey
@@ -216,11 +216,22 @@ export class CartsService {
             return { deleted: true, tableId: dto.table_id, cartId: null };
           }
 
-          // 2.3 逐个执行增量操作
+          // 2.3 提前批量加载所需 dishes（避免循环内 N+1 查询）
+          const dishIds = [...new Set(
+            effectiveOps
+              .filter(op => op.action === 'add' || op.action === 'set')
+              .map(op => op.dish_id)
+          )];
+          const dishMap = new Map<number, any>();
+          if (dishIds.length > 0) {
+            const dishRows = await tx.select().from(dishes).where(inArray(dishes.id, dishIds as any));
+            for (const d of dishRows) dishMap.set(d.id, d);
+          }
+
+          // 2.4 逐个执行增量操作
           for (const op of effectiveOps) {
             if (op.action === 'add') {
-              const dishResult = await tx.select().from(dishes).where(eq(dishes.id, op.dish_id)).limit(1);
-              const dish = dishResult[0];
+              const dish = dishMap.get(op.dish_id);
               if (!dish) continue;
 
               const price = parseFloat(dish.price);
@@ -272,8 +283,7 @@ export class CartsService {
                     .set({ quantity: op.quantity, subtotal: subtotal.toFixed(2) })
                     .where(eq(cart_items.id, existingItem.id));
                 } else {
-                  const dishResult = await tx.select().from(dishes).where(eq(dishes.id, op.dish_id)).limit(1);
-                  const dish = dishResult[0];
+                  const dish = dishMap.get(op.dish_id);
                   if (dish) {
                     const subtotal = op.quantity * parseFloat(dish.price);
                     await tx.insert(cart_items).values({

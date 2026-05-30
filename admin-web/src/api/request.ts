@@ -37,11 +37,30 @@ request.interceptors.response.use(
       const hasToken = localStorage.getItem('admin_token')
       const url = error.config?.url || ''
       const isLoginRequest = url.includes('/auth/login') || url.includes('/auth/captcha')
+      const isVerifyRequest = url.includes('/auth/verify')
+
+      // auth/verify 401 → 让 App.tsx 自行处理，不触发全局登出跳转
+      if (isVerifyRequest) {
+        return Promise.reject(buildErr(
+          errData?.message || errData?.msg || '认证失败'))
+      }
 
       if (hasToken && currentPath !== '/login' && !isLoginRequest) {
         // 区分 4 种 401 原因，方便登录页给出对应文案
         // 后端 code: TOKEN_EXPIRED / TOKEN_INVALID / SESSION_REVOKED / ACCOUNT_DISABLED / TOKEN_MISSING
         const code = errData?.code || 'TOKEN_INVALID'
+
+        // TOKEN_MISSING 但 localStorage 有 token：可能是导航竞态，重试一次
+        if (code === 'TOKEN_MISSING' && !(error.config as any)._retried) {
+          (error.config as any)._retried = true
+          // 确保最新 token 在重试请求的 header 上
+          const latestToken = localStorage.getItem('admin_token')
+          if (latestToken) {
+            error.config.headers.Authorization = `Bearer ${latestToken}`
+          }
+          return request.request(error.config)
+        }
+
         const reasonMap: Record<string, string> = {
           TOKEN_EXPIRED: '登录已过期，请重新登录',
           TOKEN_INVALID: '登录信息已失效（系统更新），请重新登录',

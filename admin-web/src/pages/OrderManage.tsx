@@ -99,6 +99,11 @@ export default function OrderManage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(false)
+  const currentPageRef = useRef(1)
+  useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
+  const sentinelRef = useRef<HTMLDivElement>(null)
   // 打印操作弹窗
   const [printOrder, setPrintOrder] = useState<Order | null>(null)
   // 订单号搜索（输入框值 + 防抖后用于查询的值）
@@ -113,14 +118,9 @@ export default function OrderManage() {
     const t = setTimeout(() => setOrderSearch(orderSearchInput.trim()), 300)
     return () => clearTimeout(t)
   }, [orderSearchInput])
-  // 搜索条件变化时回到第 1 页（避免在第 N 页搜出 0 条但其实第 1 页有结果）
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [orderSearch])
-
-  const fetchOrders = useCallback(() => {
+  const loadOrders = useCallback((page: number, append: boolean) => {
     const params: any = {
-      page: currentPage,
+      page,
       page_size: pageSize
     }
     if (!filterStatus) {
@@ -132,26 +132,55 @@ export default function OrderManage() {
     if (dateTo) params.date_to = dateTo
     if (activeTag) params.tag = activeTag
     if (orderSearch) params.search = orderSearch
-    request.get('/orders', { params }).then((res: any) => {
+    return request.get('/orders', { params }).then((res: any) => {
       let data: Order[] = []
       if (Array.isArray(res)) {
         data = res
       } else if (res && Array.isArray(res.data)) {
         data = res.data
       }
-      setOrders(data)
+      if (append) {
+        setOrders(prev => [...prev, ...data])
+      } else {
+        setOrders(data)
+      }
       setHasMore(data.length === pageSize)
       const orderIds = data.map((o: Order) => o.id)
-      setExpandedOrders(new Set(orderIds))
+      setExpandedOrders(prev => {
+        const next = new Set(prev)
+        orderIds.forEach(id => next.add(id))
+        return next
+      })
+      return data.length
     })
-  }, [filterStatus, dateFrom, dateTo, currentPage, pageSize, orderSearch])
+  }, [filterStatus, dateFrom, dateTo, pageSize, orderSearch, activeTag])
+
+  const resetAndFetch = useCallback(() => {
+    setInitialLoading(true)
+    setCurrentPage(1)
+    loadOrders(1, false).finally(() => setInitialLoading(false))
+  }, [loadOrders])
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || loadingMore || initialLoading) return
+    setLoadingMore(true)
+    const nextPage = currentPageRef.current + 1
+    loadOrders(nextPage, true).then(() => {
+      setCurrentPage(nextPage)
+    }).finally(() => setLoadingMore(false))
+  }, [hasMore, loadingMore, initialLoading, loadOrders])
+
+  // 筛选/搜索变化时：重置页码并重新加载第 1 页
+  useEffect(() => {
+    resetAndFetch()
+  }, [filterStatus, dateFrom, dateTo, activeTag, orderSearch, pageSize])
 
   useEffect(() => {
-    fetchOrders()
     requestNotificationPermission()
     // 进入订单页：清零订单未读徽标
     markAllRead('orders')
-  }, [fetchOrders, markAllRead])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markAllRead])
 
   // 处理通知点击跳转：?focus=订单ID 时滚到该订单 + 高亮 1.5s + 清掉 query 参数
   useEffect(() => {
@@ -178,21 +207,21 @@ export default function OrderManage() {
   }, [orders, searchParams, setSearchParams])
 
   // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
-  useWebSocketEvent('orderUpdated', fetchOrders)
-  useWebSocketEvent('orderStatusChanged', fetchOrders)
+  useWebSocketEvent('orderUpdated', resetAndFetch)
+  useWebSocketEvent('orderStatusChanged', resetAndFetch)
   useWebSocketEvent('orderDeleted', useCallback((data: any) => {
     setOrders(prev => prev.filter(o => o.id !== data?.id))
   }, []))
-  useWebSocketEvent('refundCreated', fetchOrders)
-  useWebSocketEvent('refundUpdated', fetchOrders)
+  useWebSocketEvent('refundCreated', resetAndFetch)
+  useWebSocketEvent('refundUpdated', resetAndFetch)
   // ws 断线重连后补拉一次：避免断线期间错过 orderStatusChanged 等事件造成 UI 不刷新
-  useWebSocketReconnect(fetchOrders)
+  useWebSocketReconnect(resetAndFetch)
 
   const handleSettle = async (id: number) => {
     showConfirm('确认结账', '确认标记该订单为已结账？', async () => {
       await request.post(`/orders/${id}/status`, { status: 'settled', idempotency_key: generateIdempotencyKey() })
       markLocalAction(`order:settled:${id}`)
-      fetchOrders()
+      resetAndFetch()
       showToast('订单已结账', 'success')
     })
   }
@@ -211,7 +240,7 @@ export default function OrderManage() {
     showConfirm('确认取消', '确认取消该订单？', async () => {
       await request.post(`/orders/${id}/status`, { status: 'cancelled', idempotency_key: generateIdempotencyKey() })
       markLocalAction(`order:cancelled:${id}`)
-      fetchOrders()
+      resetAndFetch()
       showToast('订单已取消', 'success')
     })
   }
@@ -225,7 +254,7 @@ export default function OrderManage() {
       if (detail && detail.id === orderId) {
         setDetail((updated as unknown as { data: Order }).data || (updated as unknown as Order))
       }
-      fetchOrders()
+      resetAndFetch()
       showToast('已更新', 'success')
     } finally {
       setLoading(false)
@@ -305,7 +334,7 @@ export default function OrderManage() {
       if (detail && detail.id === orderId) {
         setDetail((updated as unknown as { data: Order }).data || (updated as unknown as Order))
       }
-      fetchOrders()
+      resetAndFetch()
       setAddDishCart({})
       setAddDishOrder(null)
       setSearchQuery('')
@@ -410,6 +439,22 @@ export default function OrderManage() {
     setSearchQuery('')
     setAddDishCart({})
   }
+
+  // IntersectionObserver：滚动到底部自动加载下一页
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore()
+        }
+      },
+      { rootMargin: '100px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [loadMore])
 
   const renderCardSeparator = (key: string) => (
     <div key={key} className="px-2">
@@ -1058,42 +1103,18 @@ export default function OrderManage() {
         })}
       </div>
 
-      {/* 分页组件 */}
-      {orders.length > 0 && (
-        <div className="flex items-center justify-center gap-2 mt-6 px-4">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            title="上一页"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span className="px-3 py-1 text-sm font-medium text-[#334155]">
-            第 {currentPage} 页
-          </span>
-          <button
-            onClick={() => setCurrentPage(p => p + 1)}
-            disabled={!hasMore}
-            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            title="下一页"
-          >
-            <ChevronRight size={16} />
-          </button>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value))
-              setCurrentPage(1)
-            }}
-            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-          >
-            <option value={10}>10条/页</option>
-            <option value={20}>20条/页</option>
-            <option value={50}>50条/页</option>
-          </select>
-        </div>
-      )}
+      {/* 无限滚动状态提示 */}
+      <div ref={sentinelRef} className="py-4 text-center">
+        {initialLoading && orders.length === 0 ? (
+          <div className="text-sm text-[#94A3B8]">加载中...</div>
+        ) : loadingMore ? (
+          <div className="text-sm text-[#94A3B8]">加载更多...</div>
+        ) : !hasMore && orders.length > 0 ? (
+          <div className="text-sm text-[#94A3B8]">没有更多订单了</div>
+        ) : !hasMore && orders.length === 0 ? (
+          <div className="text-sm text-[#94A3B8]">暂无订单</div>
+        ) : null}
+      </div>
 
       {/* 订单详情弹窗 */}
       {detail && (

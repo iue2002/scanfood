@@ -1,8 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { dishes, dish_categories, dish_specs } from '@/storage/database/shared/schema';
-import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
-import { eq, asc, and } from 'drizzle-orm';
+import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto, UpdateSortOrderDto } from './dto/dish.dto';
+import { eq, asc, and, sql } from 'drizzle-orm';
 import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 import { PrintPlanCore } from '@/modules/merchant-ops/print/plan.core';
 
@@ -78,10 +78,18 @@ export class DishesService {
   }
 
   async createDish(dto: CreateDishDto) {
+    // 自动分配 sort_order：取当前分类最大值 + 10，确保新菜品排在最后
+    const maxResult = await db
+      .select({ maxOrder: sql<number>`COALESCE(MAX(${dishes.sort_order}), 0)` })
+      .from(dishes)
+      .where(eq(dishes.category_id, dto.category_id));
+    const nextSortOrder = (maxResult[0]?.maxOrder ?? 0) + 10;
+
     const insertResult = await db.insert(dishes).values({
       ...dto,
       price: dto.price.toFixed(2),
       status: 'available',
+      sort_order: nextSortOrder,
     });
     const newId = (insertResult as any)[0].insertId;
     return await this.getDishById(newId);
@@ -135,5 +143,20 @@ export class DishesService {
   async deleteDishSpec(id: number) {
     await db.delete(dish_specs).where(eq(dish_specs.id, id));
     return { message: '删除成功' };
+  }
+
+  async updateSortOrder(dto: UpdateSortOrderDto) {
+    if (!Array.isArray(dto.items) || dto.items.length === 0) {
+      throw new BadRequestException('排序数据不能为空');
+    }
+    // 批量更新：按传入的顺序设置 sort_order（步长 10，方便中间插入）
+    for (let i = 0; i < dto.items.length; i++) {
+      const item = dto.items[i];
+      await db
+        .update(dishes)
+        .set({ sort_order: (i + 1) * 10 })
+        .where(eq(dishes.id, item.id));
+    }
+    return { message: '排序已保存' };
   }
 }

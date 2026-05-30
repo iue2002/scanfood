@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import request from '@/api/request'
-import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Edit2, ToggleLeft, ToggleRight, Camera, X, FolderOpen, CheckCircle, AlertCircle, Loader2, GripVertical, Save, ArrowUpDown } from 'lucide-react'
 import { useModal } from '@/components/ModalProvider'
 import { resolveImageUrl } from '@/utils/image-url'
 import { smartUpload, fallbackOriginalUpload, type CompressionResult as UploadResult } from '@/utils/image-upload'
@@ -53,6 +53,12 @@ export default function DishManage() {
   const [compressionProgress, setCompressionProgress] = useState(0)
   const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 排序模式
+  const [sortMode, setSortMode] = useState(false)
+  const [sortableDishes, setSortableDishes] = useState<Dish[]>([])
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [isSavingSort, setIsSavingSort] = useState(false)
 
   const fetchData = () => {
     request.get('/dishes/categories').then((res: any) => setCategories(res || []))
@@ -245,18 +251,125 @@ export default function DishManage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // ===== 排序功能 =====
+  const enterSortMode = () => {
+    // 按当前筛选条件（分类）准备可排序列表
+    const list = activeCategory
+      ? dishes.filter(d => d.category_id === activeCategory)
+      : [...dishes]
+    setSortableDishes(list)
+    setSortMode(true)
+    setDragOverIndex(null)
+  }
+
+  const exitSortMode = () => {
+    setSortMode(false)
+    setSortableDishes([])
+    setDragOverIndex(null)
+  }
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+    // 延时添加半透明样式，避免拖拽幻影也透明
+    const el = e.currentTarget as HTMLElement
+    setTimeout(() => el.classList.add('opacity-40'), 0)
+  }
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).classList.remove('opacity-40')
+    setDragOverIndex(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIndex(index)
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10)
+    if (isNaN(fromIndex) || fromIndex === dropIndex) {
+      setDragOverIndex(null)
+      return
+    }
+    setSortableDishes(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(dropIndex, 0, moved)
+      return next
+    })
+    setDragOverIndex(null)
+  }
+
+  const handleSaveSort = async () => {
+    setIsSavingSort(true)
+    try {
+      await request.post('/dishes/sort-order', {
+        items: sortableDishes.map(d => ({ id: d.id })),
+      })
+      showToast('排序已保存', 'success')
+      setSortMode(false)
+      fetchData()
+    } catch (err: any) {
+      showToast('保存排序失败：' + (err?.message || '未知错误'), 'error')
+    } finally {
+      setIsSavingSort(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-[#0F172A]">菜品管理</h2>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer"
-        >
-          <Plus size={16} />
-          新增菜品
-        </button>
+        <div className="flex items-center gap-2">
+          {sortMode ? (
+            <>
+              <button
+                onClick={exitSortMode}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveSort}
+                disabled={isSavingSort}
+                className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isSavingSort ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                保存排序
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={enterSortMode}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                <ArrowUpDown size={16} />
+                调整排序
+              </button>
+              <button
+                onClick={openAddModal}
+                className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer"
+              >
+                <Plus size={16} />
+                新增菜品
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* 排序模式提示 */}
+      {sortMode && (
+        <div className="mb-4 p-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg text-sm text-[#1E40AF]">
+          <span className="font-medium">自定义排序模式：</span>
+          长按并拖拽菜品即可调整顺序，完成后点击"保存排序"。
+          {activeCategory ? ` 当前仅对「${categories.find(c => c.id === activeCategory)?.name}」分类排序。` : ' 当前对所有菜品全局排序。'}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <button onClick={() => setActiveCategory(null)} className={`px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer ${activeCategory === null ? 'bg-[#2563EB] text-white' : 'bg-white text-[#334155] hover:bg-gray-50'}`}>全部</button>
@@ -277,164 +390,206 @@ export default function DishManage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* 桌面端：表格视图（≥ md） */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
-          <thead className="bg-[#F8FAFC] text-[#334155]">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium">菜品</th>
-              <th className="text-left px-4 py-3 font-medium">分类</th>
-              <th className="text-left px-4 py-3 font-medium">价格</th>
-              <th className="text-left px-4 py-3 font-medium">规格</th>
-              <th className="text-left px-4 py-3 font-medium">状态</th>
-              <th className="text-left px-4 py-3 font-medium">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((dish) => (
-              <tr key={dish.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                      {dish.image_url ? 
-                        <img 
-                          src={resolveImageUrl(dish.image_url)} 
-                          className="w-full h-full object-cover" 
-                          alt="" 
-                        /> : 
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
-                      }
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium">{dish.name}</span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {dish.is_required && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#B91C1C] font-medium">必选</span>
-                        )}
-                        {dish.min_quantity && dish.min_quantity > 1 && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">≥ {dish.min_quantity} 份</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">{categories.find(c => c.id === dish.category_id)?.name || '-'}</td>
-                <td className="px-4 py-3 font-semibold">¥{dish.price}</td>
-                <td className="px-4 py-3">
-                  {dish.dish_specs?.map(s => `${s.spec_name} ¥${s.price}`).join(', ') || '-'}
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${dish.status === 'available' ? 'text-[#10B981] bg-[#D1FAE5]' : 'text-[#94A3B8] bg-[#F1F5F9]'}`}>
-                    {dish.status === 'available' ? '上架' : '下架'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => handleToggle(dish.id)} className="p-3 text-[#2563EB] hover:bg-[#EFF6FF] rounded-lg transition-colors cursor-pointer active:bg-[#DBEAFE]" title="上下架">
-                      {dish.status === 'available' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                    </button>
-                    <button onClick={() => openEditModal(dish)} className="p-3 text-[#6366F1] hover:bg-[#EEF2FF] rounded-lg transition-colors cursor-pointer active:bg-[#E0E7FF]">
-                      <Edit2 size={20} />
-                    </button>
-                    <button onClick={() => handleDelete(dish.id)} className="p-3 text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:bg-red-100">
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          </table>
-        </div>
-
-        {/* 手机/小平板：卡片视图（仿顾客小程序菜品卡片，左大图 + 右信息） */}
-        <div className="md:hidden divide-y divide-gray-100">
-          {filtered.length === 0 && (
-            <div className="text-center py-16 text-[#94A3B8]">暂无菜品</div>
-          )}
-          {filtered.map((dish) => {
-            const categoryName = categories.find(c => c.id === dish.category_id)?.name || '-'
-            const isAvailable = dish.status === 'available'
-            return (
-              <div key={dish.id} className="p-3 hover:bg-gray-50/50 transition-colors">
-                <div className="flex gap-3">
-                  {/* 左：大图 */}
-                  <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                    {dish.image_url ? (
-                      <img
-                        src={resolveImageUrl(dish.image_url)}
-                        className="w-full h-full object-cover"
-                        alt=""
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
-                    )}
-                  </div>
-
-                  {/* 右：信息 + 操作 */}
-                  <div className="flex-1 min-w-0 flex flex-col">
-                    {/* 第一行：名称 + 状态徽章 */}
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="text-base font-semibold text-[#0F172A] truncate">{dish.name}</h3>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${isAvailable ? 'text-[#10B981] bg-[#D1FAE5]' : 'text-[#94A3B8] bg-[#F1F5F9]'}`}>
-                        {isAvailable ? '上架' : '下架'}
-                      </span>
-                    </div>
-
-                    {/* 第二行：分类 + 必选/最少数量徽章 */}
-                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                      <span className="text-xs text-[#64748B]">{categoryName}</span>
-                      {dish.is_required && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#B91C1C] font-medium">必选</span>
-                      )}
-                      {dish.min_quantity && dish.min_quantity > 1 && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">≥ {dish.min_quantity} 份</span>
-                      )}
-                    </div>
-
-                    {/* 第三行：规格（如有） */}
-                    {dish.dish_specs && dish.dish_specs.length > 0 && (
-                      <div className="text-xs text-[#94A3B8] mb-1.5 truncate">
-                        {dish.dish_specs.map(s => `${s.spec_name} ¥${s.price}`).join(' / ')}
-                      </div>
-                    )}
-
-                    {/* 底部：价格 + 操作按钮（push 到底部） */}
-                    <div className="mt-auto flex items-end justify-between gap-2">
-                      <div className="flex items-baseline">
-                        <span className="text-sm text-[#EF4444]">¥</span>
-                        <span className="text-xl font-bold text-[#EF4444] leading-none">{dish.price}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleToggle(dish.id)}
-                          className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#2563EB] bg-[#EFF6FF] active:bg-[#DBEAFE] transition-colors cursor-pointer"
-                          title={isAvailable ? '点击下架' : '点击上架'}
-                        >
-                          {isAvailable ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                        </button>
-                        <button
-                          onClick={() => openEditModal(dish)}
-                          className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#6366F1] bg-[#EEF2FF] active:bg-[#E0E7FF] transition-colors cursor-pointer"
-                          title="编辑"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(dish.id)}
-                          className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#EF4444] bg-red-50 active:bg-red-100 transition-colors cursor-pointer"
-                          title="删除"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
+        {sortMode ? (
+          /* ===== 自定义排序模式：拖拽列表 ===== */
+          <div className="divide-y divide-gray-100">
+            {sortableDishes.length === 0 && (
+              <div className="text-center py-16 text-[#94A3B8]">暂无菜品可排序</div>
+            )}
+            {sortableDishes.map((dish, index) => (
+              <div
+                key={dish.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`flex items-center gap-3 px-4 py-3 cursor-move transition-colors select-none
+                  ${dragOverIndex === index ? 'bg-[#EFF6FF] border-t-2 border-[#2563EB]' : 'hover:bg-gray-50'}
+                `}
+              >
+                <GripVertical size={18} className="text-gray-300 shrink-0" />
+                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                  {dish.image_url ? (
+                    <img src={resolveImageUrl(dish.image_url)} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{dish.name}</div>
+                  <div className="text-xs text-[#64748B]">
+                    {categories.find(c => c.id === dish.category_id)?.name || '-'} · ¥{dish.price}
                   </div>
                 </div>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${dish.status === 'available' ? 'text-[#10B981] bg-[#D1FAE5]' : 'text-[#94A3B8] bg-[#F1F5F9]'}`}>
+                  {dish.status === 'available' ? '上架' : '下架'}
+                </span>
               </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* 桌面端：表格视图（≥ md） */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+              <thead className="bg-[#F8FAFC] text-[#334155]">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">菜品</th>
+                  <th className="text-left px-4 py-3 font-medium">分类</th>
+                  <th className="text-left px-4 py-3 font-medium">价格</th>
+                  <th className="text-left px-4 py-3 font-medium">规格</th>
+                  <th className="text-left px-4 py-3 font-medium">状态</th>
+                  <th className="text-left px-4 py-3 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((dish) => (
+                  <tr key={dish.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                          {dish.image_url ?
+                            <img
+                              src={resolveImageUrl(dish.image_url)}
+                              className="w-full h-full object-cover"
+                              alt=""
+                            /> :
+                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
+                          }
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium">{dish.name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {dish.is_required && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#B91C1C] font-medium">必选</span>
+                            )}
+                            {dish.min_quantity && dish.min_quantity > 1 && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">≥ {dish.min_quantity} 份</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{categories.find(c => c.id === dish.category_id)?.name || '-'}</td>
+                    <td className="px-4 py-3 font-semibold">¥{dish.price}</td>
+                    <td className="px-4 py-3">
+                      {dish.dish_specs?.map(s => `${s.spec_name} ¥${s.price}`).join(', ') || '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${dish.status === 'available' ? 'text-[#10B981] bg-[#D1FAE5]' : 'text-[#94A3B8] bg-[#F1F5F9]'}`}>
+                        {dish.status === 'available' ? '上架' : '下架'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => handleToggle(dish.id)} className="p-3 text-[#2563EB] hover:bg-[#EFF6FF] rounded-lg transition-colors cursor-pointer active:bg-[#DBEAFE]" title="上下架">
+                          {dish.status === 'available' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                        </button>
+                        <button onClick={() => openEditModal(dish)} className="p-3 text-[#6366F1] hover:bg-[#EEF2FF] rounded-lg transition-colors cursor-pointer active:bg-[#E0E7FF]">
+                          <Edit2 size={20} />
+                        </button>
+                        <button onClick={() => handleDelete(dish.id)} className="p-3 text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:bg-red-100">
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
+
+            {/* 手机/小平板：卡片视图（仿顾客小程序菜品卡片，左大图 + 右信息） */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {filtered.length === 0 && (
+                <div className="text-center py-16 text-[#94A3B8]">暂无菜品</div>
+              )}
+              {filtered.map((dish) => {
+                const categoryName = categories.find(c => c.id === dish.category_id)?.name || '-'
+                const isAvailable = dish.status === 'available'
+                return (
+                  <div key={dish.id} className="p-3 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex gap-3">
+                      {/* 左：大图 */}
+                      <div className="w-24 h-24 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                        {dish.image_url ? (
+                          <img
+                            src={resolveImageUrl(dish.image_url)}
+                            className="w-full h-full object-cover"
+                            alt=""
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">无图</div>
+                        )}
+                      </div>
+
+                      {/* 右：信息 + 操作 */}
+                      <div className="flex-1 min-w-0 flex flex-col">
+                        {/* 第一行：名称 + 状态徽章 */}
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3 className="text-base font-semibold text-[#0F172A] truncate">{dish.name}</h3>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${isAvailable ? 'text-[#10B981] bg-[#D1FAE5]' : 'text-[#94A3B8] bg-[#F1F5F9]'}`}>
+                            {isAvailable ? '上架' : '下架'}
+                          </span>
+                        </div>
+
+                        {/* 第二行：分类 + 必选/最少数量徽章 */}
+                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          <span className="text-xs text-[#64748B]">{categoryName}</span>
+                          {dish.is_required && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#B91C1C] font-medium">必选</span>
+                          )}
+                          {dish.min_quantity && dish.min_quantity > 1 && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E]">≥ {dish.min_quantity} 份</span>
+                          )}
+                        </div>
+
+                        {/* 第三行：规格（如有） */}
+                        {dish.dish_specs && dish.dish_specs.length > 0 && (
+                          <div className="text-xs text-[#94A3B8] mb-1.5 truncate">
+                            {dish.dish_specs.map(s => `${s.spec_name} ¥${s.price}`).join(' / ')}
+                          </div>
+                        )}
+
+                        {/* 底部：价格 + 操作按钮（push 到底部） */}
+                        <div className="mt-auto flex items-end justify-between gap-2">
+                          <div className="flex items-baseline">
+                            <span className="text-sm text-[#EF4444]">¥</span>
+                            <span className="text-xl font-bold text-[#EF4444] leading-none">{dish.price}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleToggle(dish.id)}
+                              className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#2563EB] bg-[#EFF6FF] active:bg-[#DBEAFE] transition-colors cursor-pointer"
+                              title={isAvailable ? '点击下架' : '点击上架'}
+                            >
+                              {isAvailable ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                            </button>
+                            <button
+                              onClick={() => openEditModal(dish)}
+                              className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#6366F1] bg-[#EEF2FF] active:bg-[#E0E7FF] transition-colors cursor-pointer"
+                              title="编辑"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(dish.id)}
+                              className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#EF4444] bg-red-50 active:bg-red-100 transition-colors cursor-pointer"
+                              title="删除"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {showModal && (

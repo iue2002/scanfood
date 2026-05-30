@@ -1,4 +1,5 @@
-import { IsString, IsNumber, IsOptional, IsNotEmpty, IsBoolean, IsInt, Min, Max, MaxLength, Matches } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsNotEmpty, IsBoolean, IsInt, Min, Max, MaxLength, Matches, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 const NO_XSS = /^[^<>]*$/;
 
@@ -113,4 +114,17 @@ export class CreateCategoryDto {
   @Min(0)
   @Max(999)
   sort_order?: number;
+}
+
+class SortOrderItemDto {
+  @IsInt()
+  @Min(1)
+  id: number;
+}
+
+export class UpdateSortOrderDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SortOrderItemDto)
+  items: SortOrderItemDto[];
 }

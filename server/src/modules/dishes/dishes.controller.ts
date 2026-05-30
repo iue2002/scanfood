@@ -3,7 +3,7 @@ import { DishesService } from './dishes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
 import { Audit, Permissions } from '../merchant-ops/auth/decorators';
-import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
+import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto, UpdateSortOrderDto } from './dto/dish.dto';
 
 @Controller('dishes')
 export class DishesController {
@@ -106,5 +106,13 @@ export class DishesController {
   @Delete('specs/:id')
   async deleteDishSpec(@Param('id', ParseIntPipe) id: number) {
     return await this.dishesService.deleteDishSpec(id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
+  @Post('sort-order')
+  async updateSortOrder(@Body() dto: UpdateSortOrderDto) {
+    return await this.dishesService.updateSortOrder(dto);
   }
 }

@@ -642,3 +642,37 @@ export const idempotencyKeys = mysqlTable('idempotency_keys', {
   index('idx_idemp_expires').on(t.expires_at),
   index('idx_idemp_actor_created').on(t.actor_user_id, t.created_at),
 ]);
+
+// ============================================================
+// P1-1：事件投递箱
+// ============================================================
+export const eventOutbox = mysqlTable('event_outbox', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey(),
+  event_type: varchar('event_type', { length: 64 }).notNull(),
+  aggregate_type: varchar('aggregate_type', { length: 64 }).notNull(),
+  aggregate_id: varchar('aggregate_id', { length: 64 }).notNull(),
+  payload_json: json('payload_json').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  attempts: int('attempts').notNull().default(0),
+  next_retry_at: timestamp('next_retry_at'),
+  last_error: varchar('last_error', { length: 500 }),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  processed_at: timestamp('processed_at'),
+}, (t) => [
+  index('idx_outbox_status_retry').on(t.status, t.next_retry_at),
+  index('idx_outbox_aggregate').on(t.aggregate_type, t.aggregate_id),
+  index('idx_outbox_created').on(t.created_at),
+]);
+
+// ============================================================
+// P1-2：TTL 键值存储
+// ============================================================
+export const ttlKvStore = mysqlTable('ttl_kv_store', {
+  store_key: varchar('store_key', { length: 191 }).primaryKey(),
+  value_json: json('value_json').notNull(),
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
+}, (t) => [
+  index('idx_ttl_expires').on(t.expires_at),
+]);

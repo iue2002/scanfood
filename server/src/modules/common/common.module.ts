@@ -10,16 +10,22 @@
 import { Global, Module } from '@nestjs/common';
 import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 import { MysqlIdempotencyStore, IDEMPOTENCY_STORE_TOKEN } from '@/modules/common/adapters/mysql-idempotency-store.adapter';
+import { MysqlEventOutbox, EVENT_OUTBOX_TOKEN } from '@/modules/common/adapters/mysql-event-outbox.adapter';
+import { MysqlTtlStore, TTL_STORE_TOKEN } from '@/modules/common/adapters/mysql-ttl-store.adapter';
 
 @Global()
 @Module({
   providers: [
     LocalImageCleanupService,
     { provide: IDEMPOTENCY_STORE_TOKEN, useClass: MysqlIdempotencyStore },
+    { provide: EVENT_OUTBOX_TOKEN, useClass: MysqlEventOutbox },
+    { provide: TTL_STORE_TOKEN, useClass: MysqlTtlStore },
   ],
   exports: [
     LocalImageCleanupService,
     IDEMPOTENCY_STORE_TOKEN,
+    EVENT_OUTBOX_TOKEN,
+    TTL_STORE_TOKEN,
   ],
 })
 export class CommonModule {}

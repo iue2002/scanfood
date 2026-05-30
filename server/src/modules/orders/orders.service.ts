@@ -9,7 +9,9 @@ import { StoreSettingsService } from '../store-settings/store-settings.service';
 import { computeBizDate } from './pickup-no.core';
 import { OrderLifecycleCore } from './order-lifecycle.core';
 import { IDEMPOTENCY_STORE_TOKEN } from '@/modules/common/adapters/mysql-idempotency-store.adapter';
+import { EVENT_OUTBOX_TOKEN } from '@/modules/common/adapters/mysql-event-outbox.adapter';
 import type { IdempotencyStorePort } from '@/modules/common/ports/idempotency-store.port';
+import type { EventOutboxPort } from '@/modules/common/ports/event-outbox.port';
 import * as crypto from 'crypto';
 
 function hashPayload(data: unknown): string {
@@ -24,6 +26,8 @@ export class OrdersService {
     private readonly storeSettingsService: StoreSettingsService,
     @Inject(IDEMPOTENCY_STORE_TOKEN)
     private readonly idempotencyStore: IdempotencyStorePort,
+    @Inject(EVENT_OUTBOX_TOKEN)
+    private readonly outbox: EventOutboxPort,
   ) {}
   private generateOrderNumber(): string {
     const date = new Date();
@@ -235,13 +239,21 @@ export class OrdersService {
       });
     }
 
-    // ---- 事务：加菜写入 ----
+    // ---- 事务：加菜写入 + outbox ----
     await db.transaction(async (tx) => {
       await tx.insert(order_items).values(itemsToInsert);
       await tx.update(orders).set({
         total_amount: totalAmount.toFixed(2),
         updated_at: new Date(),
       }).where(eq(orders.id, orderId));
+
+      // P1-1：写入 outbox 事件
+      await this.outbox.append(tx, {
+        event_type: 'ORDER_ADD_MORE',
+        aggregate_type: 'order',
+        aggregate_id: String(orderId),
+        payload: { orderId, tableId: order.table_id },
+      });
     });
 
     // ---- 事务外：副作用 ----
@@ -433,6 +445,14 @@ export class OrdersService {
         }
       }
 
+      // P1-1：写入 outbox 事件（与订单数据同事务）
+      await this.outbox.append(tx, {
+        event_type: 'ORDER_CREATED',
+        aggregate_type: 'order',
+        aggregate_id: String(newOrderId),
+        payload: { orderId: newOrderId, tableId: finalTableId },
+      });
+
       return newOrderId;
     });
 
@@ -607,7 +627,7 @@ export class OrdersService {
 
     const order = await this.getOrderById(orderId);
 
-    // ---- 事务：订单状态 + 桌台状态（结账时）- ---
+    // ---- 事务：订单状态 + 桌台状态 + outbox ----
     await db.transaction(async (tx) => {
       if (dto.status === 'settled') {
         await tx.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));
@@ -616,6 +636,16 @@ export class OrdersService {
         status: dto.status,
         ...(dto.status === 'settled' ? { settled_at: new Date() } : {}),
       }).where(eq(orders.id, orderId));
+
+      // P1-1：结账时写入 outbox 事件
+      if (dto.status === 'settled') {
+        await this.outbox.append(tx, {
+          event_type: 'ORDER_SETTLED',
+          aggregate_type: 'order',
+          aggregate_id: String(orderId),
+          payload: { orderId, tableId: order.table_id },
+        });
+      }
     });
 
     // ---- 事务外：副作用 ----

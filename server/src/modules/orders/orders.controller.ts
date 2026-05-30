@@ -128,6 +128,7 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('ORDER_MARK_SERVED')
+  @Audit('ORDER_MARK_SERVED', { targetType: 'order' })
   @Post(':id/items/:itemId/served')
   async updateOrderItemServed(
     @Param('id', ParseIntPipe) id: number,
@@ -150,6 +151,7 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('ORDER_DELETE_DRAFT')
+  @Audit('ORDER_DELETE_DRAFT', { targetType: 'order' })
   @Delete(':id')
   async deleteOrder(@Param('id', ParseIntPipe) id: number) {
     return await this.ordersService.deleteOrder(id);

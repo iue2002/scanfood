@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, U
 import { TablesService } from './tables.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
-import { Permissions } from '../merchant-ops/auth/decorators';
+import { Audit, Permissions } from '../merchant-ops/auth/decorators';
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
 
 @Controller('tables')
@@ -46,6 +46,7 @@ export class TablesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('TABLE_UPDATE')
+  @Audit('TABLE_UPDATE')
   @Post()
   async createTable(@Body() dto: CreateTableDto) {
     return await this.tablesService.createTable(dto);
@@ -53,6 +54,7 @@ export class TablesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('TABLE_UPDATE')
+  @Audit('TABLE_UPDATE')
   @Put(':id')
   async updateTable(
     @Param('id', ParseIntPipe) id: number,
@@ -63,6 +65,7 @@ export class TablesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('TABLE_UPDATE')
+  @Audit('TABLE_UPDATE')
   @Post(':id/status')
   async updateTableStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -73,6 +76,7 @@ export class TablesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('TABLE_UPDATE')
+  @Audit('TABLE_UPDATE')
   @Delete(':id')
   async deleteTable(@Param('id', ParseIntPipe) id: number) {
     return await this.tablesService.deleteTable(id);
@@ -80,6 +84,7 @@ export class TablesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('TABLE_QRCODE_GENERATE')
+  @Audit('TABLE_QRCODE_GENERATE')
   @Post(':id/qrcode')
   async generateQrCode(@Param('id', ParseIntPipe) id: number) {
     return await this.tablesService.generateQrCode(id);

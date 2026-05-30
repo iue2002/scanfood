@@ -22,7 +22,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
-import { Permissions } from '../merchant-ops/auth/decorators';
+import { Audit, Permissions } from '../merchant-ops/auth/decorators';
 import { PushNotificationService } from './push.service';
 import { EmailNotificationService } from './email.service';
 import { RobotNotificationService, ALL_ROBOT_PROVIDERS } from './robot.service';
@@ -162,6 +162,7 @@ export class NotifController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('NOTIF_ROBOT_UPDATE')
+  @Audit('NOTIF_ROBOT_UPDATE')
   @Put('robots/:provider')
   async upsertRobot(
     @Param('provider') provider: string,
@@ -186,6 +187,7 @@ export class NotifController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('NOTIF_ROBOT_UPDATE')
+  @Audit('NOTIF_ROBOT_UPDATE')
   @Delete('robots/:provider')
   async deleteRobot(@Param('provider') provider: string) {
     assertProvider(provider);

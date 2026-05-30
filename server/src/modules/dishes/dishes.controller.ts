@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, U
 import { DishesService } from './dishes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
-import { Permissions } from '../merchant-ops/auth/decorators';
+import { Audit, Permissions } from '../merchant-ops/auth/decorators';
 import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto } from './dto/dish.dto';
 
 @Controller('dishes')
@@ -32,6 +32,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Post('categories')
   async createCategory(@Body() dto: CreateCategoryDto) {
     return await this.dishesService.createCategory(dto);
@@ -39,6 +40,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Put('categories/:id')
   async updateCategory(
     @Param('id', ParseIntPipe) id: number,
@@ -49,6 +51,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Delete('categories/:id')
   async deleteCategory(@Param('id', ParseIntPipe) id: number) {
     return await this.dishesService.deleteCategory(id);
@@ -56,6 +59,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Post()
   async createDish(@Body() dto: CreateDishDto) {
     return await this.dishesService.createDish(dto);
@@ -63,6 +67,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Put(':id')
   async updateDish(
     @Param('id', ParseIntPipe) id: number,
@@ -73,6 +78,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Post(':id/toggle')
   async toggleDishStatus(@Param('id', ParseIntPipe) id: number) {
     return await this.dishesService.toggleDishStatus(id);
@@ -80,6 +86,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Delete(':id')
   async deleteDish(@Param('id', ParseIntPipe) id: number) {
     return await this.dishesService.deleteDish(id);
@@ -87,6 +94,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Post('specs')
   async addDishSpec(@Body() dto: CreateDishSpecDto) {
     return await this.dishesService.addDishSpec(dto);
@@ -94,6 +102,7 @@ export class DishesController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('MENU_ITEM_UPDATE')
+  @Audit('MENU_ITEM_UPDATE')
   @Delete('specs/:id')
   async deleteDishSpec(@Param('id', ParseIntPipe) id: number) {
     return await this.dishesService.deleteDishSpec(id);

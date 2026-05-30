@@ -10,7 +10,7 @@ import {
 import { StoreSettingsService } from './store-settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
-import { Permissions } from '../merchant-ops/auth/decorators';
+import { Audit, Permissions } from '../merchant-ops/auth/decorators';
 import { UpdateStoreSettingsDto } from './dto/store-settings.dto';
 import { UpdateSmtpDto } from './dto/smtp.dto';
 
@@ -26,6 +26,7 @@ export class StoreSettingsController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('STORE_SETTINGS_UPDATE')
+  @Audit('STORE_SETTINGS_UPDATE')
   @Put()
   async updateSettings(@Body() dto: UpdateStoreSettingsDto) {
     const settings = await this.storeSettingsService.updateStoreSettings(dto);
@@ -46,6 +47,7 @@ export class StoreSettingsController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('STORE_SMTP_UPDATE')
+  @Audit('STORE_SMTP_UPDATE')
   @Put('smtp')
   async updateSmtp(@Body() dto: UpdateSmtpDto) {
     const data = await this.storeSettingsService.updateSmtpConfig(dto);

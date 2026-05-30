@@ -102,15 +102,23 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       // 选择 WS URL 策略：
       //   - 优先用相对路径 /ws（让 vite proxy 在 dev 转发到后端，prod 由反代处理）
       //   - 仅当显式配置了同协议的 VITE_API_BASE_URL 时才用绝对路径
+      //   - DEV 环境下若 Vite proxy 不稳定，直接用 localhost:3000 直连后端
       // 关键：避免在 https 页面下用 ws:// 明文协议，浏览器会立即关闭连接
       const apiBase = import.meta.env.VITE_API_BASE_URL
       const pageIsHttps = window.location.protocol === 'https:'
       const baseIsInsecure = apiBase && /^http:\/\//i.test(apiBase)
+      const isDev = import.meta.env.DEV
       const useRelative = !apiBase || (pageIsHttps && baseIsInsecure)
-      const wsURL = useRelative
-        ? `${pageIsHttps ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token}`
-        : apiBase!.replace(/^http/, 'ws').replace(/^https/, 'wss').replace(/\/api$/, '') +
+      let wsURL: string
+      if (isDev && !apiBase) {
+        // dev 且未配置 API base：直连后端 3000 端口，绕过 Vite proxy（更稳定）
+        wsURL = `ws://localhost:3000/ws?token=${token}`
+      } else if (useRelative) {
+        wsURL = `${pageIsHttps ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token}`
+      } else {
+        wsURL = apiBase!.replace(/^http/, 'ws').replace(/^https/, 'wss').replace(/\/api$/, '') +
           `/ws?token=${token}`
+      }
 
       try {
         ws = new WebSocket(wsURL)

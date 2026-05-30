@@ -15,8 +15,8 @@ export class AuthController {
 
   // 验证码图片：返回 { token, svg }，svg 是 SVG 字符串可直接 dangerouslySetInnerHTML
   @Get('captcha')
-  getCaptcha() {
-    return this.captchaService.generate();
+  async getCaptcha() {
+    return await this.captchaService.generate();
   }
 
   @Post('login')

@@ -1,4 +1,6 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, Inject } from '@nestjs/common';
+import { TTL_STORE_TOKEN } from '@/modules/common/adapters/mysql-ttl-store.adapter';
+import type { TtlStorePort } from '@/modules/common/ports/ttl-store.port';
 import { JwtService } from '@nestjs/jwt';
 import { db } from '@/storage/database/mysql-client';
 import { users, tables, login_logs } from '@/storage/database/shared/schema';
@@ -17,34 +19,28 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly captchaService: CaptchaService,
     private readonly imageCleanup: LocalImageCleanupService,
+    @Inject(TTL_STORE_TOKEN)
+    private readonly lockStore: TtlStorePort,
   ) {}
 
-  // ===== 安全加固: 账户锁定（内存 Map） =====
-  // 同一账号连续失败 MAX_FAILED_ATTEMPTS 次 → 锁定 LOCK_DURATION_MS
+  // ===== 安全加固: 账户锁定（MySQL TTL Store，P1-2） =====
   private static readonly MAX_FAILED_ATTEMPTS = 5;
-  private static readonly LOCK_DURATION_MS = 30 * 60 * 1000; // 30 分钟
-  private static readonly FAIL_RESET_MS = 10 * 60 * 1000; // 10 分钟内连续失败才累计
-  private accountLockMap = new Map<
-    string,
-    { failedCount: number; lockedUntil: number; lastFailAt: number }
-  >();
+  private static readonly LOCK_DURATION_MS = 30 * 60 * 1000;
+  private static readonly FAIL_RESET_MS = 10 * 60 * 1000;
 
-  private isAccountLocked(username: string): { locked: boolean; remainingMinutes?: number } {
-    const entry = this.accountLockMap.get(username);
+  private lockKey(username: string): string {
+    return `login:lock:${username}`;
+  }
+
+  private async isAccountLocked(username: string): Promise<{ locked: boolean; remainingMinutes?: number }> {
+    const entry = await this.lockStore.get<{ failedCount: number; lockedUntil: number; lastFailAt: number }>(this.lockKey(username));
     if (!entry) return { locked: false };
 
-    // 正在锁定期内
     if (entry.lockedUntil > Date.now()) {
       const remainingMinutes = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
       return { locked: true, remainingMinutes };
     }
 
-    // 锁定已过期，但不清除 entry（保留 lastFailAt 用于判断"连续"）
-    if (entry.lockedUntil > 0) {
-      entry.lockedUntil = 0;
-    }
-
-    // 距离上次失败超过 FAIL_RESET_MS → 重置计数（不再连续）
     if (Date.now() - entry.lastFailAt > AuthService.FAIL_RESET_MS) {
       entry.failedCount = 0;
     }
@@ -52,15 +48,12 @@ export class AuthService {
     return { locked: false };
   }
 
-  private recordFailedAttempt(username: string): void {
+  private async recordFailedAttempt(username: string): Promise<void> {
     const now = Date.now();
-    let entry = this.accountLockMap.get(username);
+    const key = this.lockKey(username);
+    let entry = await this.lockStore.get<{ failedCount: number; lockedUntil: number; lastFailAt: number }>(key) ||
+      { failedCount: 0, lockedUntil: 0, lastFailAt: 0 };
 
-    if (!entry) {
-      entry = { failedCount: 0, lockedUntil: 0, lastFailAt: 0 };
-    }
-
-    // 距离上次失败超过 FAIL_RESET_MS → 重置计数（不连续）
     if (now - entry.lastFailAt > AuthService.FAIL_RESET_MS) {
       entry.failedCount = 0;
     }
@@ -73,17 +66,16 @@ export class AuthService {
       this.logger.warn(`账户已锁定: ${username}，持续 30 分钟`);
     }
 
-    this.accountLockMap.set(username, entry);
+    await this.lockStore.set(key, entry, AuthService.LOCK_DURATION_MS);
   }
 
-  private clearLockEntry(username: string): void {
-    this.accountLockMap.delete(username);
+  private async clearLockEntry(username: string): Promise<void> {
+    await this.lockStore.delete(this.lockKey(username));
     this.logger.log(`登录成功，已重置失败计数: ${username}`);
   }
 
-  // 暴露给登录流程：当前用户名的累计失败次数（窗口内）
-  getFailedCount(username: string): number {
-    const entry = this.accountLockMap.get(username);
+  async getFailedCount(username: string): Promise<number> {
+    const entry = await this.lockStore.get<{ failedCount: number; lockedUntil: number; lastFailAt: number }>(this.lockKey(username));
     if (!entry) return 0;
     if (Date.now() - entry.lastFailAt > AuthService.FAIL_RESET_MS) return 0;
     return entry.failedCount;
@@ -166,7 +158,7 @@ export class AuthService {
     const username = dto.username;
 
     // 1. 检查是否被锁定
-    const lockStatus = this.isAccountLocked(username);
+    const lockStatus = await this.isAccountLocked(username);
     if (lockStatus.locked) {
       this.logger.warn(`账户锁定拒绝: ${username}`);
       await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '账户已锁定');
@@ -176,9 +168,9 @@ export class AuthService {
     }
 
     // 2. 验证码：失败 1 次后必须验证
-    const failed = this.getFailedCount(username);
+    const failed = await this.getFailedCount(username);
     if (failed >= 1) {
-      const passed = this.captchaService.verify(dto.captchaToken || '', dto.captchaInput || '');
+      const passed = await this.captchaService.verify(dto.captchaToken || '', dto.captchaInput || '');
       if (!passed) {
         await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '验证码错误');
         // 用对象作为 UnauthorizedException 的 response，NestJS 会原样序列化输出 captchaRequired 字段
@@ -195,29 +187,29 @@ export class AuthService {
     const user = result[0];
 
     if (!user) {
-      this.recordFailedAttempt(username);
+      await this.recordFailedAttempt(username);
       await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
       throw new UnauthorizedException({
         statusCode: 401,
         message: '用户名或密码错误',
-        captchaRequired: this.getFailedCount(username) >= 1,
+        captchaRequired: (await this.getFailedCount(username)) >= 1,
       });
     }
 
     // 4. 验证密码
     const isValid = await bcrypt.compare(dto.password, user.password);
     if (!isValid) {
-      this.recordFailedAttempt(username);
+      await this.recordFailedAttempt(username);
       await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', false, '用户名或密码错误');
       throw new UnauthorizedException({
         statusCode: 401,
         message: '用户名或密码错误',
-        captchaRequired: this.getFailedCount(username) >= 1,
+        captchaRequired: (await this.getFailedCount(username)) >= 1,
       });
     }
 
     // 5. 登录成功：清除锁定 + 记录审计
-    this.clearLockEntry(username);
+    await this.clearLockEntry(username);
     await this.recordLoginLog(user.id, username, ipAddress || '', userAgent || '', true);
 
     // 6. 检查账号状态（merchant-ops M1）

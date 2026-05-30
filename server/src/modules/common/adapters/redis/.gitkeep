@@ -1,0 +1,6 @@
+# P3-1 Redis Adapter 预留目录
+# 未来可在此添加：
+#   redis-ttl-store.adapter.ts       → Redis TTL key (SET EX)
+#   redis-idempotency-store.adapter.ts → Redis SET NX EX
+#   redis-event-stream.adapter.ts    → Redis Stream / Pub/Sub
+#   redis-distributed-lock.adapter.ts → Redlock / SET NX

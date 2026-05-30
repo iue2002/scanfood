@@ -1,22 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { WifiOff } from 'lucide-react'
+import { WifiOff, Loader2 } from 'lucide-react'
 import request from './api/request'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import TableBoard from './pages/TableBoard'
 import Dashboard from './pages/Dashboard'
 import TableManage from './pages/TableManage'
-import OrderManage from './pages/OrderManage'
 import DishManage from './pages/DishManage'
 import RefundManage from './pages/RefundManage'
-import Statistics from './pages/Statistics'
 import StoreSettings from './pages/StoreSettings'
 import EmployeeManage from './pages/EmployeeManage'
 import AuditLogs from './pages/AuditLogs'
 import NotifSettings from './pages/NotifSettings'
-import DataExport from './pages/DataExport'
-import PrinterManage from './pages/PrinterManage'
 import PrintPlanManage from './pages/PrintPlanManage'
 import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
@@ -28,6 +24,18 @@ import NotificationCenter from './components/NotificationCenter'
 import NotificationClickHandler from './components/NotificationClickHandler'
 import { RoleGuard } from './rbac/RoleGuard'
 import { useAuthStore } from './stores/auth'
+
+// P2-2：大页面懒加载（仅最大 4 个页面，减少首屏 JS 体积）
+const OrderManage   = lazy(() => import('./pages/OrderManage'))
+const Statistics    = lazy(() => import('./pages/Statistics'))
+const PrinterManage = lazy(() => import('./pages/PrinterManage'))
+const DataExport    = lazy(() => import('./pages/DataExport'))
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center py-20">
+    <Loader2 className="w-6 h-6 animate-spin text-[#2563EB]" />
+  </div>
+)
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore(state => state.token)
@@ -126,7 +134,7 @@ export default function App() {
               }
             >
               <Route index element={<TableBoard />} />
-              <Route path="orders" element={<OrderManage />} />
+              <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrderManage /></Suspense>} />
               <Route path="dashboard" element={
                 <RoleGuard requiredRoles={['owner', 'admin']}>
                   <Dashboard />
@@ -134,7 +142,7 @@ export default function App() {
               } />
               <Route path="statistics" element={
                 <RoleGuard requiredRoles={['owner', 'admin']}>
-                  <Statistics />
+                  <Suspense fallback={<PageLoader />}><Statistics /></Suspense>
                 </RoleGuard>
               } />
               <Route path="tables" element={
@@ -169,12 +177,12 @@ export default function App() {
               } />
               <Route path="data-export" element={
                 <RoleGuard requiredRoles={['owner', 'admin']}>
-                  <DataExport />
+                  <Suspense fallback={<PageLoader />}><DataExport /></Suspense>
                 </RoleGuard>
               } />
               <Route path="printers" element={
                 <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
-                  <PrinterManage />
+                  <Suspense fallback={<PageLoader />}><PrinterManage /></Suspense>
                 </RoleGuard>
               } />
               <Route path="print-plans" element={

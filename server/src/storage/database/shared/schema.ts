@@ -621,3 +621,24 @@ export const notification_templates = mysqlTable(
     uniqueIndex("uk_notif_template_event_channel").on(t.event_type, t.channel),
   ]
 );
+
+// ============================================================
+// P0-4：幂等键表
+// ============================================================
+export const idempotencyKeys = mysqlTable('idempotency_keys', {
+  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey(),
+  scope: varchar('scope', { length: 64 }).notNull(),
+  idempotency_key: varchar('idempotency_key', { length: 128 }).notNull(),
+  actor_user_id: int('actor_user_id'),
+  request_hash: varchar('request_hash', { length: 64 }).notNull(),
+  response_json: json('response_json'),
+  status: varchar('status', { length: 20 }).notNull().default('processing'),
+  locked_until: timestamp('locked_until'),
+  expires_at: timestamp('expires_at').notNull(),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+  updated_at: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
+}, (t) => [
+  uniqueIndex('uk_scope_key').on(t.scope, t.idempotency_key),
+  index('idx_idemp_expires').on(t.expires_at),
+  index('idx_idemp_actor_created').on(t.actor_user_id, t.created_at),
+]);

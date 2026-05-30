@@ -6,6 +6,10 @@ import { useModal } from '@/components/ModalProvider'
 import { useWebSocketEvent, useWebSocketReconnect } from '@/components/WebSocketProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 
+function generateIdempotencyKey(): string {
+  return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+}
+
 interface OrderItem {
   id: number
   dish_id: number
@@ -254,6 +258,7 @@ export default function TableBoard() {
           quantity: item.quantity,
           added_by_nickname: '商家',
         })),
+        idempotency_key: generateIdempotencyKey(),
       })
 
       const updatedOrder = (await request.get(`/orders/${orderId}`)) as CurrentOrder
@@ -271,7 +276,7 @@ export default function TableBoard() {
     const orderId = settleTable.current_order.id
     setLoading(true)
     try {
-      await request.post(`/orders/${orderId}/status`, { status: 'settled' })
+      await request.post(`/orders/${orderId}/status`, { status: 'settled', idempotency_key: generateIdempotencyKey() })
       markLocalAction(`order:settled:${orderId}`)
       setSelectedTable(null)
       setSettleTable(null)

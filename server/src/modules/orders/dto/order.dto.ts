@@ -68,6 +68,12 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   order_type?: string;
+
+  // P0-4：幂等键（前端生成 UUID，防重复下单）
+  @IsString()
+  @IsOptional()
+  @MaxLength(128)
+  idempotency_key?: string;
 }
 
 // sync-add-more 请求体
@@ -76,6 +82,12 @@ export class SyncAddMoreDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
+
+  // P0-4：幂等键
+  @IsString()
+  @IsOptional()
+  @MaxLength(128)
+  idempotency_key?: string;
 }
 
 export class AddOrderItemDto {
@@ -111,6 +123,12 @@ export class UpdateOrderStatusDto {
   @IsString()
   @IsEnum(['draft', 'submitted', 'printed', 'settled', 'cancelled', 'refunded'])
   status: string;
+
+  // P0-4：幂等键
+  @IsString()
+  @IsOptional()
+  @MaxLength(128)
+  idempotency_key?: string;
 }
 
 export class UpdateOrderItemServedDto {

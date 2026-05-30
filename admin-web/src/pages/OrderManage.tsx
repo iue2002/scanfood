@@ -8,6 +8,10 @@ import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 import PrintActionModal from '@/components/PrintActionModal'
 
+function generateIdempotencyKey(): string {
+  return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+}
+
 // 外带订单标识
 const isTakeawayOrder = (order: { order_type?: string }) => order.order_type === 'takeaway'
 const formatTakeawayLabel = (order: { pickup_no?: number | null }) => order.pickup_no ? `外带 ${order.pickup_no}号` : '外带'
@@ -186,7 +190,7 @@ export default function OrderManage() {
 
   const handleSettle = async (id: number) => {
     showConfirm('确认结账', '确认标记该订单为已结账？', async () => {
-      await request.post(`/orders/${id}/status`, { status: 'settled' })
+      await request.post(`/orders/${id}/status`, { status: 'settled', idempotency_key: generateIdempotencyKey() })
       markLocalAction(`order:settled:${id}`)
       fetchOrders()
       showToast('订单已结账', 'success')
@@ -205,7 +209,7 @@ export default function OrderManage() {
 
   const handleCancel = async (id: number) => {
     showConfirm('确认取消', '确认取消该订单？', async () => {
-      await request.post(`/orders/${id}/status`, { status: 'cancelled' })
+      await request.post(`/orders/${id}/status`, { status: 'cancelled', idempotency_key: generateIdempotencyKey() })
       markLocalAction(`order:cancelled:${id}`)
       fetchOrders()
       showToast('订单已取消', 'success')
@@ -293,7 +297,8 @@ export default function OrderManage() {
           price: parseFloat(item.dish.price),
           quantity: item.quantity,
           added_by_nickname: '商家'
-        }))
+        })),
+        idempotency_key: generateIdempotencyKey(),
       })
 
       const updated = await request.get(`/orders/${orderId}`)

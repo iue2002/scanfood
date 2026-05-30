@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, ConflictException } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { orders, order_items, tables, users, carts, cart_items, dishes } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
@@ -8,6 +8,13 @@ import { NotificationDispatcherService } from '../notif/notification-dispatcher.
 import { StoreSettingsService } from '../store-settings/store-settings.service';
 import { computeBizDate } from './pickup-no.core';
 import { OrderLifecycleCore } from './order-lifecycle.core';
+import { IDEMPOTENCY_STORE_TOKEN } from '@/modules/common/adapters/mysql-idempotency-store.adapter';
+import type { IdempotencyStorePort } from '@/modules/common/ports/idempotency-store.port';
+import * as crypto from 'crypto';
+
+function hashPayload(data: unknown): string {
+  return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
+}
 
 @Injectable()
 export class OrdersService {
@@ -15,6 +22,8 @@ export class OrdersService {
     private readonly ordersGateway: OrdersGateway,
     private readonly notifDispatcher: NotificationDispatcherService,
     private readonly storeSettingsService: StoreSettingsService,
+    @Inject(IDEMPOTENCY_STORE_TOKEN)
+    private readonly idempotencyStore: IdempotencyStorePort,
   ) {}
   private generateOrderNumber(): string {
     const date = new Date();
@@ -179,7 +188,18 @@ export class OrdersService {
     return order;
   }
 
-  async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> }) {
+  async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }>; idempotency_key?: string }) {
+    // P0-4：幂等校验
+    if (dto.idempotency_key) {
+      const idemResult = await this.idempotencyStore.begin({
+        scope: 'order:add-more',
+        key: `${orderId}:${dto.idempotency_key}`,
+        requestHash: hashPayload({ orderId, items: dto.items }),
+      });
+      if (idemResult.result === 'replay') return idemResult.cachedResponse ?? { message: '加菜已提交' };
+      if (idemResult.result === 'conflict') throw new ConflictException({ code: 'IDEMPOTENCY_CONFLICT', msg: '请求冲突，请刷新后重试' });
+    }
+
     // 事务前：读取订单并校验状态
     const order = await this.getOrderById(orderId);
     if (!OrderLifecycleCore.canAddMore(order.status)) {
@@ -232,6 +252,12 @@ export class OrdersService {
     this.ordersGateway.notifyOrderUpdate(orderId, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
     void this.notifDispatcher.notifyOrderEvent('ADD_ITEM', orderId);
+
+    // P0-4：幂等标记成功
+    if (dto.idempotency_key) {
+      void this.idempotencyStore.complete({ scope: 'order:add-more', key: `${orderId}:${dto.idempotency_key}`, response: updatedOrder });
+    }
+
     return updatedOrder;
   }
 
@@ -317,6 +343,22 @@ export class OrdersService {
   }
 
   async createOrder(dto: CreateOrderDto) {
+    // P0-4：幂等校验
+    if (dto.idempotency_key) {
+      const idemResult = await this.idempotencyStore.begin({
+        scope: 'order:create',
+        key: dto.idempotency_key,
+        requestHash: hashPayload({ items: dto.items, table_id: dto.table_id, order_type: dto.order_type }),
+        actorId: dto.user_id,
+      });
+      if (idemResult.result === 'replay') {
+        return idemResult.cachedResponse ?? { message: '订单已提交，请查看订单详情' };
+      }
+      if (idemResult.result === 'conflict') {
+        throw new ConflictException({ code: 'IDEMPOTENCY_CONFLICT', msg: '请求冲突，请刷新后重试' });
+      }
+    }
+
     // 必选 / 最少数量校验（仅订单首次提交时校验，加菜不受限）
     await this.assertRequiredAndMinQuantity(dto.items);
 
@@ -346,6 +388,9 @@ export class OrdersService {
     }
     const finalTableId: number = tableId;
 
+    // ---- 幂等包装：事务 + 副作用 ----
+    const idemKey = dto.idempotency_key;
+    try {
     // ---- 事务：订单 + 明细 + 桌台 + 清购物车 ----
     const orderId = await db.transaction(async (tx) => {
       const insertResult = await tx.insert(orders).values({
@@ -403,7 +448,20 @@ export class OrdersService {
     if (!isTakeaway) {
       this.ordersGateway.notifyTableCartUpdate(finalTableId, null);
     }
+
+    // P0-4：幂等标记成功
+    if (idemKey) {
+      void this.idempotencyStore.complete({ scope: 'order:create', key: idemKey, response: order });
+    }
+
     return order;
+    } catch (err) {
+      // P0-4：幂等标记失败（可重试）
+      if (idemKey) {
+        void this.idempotencyStore.fail({ scope: 'order:create', key: idemKey, reason: (err as Error).message });
+      }
+      throw err;
+    }
   }
 
   async addOrderItem(orderId: number, dto: AddOrderItemDto) {
@@ -536,6 +594,17 @@ export class OrdersService {
   }
 
   async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
+    // P0-4：幂等校验
+    if (dto.idempotency_key) {
+      const idemResult = await this.idempotencyStore.begin({
+        scope: 'order:status',
+        key: `${orderId}:${dto.idempotency_key}`,
+        requestHash: hashPayload({ orderId, status: dto.status }),
+      });
+      if (idemResult.result === 'replay') return idemResult.cachedResponse ?? { message: '状态已更新' };
+      if (idemResult.result === 'conflict') throw new ConflictException({ code: 'IDEMPOTENCY_CONFLICT', msg: '请求冲突，请刷新后重试' });
+    }
+
     const order = await this.getOrderById(orderId);
 
     // ---- 事务：订单状态 + 桌台状态（结账时）- ---
@@ -553,6 +622,12 @@ export class OrdersService {
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(order.table_id, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderStatusChanged', updatedOrder);
+
+    // P0-4：幂等标记成功
+    if (dto.idempotency_key) {
+      void this.idempotencyStore.complete({ scope: 'order:status', key: `${orderId}:${dto.idempotency_key}`, response: updatedOrder });
+    }
+
     return updatedOrder;
   }
 

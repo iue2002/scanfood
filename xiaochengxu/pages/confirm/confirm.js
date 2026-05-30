@@ -269,6 +269,7 @@ Page({
           items: items,
           user_id: userInfo?.id,
           remark: this.data.remark,
+          idempotency_key: Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8),
         },
         loading: true,
         loadingTitle: '提交中...'

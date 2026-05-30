@@ -1,19 +1,20 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
+import { Permissions } from '../merchant-ops/auth/decorators';
 
 @Controller('statistics')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('STATISTICS_READ')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
 
-  // 获取总览数据
   @Get('overview')
   async getOverview() {
     return await this.statisticsService.getOverview();
   }
 
-  // 按菜品分类统计
   @Get('category')
   async getStatisticsByCategory(
     @Query('start_date') startDate?: string,
@@ -22,7 +23,6 @@ export class StatisticsController {
     return await this.statisticsService.getStatisticsByCategory(startDate, endDate);
   }
 
-  // 按日统计
   @Get('day')
   async getStatisticsByDay(
     @Query('start_date') startDate?: string,
@@ -31,7 +31,6 @@ export class StatisticsController {
     return await this.statisticsService.getStatisticsByDay(startDate, endDate);
   }
 
-  // 按月统计
   @Get('month')
   async getStatisticsByMonth(
     @Query('start_date') startDate?: string,
@@ -40,7 +39,6 @@ export class StatisticsController {
     return await this.statisticsService.getStatisticsByMonth(startDate, endDate);
   }
 
-  // 菜品销售排行
   @Get('dish-ranking')
   async getDishRanking(
     @Query('limit') limit?: string,
@@ -51,13 +49,11 @@ export class StatisticsController {
     return await this.statisticsService.getDishRanking(limitNum, startDate, endDate);
   }
 
-  // 今日 24 小时分时营业额
   @Get('hourly-today')
   async getHourlyToday() {
     return await this.statisticsService.getHourlyToday();
   }
 
-  // 桌台排行
   @Get('table-ranking')
   async getTableRanking(
     @Query('limit') limit?: string,
@@ -68,7 +64,6 @@ export class StatisticsController {
     return await this.statisticsService.getTableRanking(limitNum, startDate, endDate);
   }
 
-  // 区间核心 KPI（带环比）
   @Get('kpi')
   async getKpi(
     @Query('start_date') startDate: string,

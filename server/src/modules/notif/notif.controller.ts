@@ -4,8 +4,8 @@
  *
  * 权限分层：
  *   1. push 订阅 - 任意登录用户（个人通道）
- *   2. email 测试 - owner / manager / admin
- *   3. robot 配置 - owner / manager / admin（店铺级共享通道）
+ *   2. email 测试 - 通过 PermissionsGuard + NOTIF_EMAIL_TEST 约束
+ *   3. robot 配置 - 通过 PermissionsGuard + NOTIF_ROBOT_UPDATE 约束
  */
 import {
   Controller,
@@ -19,9 +19,10 @@ import {
   UseGuards,
   HttpCode,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
+import { Permissions } from '../merchant-ops/auth/decorators';
 import { PushNotificationService } from './push.service';
 import { EmailNotificationService } from './email.service';
 import { RobotNotificationService, ALL_ROBOT_PROVIDERS } from './robot.service';
@@ -65,10 +66,8 @@ class TestEmailDto {
 class UpsertRobotDto {
   @IsBoolean()
   enabled!: boolean;
-  /** 明文 webhook URL；首次必填，更新时可留空沿用旧值 */
   @IsOptional() @IsString() @MaxLength(1000)
   webhook_url?: string;
-  /** 明文签名密钥；钉钉/飞书可选，企微无 */
   @IsOptional() @IsString() @MaxLength(255)
   secret?: string;
   @IsArray() @ArrayMaxSize(8)
@@ -76,15 +75,7 @@ class UpsertRobotDto {
   events!: ('NEW_ORDER' | 'ADD_ITEM' | 'REFUND')[];
 }
 
-const ADMIN_ROLES = new Set(['owner', 'manager', 'admin']);
 const VALID_PROVIDERS: ReadonlySet<RobotProvider> = new Set(ALL_ROBOT_PROVIDERS);
-
-function assertAdmin(req: any) {
-  const role = req?.user?.role;
-  if (!role || !ADMIN_ROLES.has(role)) {
-    throw new ForbiddenException({ code: 'FORBIDDEN', msg: '仅店主/经理可操作' });
-  }
-}
 
 function assertProvider(p: string): asserts p is RobotProvider {
   if (!VALID_PROVIDERS.has(p as RobotProvider)) {
@@ -148,11 +139,11 @@ export class NotifController {
 
   // ==================== Email ====================
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('NOTIF_EMAIL_TEST')
   @Post('email/test')
   @HttpCode(200)
-  async testEmail(@Body() dto: TestEmailDto, @Req() req: any) {
-    assertAdmin(req);
+  async testEmail(@Body() dto: TestEmailDto) {
     const r = await this.emailService.testConnection(dto.to, dto.mode || 'platform');
     return r.ok
       ? { success: true, message: '测试邮件已发送，请检查收件箱' }
@@ -161,24 +152,22 @@ export class NotifController {
 
   // ==================== 群机器人 ====================
 
-  /** 列出当前店铺所有 provider 的配置（脱敏） */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('NOTIF_ROBOT_UPDATE')
   @Get('robots')
-  async listRobots(@Req() req: any) {
-    assertAdmin(req);
+  async listRobots() {
     const data = await this.robotService.listConfigs(1);
     return { success: true, data };
   }
 
-  /** 保存（INSERT or UPDATE）某 provider 的配置 */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('NOTIF_ROBOT_UPDATE')
   @Put('robots/:provider')
   async upsertRobot(
     @Param('provider') provider: string,
     @Body() dto: UpsertRobotDto,
     @Req() req: any,
   ) {
-    assertAdmin(req);
     assertProvider(provider);
     try {
       const data = await this.robotService.upsertConfig({
@@ -195,21 +184,19 @@ export class NotifController {
     }
   }
 
-  /** 删除某 provider 配置 */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('NOTIF_ROBOT_UPDATE')
   @Delete('robots/:provider')
-  async deleteRobot(@Param('provider') provider: string, @Req() req: any) {
-    assertAdmin(req);
+  async deleteRobot(@Param('provider') provider: string) {
     assertProvider(provider);
     return this.robotService.removeConfig(provider, 1);
   }
 
-  /** 测试发送 */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('NOTIF_ROBOT_UPDATE')
   @Post('robots/:provider/test')
   @HttpCode(200)
-  async testRobot(@Param('provider') provider: string, @Req() req: any) {
-    assertAdmin(req);
+  async testRobot(@Param('provider') provider: string) {
     assertProvider(provider);
     const r = await this.robotService.testSend(provider, 1);
     return r.ok

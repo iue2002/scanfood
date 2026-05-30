@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Request, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Req, Logger } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -6,6 +6,8 @@ import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto, BindTableDto }
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly captchaService: CaptchaService,
@@ -25,21 +27,20 @@ export class AuthController {
       || '';
     const userAgent = (req.headers['user-agent'] as string) || '';
     const result = await this.authService.login(dto, ipAddress, userAgent);
-    console.log('[Response]', { userId: result.user?.id, hasLastLogin: !!result.last_login });
+    this.logger.debug(`用户登录 userId=${result.user?.id}`);
     return result;
   }
 
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
-    console.log('[Response]', result);
     return result;
   }
 
   @Post('wechat-login')
   async wechatLogin(@Body() dto: WechatLoginDto) {
     const result = await this.authService.wechatLogin(dto.code, dto.nickname, dto.avatar_url);
-    console.log('[Response]', result);
+    this.logger.debug(`微信登录 isNewUser=${result.isNewUser} userId=${result.user?.id}`);
     return result;
   }
 
@@ -67,7 +68,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async bindTable(@Request() req: any, @Body() dto: BindTableDto) {
     const result = await this.authService.bindTable(req.user.userId, dto);
-    console.log('[Response]', result);
     return result;
   }
 }

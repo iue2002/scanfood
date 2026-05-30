@@ -271,7 +271,7 @@ export class AuthService {
 
   async wechatLogin(code: string, nickname?: string, avatar_url?: string) {
     const openid = await this.getOpenIdFromCode(code);
-    console.log('获取到openid:', openid);
+    this.logger.debug(`微信登录 openid: ${openid.substring(0, 6)}***`);
 
     if (!openid || openid.startsWith('local_') || !/^[0-9A-Za-z_-]{16,64}$/.test(openid)) {
       throw new BadRequestException('openid 无效');
@@ -290,7 +290,7 @@ export class AuthService {
     }
 
     // 新用户自动注册
-    console.log('新用户，开始自动注册');
+    this.logger.log('新用户自动注册');
     const hashedPassword = await bcrypt.hash(Math.random().toString(36), 10);
     try {
       const insertResult = await db.insert(users).values({
@@ -306,7 +306,7 @@ export class AuthService {
       const newUserResult = await db.select().from(users).where(eq(users.id, newId));
       const newUser = newUserResult[0];
       const { password, ...userInfo } = newUser;
-      console.log('新用户注册成功:', newUser.id);
+      this.logger.log(`新用户自动注册成功 userId=${newUser.id}`);
       return {
         user: userInfo,
         token: this.jwtService.sign({ userId: newUser.id, role: newUser.role }),

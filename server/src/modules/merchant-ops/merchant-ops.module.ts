@@ -1,5 +1,5 @@
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { OrdersModule } from '@/modules/orders/orders.module';
@@ -200,6 +200,12 @@ const PRINT_PLAN_REPO_TOKEN = 'PrintPlanRepoPort';
     {
       provide: APP_INTERCEPTOR,
       useClass: MerchantOpsRequestLogInterceptor,
+    },
+    // 全局 RBAC 权限守卫：仅拦截挂有 @Permissions / @Roles 装饰器的路由
+    // 未挂装饰器的路由（如顾客下单、公开读取）自动放行
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
   ],
   exports: [EmployeeCore, AuditCore, NotifPrefCore, ExportCore, PrintCore, PrintPlanCore],

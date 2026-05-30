@@ -3,7 +3,8 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto, SyncAddMoreDto, AddOrderItemDto, UpdateOrderStatusDto, UpdateOrderItemServedDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
-import { Audit } from '../merchant-ops/auth/decorators';
+import { Audit, Permissions } from '../merchant-ops/auth/decorators';
+import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
 
 @Controller('orders')
 export class OrdersController {
@@ -11,6 +12,8 @@ export class OrdersController {
     private readonly ordersService: OrdersService,
     private readonly storeSettingsService: StoreSettingsService,
   ) {}
+
+  // ---- 顾客端点（小程序用） ----
 
   @UseGuards(JwtAuthGuard)
   @Get('current/:tableId')
@@ -42,41 +45,6 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post(':id/sync-add-more')
-  async syncAddMore(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: SyncAddMoreDto,
-  ) {
-    return await this.ordersService.syncAddMore(id, dto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  async getOrders(
-    @Query('status') status?: string,
-    @Query('exclude_draft') excludeDraft?: string,
-    @Query('table_id') tableId?: string,
-    @Query('date_from') dateFrom?: string,
-    @Query('date_to') dateTo?: string,
-    @Query('tag') tag?: string,
-    @Query('page') page?: string,
-    @Query('page_size') pageSize?: string,
-    @Query('search') search?: string,
-  ) {
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const size = pageSize ? parseInt(pageSize, 10) : 20;
-    const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
-    const skipDraft = !status && excludeDraft === 'true';
-    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft, search);
-    const settings = await this.storeSettingsService.getStoreSettings();
-    return {
-      data,
-      store_name: settings?.store_name || '我的小店',
-      store_avatar: settings?.store_avatar || '',
-    };
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getOrderById(@Param('id', ParseIntPipe) id: number) {
     return await this.ordersService.getOrderById(id);
@@ -90,7 +58,6 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/items')
-  @Audit('ORDER_ADD_ITEM', { targetType: 'order' })
   async addOrderItem(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddOrderItemDto,
@@ -119,7 +86,48 @@ export class OrdersController {
     return await this.ordersService.updateOrderItemQuantity(id, itemId, quantity);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // ---- 商家端点（RBAC 保护） ----
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('ORDER_READ')
+  @Get()
+  async getOrders(
+    @Query('status') status?: string,
+    @Query('exclude_draft') excludeDraft?: string,
+    @Query('table_id') tableId?: string,
+    @Query('date_from') dateFrom?: string,
+    @Query('date_to') dateTo?: string,
+    @Query('tag') tag?: string,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const size = pageSize ? parseInt(pageSize, 10) : 20;
+    const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
+    const skipDraft = !status && excludeDraft === 'true';
+    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft, search);
+    const settings = await this.storeSettingsService.getStoreSettings();
+    return {
+      data,
+      store_name: settings?.store_name || '我的小店',
+      store_avatar: settings?.store_avatar || '',
+    };
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('ORDER_ADD_ITEM')
+  @Audit('ORDER_ADD_ITEM', { targetType: 'order' })
+  @Post(':id/sync-add-more')
+  async syncAddMore(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SyncAddMoreDto,
+  ) {
+    return await this.ordersService.syncAddMore(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('ORDER_MARK_SERVED')
   @Post(':id/items/:itemId/served')
   async updateOrderItemServed(
     @Param('id', ParseIntPipe) id: number,
@@ -129,9 +137,10 @@ export class OrdersController {
     return await this.ordersService.updateOrderItemServed(id, itemId, dto.served);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/status')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('ORDER_CHECKOUT')
   @Audit('ORDER_CHECKOUT', { targetType: 'order' })
+  @Post(':id/status')
   async updateOrderStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
@@ -139,7 +148,8 @@ export class OrdersController {
     return await this.ordersService.updateOrderStatus(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('ORDER_DELETE_DRAFT')
   @Delete(':id')
   async deleteOrder(@Param('id', ParseIntPipe) id: number) {
     return await this.ordersService.deleteOrder(id);

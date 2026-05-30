@@ -111,9 +111,7 @@ export class OrdersService {
     const activeOrder = await this.getTableCurrentOrder(tableId);
 
     if (activeOrder && activeOrder.status !== 'draft') {
-      // 如果已有正式订单，则不能再创建或更新草稿，除非业务逻辑允许加餐
-      // 这里暂定如果已有正式订单，syncDraft 逻辑可能需要调整为加餐逻辑，或者提示错误
-      // 为了简化，如果是 submitted/printed，我们直接返回该订单，让前端处理
+      // 如果已有正式订单，则不能再创建或更新草稿
       return activeOrder;
     }
 
@@ -139,36 +137,39 @@ export class OrdersService {
       };
     });
 
-    if (orderId && activeOrder) {
-      // 更新现有草稿
-      await db.update(orders).set({
-        total_amount: totalAmount.toFixed(2),
-        user_id: dto.user_id || activeOrder.user_id,
-        remark: dto.remark || activeOrder.remark,
-        updated_at: new Date(),
-      }).where(eq(orders.id, orderId));
+    // ---- 事务：草稿写入 ----
+    await db.transaction(async (tx) => {
+      if (orderId && activeOrder) {
+        // 更新现有草稿
+        await tx.update(orders).set({
+          total_amount: totalAmount.toFixed(2),
+          user_id: dto.user_id || activeOrder.user_id,
+          remark: dto.remark || activeOrder.remark,
+          updated_at: new Date(),
+        }).where(eq(orders.id, orderId));
 
-      // 简单处理：删除旧明细，插入新明细
-      await db.delete(order_items).where(eq(order_items.order_id, orderId));
-      await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: orderId as number })));
-    } else {
-      // 创建新草稿
-      const insertResult = await db.insert(orders).values({
-        table_id: tableId,
-        order_number: orderNumber,
-        total_amount: totalAmount.toFixed(2),
-        user_id: dto.user_id,
-        remark: dto.remark,
-        status: 'draft',
-      });
-      const newOrderId = (insertResult as any)[0].insertId;
-      orderId = newOrderId;
-      await db.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: newOrderId })));
-      
-      // 更新桌台状态
-      await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, tableId));
-    }
+        await tx.delete(order_items).where(eq(order_items.order_id, orderId));
+        await tx.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: orderId as number })));
+      } else {
+        // 创建新草稿
+        const insertResult = await tx.insert(orders).values({
+          table_id: tableId,
+          order_number: orderNumber,
+          total_amount: totalAmount.toFixed(2),
+          user_id: dto.user_id,
+          remark: dto.remark,
+          status: 'draft',
+        });
+        const newOrderId = (insertResult as any)[0].insertId;
+        orderId = newOrderId;
+        await tx.insert(order_items).values(itemsToInsert.map(item => ({ ...item, order_id: newOrderId })));
 
+        // 更新桌台状态
+        await tx.update(tables).set({ status: 'occupied' }).where(eq(tables.id, tableId));
+      }
+    });
+
+    // ---- 事务外：副作用 ----
     const order = await this.getOrderById(orderId as number);
     this.ordersGateway.notifyTableUpdate(tableId, order);
     this.ordersGateway.notifyAllAdmins('orderUpdated', order);
@@ -176,6 +177,7 @@ export class OrdersService {
   }
 
   async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> }) {
+    // 事务前：读取订单并校验状态
     const order = await this.getOrderById(orderId);
     if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
       throw new BadRequestException('订单状态不允许加餐');
@@ -188,10 +190,8 @@ export class OrdersService {
     const currentMaxRound = (maxRoundResult[0]?.maxRound as number) || 0;
     const nextRound = currentMaxRound + 1;
 
-    // 计算现有订单金额
+    // 计算新金额
     let totalAmount = parseFloat(order.total_amount || '0');
-
-    // 新增菜品直接追加，不删除原有菜品（保留原有时间戳）
     const itemsToInsert: any[] = [];
     for (const newItem of dto.items) {
       const subtotal = newItem.price * newItem.quantity;
@@ -206,29 +206,28 @@ export class OrdersService {
         price: newItem.price.toFixed(2),
         subtotal: subtotal.toFixed(2),
         added_by_user_id: newItem.added_by_user_id,
-        added_by_nickname: newItem.added_by_nickname || '商家', // 默认商家
-        phase: 'add_more', // 标记为加餐
+        added_by_nickname: newItem.added_by_nickname || '商家',
+        phase: 'add_more' as const,
         add_more_round: nextRound,
       });
     }
 
-    // 直接插入新菜品，不删除原有菜品
-    await db.insert(order_items).values(itemsToInsert);
-    await db.update(orders).set({
-      total_amount: totalAmount.toFixed(2),
-      updated_at: new Date(),
-    }).where(eq(orders.id, orderId));
+    // ---- 事务：加菜写入 ----
+    await db.transaction(async (tx) => {
+      await tx.insert(order_items).values(itemsToInsert);
+      await tx.update(orders).set({
+        total_amount: totalAmount.toFixed(2),
+        updated_at: new Date(),
+      }).where(eq(orders.id, orderId));
+    });
 
+    // ---- 事务外：副作用 ----
     void this.markOrderAsPrinted(orderId);
 
     const updatedOrder = await this.getOrderById(orderId);
-    // 通知桌台订阅者
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
-    // 通知订单订阅者（小程序端）
     this.ordersGateway.notifyOrderUpdate(orderId, updatedOrder);
-    // 通知所有管理员
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
-    // 多通道通知（加菜）
     void this.notifDispatcher.notifyOrderEvent('ADD_ITEM', orderId);
     return updatedOrder;
   }
@@ -331,6 +330,7 @@ export class OrdersService {
     const orderNumber = this.generateOrderNumber();
     const isTakeaway = dto.order_type === 'takeaway';
     const now = new Date();
+    // allocatePickupNo 自身有独立事务，放在外层
     const pickupNo = isTakeaway ? await this.allocatePickupNo(now) : null;
 
     // 外带：自动指向虚拟"打包"桌，避免外键约束失败
@@ -343,48 +343,61 @@ export class OrdersService {
     }
     const finalTableId: number = tableId;
 
-    const insertResult = await db.insert(orders).values({
-      table_id: finalTableId,
-      order_number: orderNumber,
-      total_amount: totalAmount.toFixed(2),
-      user_id: dto.user_id,
-      remark: dto.remark,
-      status: 'submitted',
-      order_type: isTakeaway ? 'takeaway' : 'dine_in',
-      pickup_no: pickupNo,
+    // ---- 事务：订单 + 明细 + 桌台 + 清购物车 ----
+    const orderId = await db.transaction(async (tx) => {
+      const insertResult = await tx.insert(orders).values({
+        table_id: finalTableId,
+        order_number: orderNumber,
+        total_amount: totalAmount.toFixed(2),
+        user_id: dto.user_id,
+        remark: dto.remark,
+        status: 'submitted',
+        order_type: isTakeaway ? 'takeaway' : 'dine_in',
+        pickup_no: pickupNo,
+      });
+
+      const newOrderId = (insertResult as any)[0].insertId;
+
+      const itemsToInsert = orderItemsData.map(item => ({
+        order_id: newOrderId,
+        dish_id: item.dish_id,
+        spec_id: item.spec_id,
+        dish_name: item.dish_name,
+        spec_name: item.spec_name,
+        quantity: item.quantity,
+        price: item.price.toFixed(2),
+        subtotal: item.subtotal.toFixed(2),
+        added_by_user_id: item.added_by_user_id || dto.user_id,
+        added_by_nickname: item.added_by_nickname || '未知用户',
+      }));
+
+      await tx.insert(order_items).values(itemsToInsert);
+
+      // 外带不占桌；堂食才把桌台标记为 occupied + 清购物车
+      if (!isTakeaway) {
+        await tx.update(tables).set({ status: 'occupied' }).where(eq(tables.id, finalTableId));
+        // 清空该桌台购物车
+        const cartList = await tx.select().from(carts).where(eq(carts.table_id, finalTableId));
+        if (cartList.length > 0) {
+          const cartIds = cartList.map(cart => cart.id);
+          await tx.delete(cart_items).where(inArray(cart_items.cart_id, cartIds as any));
+          await tx.delete(carts).where(eq(carts.table_id, finalTableId));
+        }
+      }
+
+      return newOrderId;
     });
 
-    const orderId = (insertResult as any)[0].insertId;
-
-    const itemsToInsert = orderItemsData.map(item => ({
-      order_id: orderId,
-      dish_id: item.dish_id,
-      spec_id: item.spec_id,
-      dish_name: item.dish_name,
-      spec_name: item.spec_name,
-      quantity: item.quantity,
-      price: item.price.toFixed(2),
-      subtotal: item.subtotal.toFixed(2),
-      added_by_user_id: item.added_by_user_id || dto.user_id,
-      added_by_nickname: item.added_by_nickname || '未知用户',
-    }));
-
-    await db.insert(order_items).values(itemsToInsert);
-    // 外带不占桌；堂食才把桌台标记为 occupied
-    if (!isTakeaway) {
-      await db.update(tables).set({ status: 'occupied' }).where(eq(tables.id, finalTableId));
-    }
-
+    // ---- 事务外：副作用（不阻塞主流程） ----
     void this.markOrderAsPrinted(orderId);
 
     const order = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(finalTableId, order);
     this.ordersGateway.notifyAllAdmins('orderStatusChanged', order);
-    // 多通道通知（Web Push + Email）：fire-and-forget，绝不阻塞订单主流程
+    // 多通道通知（Web Push + Email）：fire-and-forget
     void this.notifDispatcher.notifyOrderEvent('NEW_ORDER', orderId);
-    // 外带不依赖桌台共享购物车，跳过 cart 清理 / 推送
+    // 外带不依赖桌台共享购物车，跳过 cart 推送
     if (!isTakeaway) {
-      await this.clearTableCart(finalTableId);
       this.ordersGateway.notifyTableCartUpdate(finalTableId, null);
     }
     return order;
@@ -397,27 +410,31 @@ export class OrdersService {
     }
 
     const subtotal = dto.price * dto.quantity;
-    await db.insert(order_items).values({
-      order_id: orderId,
-      dish_id: dto.dish_id,
-      spec_id: dto.spec_id,
-      dish_name: dto.dish_name,
-      spec_name: dto.spec_name,
-      quantity: dto.quantity,
-      price: dto.price.toFixed(2),
-      subtotal: subtotal.toFixed(2),
-      phase: 'add_more',
+
+    // ---- 事务：插入明细 + 更新金额 ----
+    await db.transaction(async (tx) => {
+      await tx.insert(order_items).values({
+        order_id: orderId,
+        dish_id: dto.dish_id,
+        spec_id: dto.spec_id,
+        dish_name: dto.dish_name,
+        spec_name: dto.spec_name,
+        quantity: dto.quantity,
+        price: dto.price.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        phase: 'add_more',
+      });
+
+      const newTotal = parseFloat(order.total_amount as any) + subtotal;
+      await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
     });
 
-    const newTotal = parseFloat(order.total_amount as any) + subtotal;
-    await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
-
+    // ---- 事务外：副作用 ----
     void this.markOrderAsPrinted(orderId);
 
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
-    // 多通道通知（加菜）
     void this.notifDispatcher.notifyOrderEvent('ADD_ITEM', orderId);
     return updatedOrder;
   }
@@ -431,23 +448,27 @@ export class OrdersService {
     const item = order.order_items.find((i: any) => i.id === itemId);
     if (!item) throw new NotFoundException('订单明细不存在');
 
-    if (quantity && quantity < item.quantity) {
-      const newQuantity = item.quantity - quantity;
-      const newSubtotal = parseFloat(item.price) * newQuantity;
-      await db.update(order_items).set({
-        quantity: newQuantity,
-        subtotal: newSubtotal.toFixed(2),
-      }).where(eq(order_items.id, itemId));
+    // ---- 事务：删除/更新明细 + 更新金额 ----
+    await db.transaction(async (tx) => {
+      if (quantity && quantity < item.quantity) {
+        const newQuantity = item.quantity - quantity;
+        const newSubtotal = parseFloat(item.price) * newQuantity;
+        await tx.update(order_items).set({
+          quantity: newQuantity,
+          subtotal: newSubtotal.toFixed(2),
+        }).where(eq(order_items.id, itemId));
 
-      const diff = parseFloat(item.price) * quantity;
-      const newTotal = parseFloat(order.total_amount as any) - diff;
-      await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
-    } else {
-      await db.delete(order_items).where(eq(order_items.id, itemId));
-      const newTotal = parseFloat(order.total_amount as any) - parseFloat(item.subtotal);
-      await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
-    }
+        const diff = parseFloat(item.price) * quantity;
+        const newTotal = parseFloat(order.total_amount as any) - diff;
+        await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+      } else {
+        await tx.delete(order_items).where(eq(order_items.id, itemId));
+        const newTotal = parseFloat(order.total_amount as any) - parseFloat(item.subtotal);
+        await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+      }
+    });
 
+    // ---- 事务外：副作用 ----
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
@@ -463,21 +484,25 @@ export class OrdersService {
     const item = order.order_items.find((i: any) => i.id === itemId);
     if (!item) throw new NotFoundException('订单明细不存在');
 
-    if (quantity <= 0) {
-      await db.delete(order_items).where(eq(order_items.id, itemId));
-    } else {
-      const newSubtotal = parseFloat(item.price) * quantity;
-      await db.update(order_items).set({
-        quantity,
-        subtotal: newSubtotal.toFixed(2),
-      }).where(eq(order_items.id, itemId));
-    }
+    // ---- 事务：更新明细 + 更新金额 ----
+    await db.transaction(async (tx) => {
+      if (quantity <= 0) {
+        await tx.delete(order_items).where(eq(order_items.id, itemId));
+      } else {
+        const newSubtotal = parseFloat(item.price) * quantity;
+        await tx.update(order_items).set({
+          quantity,
+          subtotal: newSubtotal.toFixed(2),
+        }).where(eq(order_items.id, itemId));
+      }
 
-    const oldSubtotal = parseFloat(item.subtotal);
-    const newSubtotalValue = quantity <= 0 ? 0 : parseFloat(item.price) * quantity;
-    const newTotal = parseFloat(order.total_amount as any) - oldSubtotal + newSubtotalValue;
-    await db.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+      const oldSubtotal = parseFloat(item.subtotal);
+      const newSubtotalValue = quantity <= 0 ? 0 : parseFloat(item.price) * quantity;
+      const newTotal = parseFloat(order.total_amount as any) - oldSubtotal + newSubtotalValue;
+      await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+    });
 
+    // ---- 事务外：副作用 ----
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyTableUpdate(order.table_id, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderUpdated', updatedOrder);
@@ -509,14 +534,19 @@ export class OrdersService {
 
   async updateOrderStatus(orderId: number, dto: UpdateOrderStatusDto) {
     const order = await this.getOrderById(orderId);
-    const updateData: any = { status: dto.status };
 
-    if (dto.status === 'settled') {
-      updateData.settled_at = new Date();
-      await db.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));
-    }
+    // ---- 事务：订单状态 + 桌台状态（结账时）- ---
+    await db.transaction(async (tx) => {
+      if (dto.status === 'settled') {
+        await tx.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));
+      }
+      await tx.update(orders).set({
+        status: dto.status,
+        ...(dto.status === 'settled' ? { settled_at: new Date() } : {}),
+      }).where(eq(orders.id, orderId));
+    });
 
-    await db.update(orders).set(updateData).where(eq(orders.id, orderId));
+    // ---- 事务外：副作用 ----
     const updatedOrder = await this.getOrderById(orderId);
     this.ordersGateway.notifyOrderStatusChange(order.table_id, updatedOrder);
     this.ordersGateway.notifyAllAdmins('orderStatusChanged', updatedOrder);
@@ -634,19 +664,24 @@ export class OrdersService {
       throw new BadRequestException('只能删除草稿状态的订单');
     }
 
-    await db.delete(order_items).where(eq(order_items.order_id, orderId));
-    await db.delete(orders).where(eq(orders.id, orderId));
+    // ---- 事务：删除订单 + 明细 + 释放桌台 ----
+    await db.transaction(async (tx) => {
+      await tx.delete(order_items).where(eq(order_items.order_id, orderId));
+      await tx.delete(orders).where(eq(orders.id, orderId));
 
-    const tableResult = await db.select().from(tables).where(eq(tables.id, order.table_id));
-    const activeOrders = await db.select().from(orders)
-      .where(and(
-        eq(orders.table_id, order.table_id),
-        inArray(orders.status, ['draft', 'submitted', 'printed'])
-      ));
-    if (activeOrders.length === 0 && tableResult.length > 0) {
-      await db.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));
-    }
+      // 如果该桌台没有其他活跃订单，恢复为 idle
+      const tableResult = await tx.select().from(tables).where(eq(tables.id, order.table_id));
+      const activeOrders = await tx.select().from(orders)
+        .where(and(
+          eq(orders.table_id, order.table_id),
+          inArray(orders.status, ['draft', 'submitted', 'printed'])
+        ));
+      if (activeOrders.length === 0 && tableResult.length > 0) {
+        await tx.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));
+      }
+    });
 
+    // ---- 事务外：副作用 ----
     this.ordersGateway.notifyTableUpdate(order.table_id, null);
     this.ordersGateway.notifyAllAdmins('orderDeleted', { id: orderId, table_id: order.table_id });
     return { success: true };

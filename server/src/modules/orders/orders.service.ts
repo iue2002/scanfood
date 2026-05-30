@@ -7,6 +7,7 @@ import { OrdersGateway } from './orders.gateway';
 import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
 import { computeBizDate } from './pickup-no.core';
+import { OrderLifecycleCore } from './order-lifecycle.core';
 
 @Injectable()
 export class OrdersService {
@@ -55,10 +56,11 @@ export class OrdersService {
   }
 
   async getTableCurrentOrder(tableId: number) {
+    const activeStatuses = OrderLifecycleCore.activeStatuses();
     const result = await db.select().from(orders)
       .where(and(
         eq(orders.table_id, tableId),
-        inArray(orders.status, ['submitted', 'printed', 'unpaid'])
+        inArray(orders.status, activeStatuses as any),
       ))
       .orderBy(desc(orders.created_at))
       .limit(1);
@@ -77,10 +79,11 @@ export class OrdersService {
   }
 
   async getMyActiveOrder(userId: number) {
+    const activeStatuses = OrderLifecycleCore.activeStatuses();
     const result = await db.select().from(orders)
       .where(and(
         eq(orders.user_id, userId),
-        inArray(orders.status, ['submitted', 'printed', 'unpaid'])
+        inArray(orders.status, activeStatuses as any),
       ))
       .orderBy(desc(orders.created_at))
       .limit(1);
@@ -179,7 +182,7 @@ export class OrdersService {
   async syncAddMore(orderId: number, dto: { items: Array<{ dish_id: number; spec_id?: number; dish_name: string; spec_name?: string; quantity: number; price: number; added_by_user_id?: number; added_by_nickname?: string }> }) {
     // 事务前：读取订单并校验状态
     const order = await this.getOrderById(orderId);
-    if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
+    if (!OrderLifecycleCore.canAddMore(order.status)) {
       throw new BadRequestException('订单状态不允许加餐');
     }
 
@@ -405,7 +408,7 @@ export class OrdersService {
 
   async addOrderItem(orderId: number, dto: AddOrderItemDto) {
     const order = await this.getOrderById(orderId);
-    if (!['submitted', 'printed'].includes(order.status)) {
+    if (!OrderLifecycleCore.canModifyItems(order.status)) {
       throw new BadRequestException('订单状态不允许添加菜品');
     }
 
@@ -441,7 +444,7 @@ export class OrdersService {
 
   async removeOrderItem(orderId: number, itemId: number, quantity?: number) {
     const order = await this.getOrderById(orderId);
-    if (!['submitted', 'printed'].includes(order.status)) {
+    if (!OrderLifecycleCore.canModifyItems(order.status)) {
       throw new BadRequestException('订单状态不允许修改');
     }
 
@@ -477,7 +480,7 @@ export class OrdersService {
 
   async updateOrderItemQuantity(orderId: number, itemId: number, quantity: number) {
     const order = await this.getOrderById(orderId);
-    if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
+    if (!OrderLifecycleCore.canAddMore(order.status)) {
       throw new BadRequestException('订单状态不允许修改');
     }
 
@@ -511,7 +514,7 @@ export class OrdersService {
 
   async updateOrderItemServed(orderId: number, itemId: number, served: boolean) {
     const order = await this.getOrderById(orderId);
-    if (!['submitted', 'printed', 'unpaid'].includes(order.status)) {
+    if (!OrderLifecycleCore.canMarkServed(order.status)) {
       throw new BadRequestException('订单状态不允许修改上菜状态');
     }
 
@@ -660,7 +663,7 @@ export class OrdersService {
 
   async deleteOrder(orderId: number) {
     const order = await this.getOrderById(orderId);
-    if (order.status !== 'draft') {
+    if (!OrderLifecycleCore.canDelete(order.status)) {
       throw new BadRequestException('只能删除草稿状态的订单');
     }
 
@@ -669,12 +672,14 @@ export class OrdersService {
       await tx.delete(order_items).where(eq(order_items.order_id, orderId));
       await tx.delete(orders).where(eq(orders.id, orderId));
 
-      // 如果该桌台没有其他活跃订单，恢复为 idle
+      // 如果该桌台没有其他占用桌台的订单，恢复为 idle
       const tableResult = await tx.select().from(tables).where(eq(tables.id, order.table_id));
+      const occupyingStatuses = [...['draft', 'submitted', 'printed']] as any;
+      // 注意：deleteOrder 之后 orders 已删，查的是其他订单
       const activeOrders = await tx.select().from(orders)
         .where(and(
           eq(orders.table_id, order.table_id),
-          inArray(orders.status, ['draft', 'submitted', 'printed'])
+          inArray(orders.status, occupyingStatuses),
         ));
       if (activeOrders.length === 0 && tableResult.length > 0) {
         await tx.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));

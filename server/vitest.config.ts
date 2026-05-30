@@ -18,7 +18,10 @@ export default defineConfig({
     environment: 'node',
     // PBT 单测可能要跑较长时间，给 30 秒
     testTimeout: 30000,
-    // 并发：默认开
+    // API 集成测试启动 NestJS App 需要更长时间
+    hookTimeout: 60000,
+    // 共享真实数据库，必须顺序执行
+    fileParallelism: false,
     pool: 'threads',
     // reporter 简洁
     reporters: ['default'],

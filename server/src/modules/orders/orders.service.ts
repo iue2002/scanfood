@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, ConflictException, Logger } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { orders, order_items, tables, users, carts, cart_items, dishes } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
@@ -681,7 +681,8 @@ export class OrdersService {
       }).where(eq(orders.id, orderId));
     } catch (err) {
       // 状态标记失败不影响主流程；mop 真打印走独立路径不依赖此状态
-      console.error('[orders] markOrderAsPrinted failed:', (err as Error).message);
+      const logger = new Logger(OrdersService.name);
+      logger.error(`[orders] markOrderAsPrinted failed: ${(err as Error).message}`);
     }
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, Logger } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { tables, orders, order_items, table_validations } from '@/storage/database/shared/schema';
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
@@ -153,7 +153,8 @@ export class TablesService {
       }
       return await this.getTableById(id);
     } catch (error) {
-      console.error('微信小程序码生成失败:', error.message);
+      const logger = new Logger(TablesService.name);
+      logger.error(`微信小程序码生成失败: ${(error as Error).message}`);
       throw error;
     }
   }

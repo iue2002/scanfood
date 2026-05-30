@@ -1,11 +1,12 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { HttpStatusInterceptor } from '@/interceptors/http-status.interceptor';
+import { RequestIdInterceptor } from '@/interceptors/request-id.interceptor';
 import { AllExceptionsFilter } from '@/filters/all-exceptions.filter';
 import { OrdersGateway } from '@/modules/orders/orders.gateway';
 import { join } from 'path';
@@ -97,9 +98,11 @@ async function bootstrap() {
     }),
   );
 
+  // P2-3：全局请求 ID 拦截器（在所有模块生效）
+  app.useGlobalInterceptors(new RequestIdInterceptor());
   // 全局拦截器：统一将 POST 请求的 201 状态码改为 200
   app.useGlobalInterceptors(new HttpStatusInterceptor());
-  // 全局异常过滤器
+  // 全局异常过滤器（已使用 Logger + 脱敏，不再打印敏感信息）
   app.useGlobalFilters(new AllExceptionsFilter());
   // 开启优雅关闭 Hooks
   app.enableShutdownHooks();
@@ -113,10 +116,12 @@ async function bootstrap() {
     // 初始化 WebSocket 服务器
     const ordersGateway = app.get(OrdersGateway);
     ordersGateway.init(httpServer);
-    console.log(`Server running on http://localhost:${port} (WebSocket: ws://localhost:${port}/ws)`);
+    const logger = new Logger('Bootstrap');
+    logger.log(`Server running on http://localhost:${port} (WebSocket: ws://localhost:${port}/ws)`);
   } catch (err) {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`❌ 端口 ${port} 被占用! 请运行 'npx kill-port ${port}' 然后重试。`);
+    if ((err as any).code === 'EADDRINUSE') {
+      const logger = new Logger('Bootstrap');
+      logger.error(`端口 ${port} 被占用! 请运行 'npx kill-port ${port}' 然后重试。`);
       process.exit(1);
     } else {
       throw err;

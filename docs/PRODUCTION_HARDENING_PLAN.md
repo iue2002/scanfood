@@ -22,6 +22,7 @@
 - ✅ **P2 全部完成**（P2-1 公共工具+脱敏 / P2-2 trust proxy / P2-3 临时密码 / P2-4 排序批量 / P2-5 前端 RBAC / P2-6 OrderManage / P2-7 建桌事务）；P2-8 单实例暂缓
 - ⏳ 剩余可选：P1-5 账户锁定 DoS（IP+账号联合，待评估）；P1-1 前端/小程序展示层 parseFloat（仅显示，低风险）
 - 全程仅本地 commit，**未 push GitHub / 未部署服务器**（等宝宝命令）
+- ⚠️ **待部署执行**：迁移 `0011_orders_composite_indexes.sql` 需在部署时按 DEPLOY_GUIDE 3.2 含迁移流程执行（幂等，可安全重跑）
 
 ---
 
@@ -113,6 +114,12 @@
   - createTable 的 insert tables + insert table_validations 改同事务原子写入；二维码生成保留事务外
 - ⏭ **P2-8 进程内存幂等/限流横向扩展**（单实例部署，暂缓）
   - 部署已确认单实例（pm2 单进程），carts 幂等 / notif 限流 / wechat token 等进程内存方案当前安全。仅当未来切多实例/cluster 时才需改集中存储（Redis/DB）。
+- ✅ **P2-9 数据库针对性索引优化**（commit ae14303）：orders/refunds 早期核心表仅单列索引，补复合索引匹配高频「等值+范围/多等值」查询
+  - orders(status,created_at)：statistics 聚合 / getOrders 列表
+  - orders(table_id,status)：桌台当前订单 / 看板
+  - orders(user_id,status)：我的活跃订单
+  - refunds(order_id,status)：createRefund 累计可退额度
+  - 迁移 0011 用存储过程查 information_schema 幂等建索引（MySQL8 无 CREATE INDEX IF NOT EXISTS）；schema.ts 同步声明；仅 ADD INDEX 不改列（红线）；待迁移执行（见下方"待部署"）
 
 ---
 
@@ -137,3 +144,4 @@
 | - | P2-1 日志脱敏子串匹配 | 9e194c0 | log-sanitizer 1 文件；build✅；119/14 一致 |
 | - | P2-5 前端RBAC矩阵补全 | 2458abe | admin-web rbac/types 1 文件；tsc✅ |
 | - | P2-6 OrderManage WS节流+组件抽取 | bb41c63 | OrderManage+新子组件 2 文件；tsc+vite build✅ |
+| - | P2-9 orders/refunds 复合索引 | ae14303 | 迁移0011+schema 2 文件；build✅；119/14；**迁移待部署执行** |

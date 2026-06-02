@@ -126,6 +126,22 @@ export class OrdersService {
     };
   }
 
+  /**
+   * 查找桌台当前「占用中」的订单（draft/submitted/printed/unpaid 里最新一笔）。
+   * 与 getTableCurrentOrder 的区别：本方法**包含 draft**，供 syncDraft 复用既有草稿。
+   */
+  private async getTableOccupyingOrder(tableId: number) {
+    const occupyingStatuses = OrderLifecycleCore.occupyingStatuses();
+    const result = await db.select().from(orders)
+      .where(and(
+        eq(orders.table_id, tableId),
+        inArray(orders.status, occupyingStatuses as any),
+      ))
+      .orderBy(desc(orders.created_at))
+      .limit(1);
+    return result[0] ?? null;
+  }
+
   async syncDraft(dto: CreateOrderDto) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('购物车不能为空');
@@ -135,12 +151,13 @@ export class OrdersService {
     }
 
     const tableId: number = dto.table_id;
-    // 查找该桌台是否已有活跃订单（draft, submitted, printed）
-    const activeOrder = await this.getTableCurrentOrder(tableId);
+    // 查找该桌台是否已有占用订单（含 draft，修复：原 getTableCurrentOrder 不含 draft
+    // 导致「更新已有草稿」分支永远进不去，每次同步都新建一行草稿，草稿表膨胀）
+    const activeOrder = await this.getTableOccupyingOrder(tableId);
 
     if (activeOrder && activeOrder.status !== 'draft') {
-      // 如果已有正式订单，则不能再创建或更新草稿
-      return activeOrder;
+      // 如果已有正式订单，则不能再创建或更新草稿；返回完整订单详情（含明细）
+      return await this.getOrderById(activeOrder.id);
     }
 
     let orderId = activeOrder?.id;
@@ -310,13 +327,18 @@ export class OrdersService {
 
     const offset = (page - 1) * pageSize;
 
-    let orderList;
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    if (conditions.length > 0) {
-      orderList = await db.select().from(orders).where(and(...conditions)).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize);
-    } else {
-      orderList = await db.select().from(orders).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize);
-    }
+    // 并行：当前页数据 + 总数（修复：原先不返回 total，前端无法算总页数）
+    const [orderList, totalRows] = await Promise.all([
+      whereClause
+        ? db.select().from(orders).where(whereClause).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize)
+        : db.select().from(orders).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize),
+      whereClause
+        ? db.select({ count: sql<number>`count(*)` }).from(orders).where(whereClause)
+        : db.select({ count: sql<number>`count(*)` }).from(orders),
+    ]);
+    const total = Number(totalRows[0]?.count ?? 0);
 
     // 获取当前页订单关联的table_id和user_id
     const tableIds = [...new Set(orderList.map(o => o.table_id).filter(Boolean))] as number[];
@@ -346,7 +368,7 @@ export class OrdersService {
       order_items: itemsList.filter(item => item.order_id === o.id),
     }));
 
-    return data;
+    return { data, total, page, pageSize };
   }
 
   async getOrderById(id: number) {
@@ -852,12 +874,13 @@ export class OrdersService {
 
       // 如果该桌台没有其他占用桌台的订单，恢复为 idle
       const tableResult = await tx.select().from(tables).where(eq(tables.id, order.table_id));
-      const occupyingStatuses = [...['draft', 'submitted', 'printed']] as any;
+      // 用状态机统一的占用状态集（含 unpaid），避免硬编码遗漏
+      const occupyingStatuses = OrderLifecycleCore.occupyingStatuses();
       // 注意：deleteOrder 之后 orders 已删，查的是其他订单
       const activeOrders = await tx.select().from(orders)
         .where(and(
           eq(orders.table_id, order.table_id),
-          inArray(orders.status, occupyingStatuses),
+          inArray(orders.status, occupyingStatuses as any),
         ));
       if (activeOrders.length === 0 && tableResult.length > 0) {
         await tx.update(tables).set({ status: 'idle' }).where(eq(tables.id, order.table_id));

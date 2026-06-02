@@ -115,10 +115,13 @@ export class OrdersController {
     const size = pageSize ? parseInt(pageSize, 10) : 20;
     const tableIdNum = tableId ? parseInt(tableId, 10) : undefined;
     const skipDraft = !status && excludeDraft === 'true';
-    const data = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft, search);
+    const result = await this.ordersService.getOrders(status, tableIdNum, dateFrom, dateTo, tag, pageNum, size, skipDraft, search);
     const settings = await this.storeSettingsService.getStoreSettings();
     return {
-      data,
+      data: result.data,
+      total: result.total,
+      page: result.page,
+      page_size: result.pageSize,
       store_name: settings?.store_name || '我的小店',
       store_avatar: settings?.store_avatar || '',
     };

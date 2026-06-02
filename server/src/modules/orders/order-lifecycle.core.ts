@@ -166,4 +166,12 @@ export class OrderLifecycleCore {
   static activeStatuses(): readonly string[] {
     return [...ACTIVE_STATUSES];
   }
+
+  /**
+   * 获取「占用桌台」状态列表（draft/submitted/printed/unpaid），供数据库查询使用。
+   * 与 isOccupyingTable 同源，避免业务代码硬编码状态数组。
+   */
+  static occupyingStatuses(): readonly string[] {
+    return [...OCCUPYING_TABLE_STATUSES];
+  }
 }

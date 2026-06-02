@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { db } from '@/storage/database/mysql-client';
 import { orders, order_items, tables, users, carts, cart_items, dishes } from '@/storage/database/shared/schema';
 import { CreateOrderDto, AddOrderItemDto, UpdateOrderStatusDto } from './dto/order.dto';
@@ -17,6 +17,18 @@ import * as crypto from 'crypto';
 function hashPayload(data: unknown): string {
   return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }
+
+/**
+ * 订单访问者上下文（来自 JWT）。
+ * 用于顾客端点的归属校验，杜绝改 URL 里 :id 越权读/改他人订单（IDOR）。
+ */
+export interface OrderActor {
+  userId?: number;
+  role?: string;
+}
+
+/** 员工角色：可管理全部订单，不受归属限制 */
+const STAFF_ROLES: ReadonlySet<string> = new Set(['owner', 'manager', 'cashier', 'waiter', 'admin']);
 
 @Injectable()
 export class OrdersService {
@@ -354,6 +366,51 @@ export class OrdersService {
     };
   }
 
+  /**
+   * 顾客端点的订单归属校验（P0-2：堵 IDOR 越权）。
+   *
+   * 共享点单场景下「同桌协作」是既有红线，所以归属边界放到桌台级，而非仅创建者：
+   *  - 员工角色（owner/manager/cashier/waiter/admin）：放行，可管理全部订单
+   *  - 顾客（customer）：放行当且仅当
+   *      a) 订单是自己创建的（order.user_id === actor.userId），或
+   *      b) 订单所在桌台 === 该顾客当前绑定的桌台（同桌的其他人也能查看/协作）
+   *  - actor 缺失（理论上 JwtAuthGuard 已拦截）：拒绝
+   *
+   * 不传 actor 时跳过校验（兼容内部调用 / 不暴露给顾客的路径）。
+   */
+  private async assertOrderAccess(order: { id: number; user_id: number | null; table_id: number }, actor?: OrderActor): Promise<void> {
+    if (!actor) return; // 内部调用，无需校验
+    if (actor.role && STAFF_ROLES.has(actor.role)) return; // 员工放行
+    if (!actor.userId) {
+      throw new ForbiddenException({ code: 'ORDER_FORBIDDEN', msg: '无权访问该订单' });
+    }
+    // a) 自己创建的订单
+    if (order.user_id != null && order.user_id === actor.userId) return;
+    // b) 同桌协作：订单桌台 === 顾客当前绑定桌台
+    const me = await db
+      .select({ table_number: users.table_number })
+      .from(users)
+      .where(eq(users.id, actor.userId))
+      .limit(1);
+    const myTableNumber = me[0]?.table_number;
+    if (myTableNumber) {
+      const orderTable = await db
+        .select({ table_number: tables.table_number })
+        .from(tables)
+        .where(eq(tables.id, order.table_id))
+        .limit(1);
+      if (orderTable[0]?.table_number && orderTable[0].table_number === myTableNumber) return;
+    }
+    throw new ForbiddenException({ code: 'ORDER_FORBIDDEN', msg: '无权访问该订单' });
+  }
+
+  /** 顾客端读取订单详情（带归属校验，防 IDOR） */
+  async getOrderByIdForActor(id: number, actor?: OrderActor) {
+    const order = await this.getOrderById(id);
+    await this.assertOrderAccess(order, actor);
+    return order;
+  }
+
   async createOrder(dto: CreateOrderDto) {
     // P0-4：幂等校验
     if (dto.idempotency_key) {
@@ -484,8 +541,9 @@ export class OrdersService {
     }
   }
 
-  async addOrderItem(orderId: number, dto: AddOrderItemDto) {
+  async addOrderItem(orderId: number, dto: AddOrderItemDto, actor?: OrderActor) {
     const order = await this.getOrderById(orderId);
+    await this.assertOrderAccess(order, actor);
     if (!OrderLifecycleCore.canModifyItems(order.status)) {
       throw new BadRequestException('订单状态不允许添加菜品');
     }
@@ -520,8 +578,9 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async removeOrderItem(orderId: number, itemId: number, quantity?: number) {
+  async removeOrderItem(orderId: number, itemId: number, quantity?: number, actor?: OrderActor) {
     const order = await this.getOrderById(orderId);
+    await this.assertOrderAccess(order, actor);
     if (!OrderLifecycleCore.canModifyItems(order.status)) {
       throw new BadRequestException('订单状态不允许修改');
     }
@@ -556,8 +615,9 @@ export class OrdersService {
     return updatedOrder;
   }
 
-  async updateOrderItemQuantity(orderId: number, itemId: number, quantity: number) {
+  async updateOrderItemQuantity(orderId: number, itemId: number, quantity: number, actor?: OrderActor) {
     const order = await this.getOrderById(orderId);
+    await this.assertOrderAccess(order, actor);
     if (!OrderLifecycleCore.canAddMore(order.status)) {
       throw new BadRequestException('订单状态不允许修改');
     }

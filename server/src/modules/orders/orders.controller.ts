@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import type { OrderActor } from './orders.service';
 import { CreateOrderDto, SyncAddMoreDto, AddOrderItemDto, UpdateOrderStatusDto, UpdateOrderItemServedDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
@@ -12,6 +13,11 @@ export class OrdersController {
     private readonly ordersService: OrdersService,
     private readonly storeSettingsService: StoreSettingsService,
   ) {}
+
+  /** 从 JWT 提取访问者上下文，用于顾客端点的订单归属校验（防 IDOR 越权） */
+  private buildActor(req: any): OrderActor {
+    return { userId: req?.user?.userId, role: req?.user?.role };
+  }
 
   // ---- 顾客端点（小程序用） ----
 
@@ -46,8 +52,8 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async getOrderById(@Param('id', ParseIntPipe) id: number) {
-    return await this.ordersService.getOrderById(id);
+  async getOrderById(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return await this.ordersService.getOrderByIdForActor(id, this.buildActor(req));
   }
 
   @UseGuards(JwtAuthGuard)
@@ -61,8 +67,9 @@ export class OrdersController {
   async addOrderItem(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddOrderItemDto,
+    @Req() req: any,
   ) {
-    return await this.ordersService.addOrderItem(id, dto);
+    return await this.ordersService.addOrderItem(id, dto, this.buildActor(req));
   }
 
   @UseGuards(JwtAuthGuard)
@@ -70,10 +77,11 @@ export class OrdersController {
   async removeOrderItem(
     @Param('id', ParseIntPipe) id: number,
     @Param('itemId', ParseIntPipe) itemId: number,
+    @Req() req: any,
     @Query('quantity') quantity?: string,
   ) {
     const qty = quantity ? parseInt(quantity, 10) : undefined;
-    return await this.ordersService.removeOrderItem(id, itemId, qty);
+    return await this.ordersService.removeOrderItem(id, itemId, qty, this.buildActor(req));
   }
 
   @UseGuards(JwtAuthGuard)
@@ -82,8 +90,9 @@ export class OrdersController {
     @Param('id', ParseIntPipe) id: number,
     @Param('itemId', ParseIntPipe) itemId: number,
     @Body('quantity') quantity: number,
+    @Req() req: any,
   ) {
-    return await this.ordersService.updateOrderItemQuantity(id, itemId, quantity);
+    return await this.ordersService.updateOrderItemQuantity(id, itemId, quantity, this.buildActor(req));
   }
 
   // ---- 商家端点（RBAC 保护） ----

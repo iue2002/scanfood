@@ -7,6 +7,7 @@ import { useWebSocketEvent, useWebSocketReconnect } from '@/components/WebSocket
 import { useUnread } from '@/components/UnreadProvider'
 import { requestNotificationPermission } from '@/utils/notification'
 import PrintActionModal from '@/components/PrintActionModal'
+import OrderItemsBreakdown from './order-manage/OrderItemsBreakdown'
 
 function generateIdempotencyKey(): string {
   return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
@@ -206,15 +207,34 @@ export default function OrderManage() {
     return () => clearTimeout(t)
   }, [orders, searchParams, setSearchParams])
 
+  // WS 事件节流刷新：高峰期多桌并发下单/改单会产生事件风暴，
+  // 若每个事件都立刻全量重拉，会造成密集刷新 + 滚动位置反复重置。
+  // 这里把 800ms 窗口内的多次事件合并为一次 resetAndFetch（trailing 触发）。
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) return // 已有待触发的刷新，合并掉
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null
+      resetAndFetch()
+    }, 800)
+  }, [resetAndFetch])
+  // 卸载时清理待触发的刷新定时器
+  useEffect(() => () => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+  }, [])
+
   // 数据刷新订阅；toast/桌面通知由全局 NotificationCenter 统一处理
-  useWebSocketEvent('orderUpdated', resetAndFetch)
-  useWebSocketEvent('orderStatusChanged', resetAndFetch)
+  // orderUpdated/orderStatusChanged/refund* 走节流刷新，避免事件风暴抖动
+  useWebSocketEvent('orderUpdated', scheduleRefresh)
+  useWebSocketEvent('orderStatusChanged', scheduleRefresh)
   useWebSocketEvent('orderDeleted', useCallback((data: any) => {
+    // 删除是增量操作：直接本地移除该行，无需全量重拉
     setOrders(prev => prev.filter(o => o.id !== data?.id))
   }, []))
-  useWebSocketEvent('refundCreated', resetAndFetch)
-  useWebSocketEvent('refundUpdated', resetAndFetch)
+  useWebSocketEvent('refundCreated', scheduleRefresh)
+  useWebSocketEvent('refundUpdated', scheduleRefresh)
   // ws 断线重连后补拉一次：避免断线期间错过 orderStatusChanged 等事件造成 UI 不刷新
+  // 重连补拉用即时 resetAndFetch（这是单次事件，不需要节流）
   useWebSocketReconnect(resetAndFetch)
 
   const handleSettle = async (id: number) => {
@@ -1143,59 +1163,13 @@ export default function OrderManage() {
                 <p className="text-xs font-medium text-[#334155] mb-2">菜品明细</p>
                 {detail.order_items && detail.order_items.length > 0 ? (
                   <div className="bg-[#F8FAFC] rounded-lg p-2.5">
-                    {(() => {
-                      const sorted = [...detail.order_items].sort((a, b) => a.add_more_round - b.add_more_round)
-                      const elems: React.ReactNode[] = []
-                      let prevRound = -1
-                      sorted.forEach((item, ii) => {
-                        if (item.add_more_round !== prevRound && item.add_more_round > 0) {
-                          elems.push(
-                            <div key={`sep-${item.add_more_round}`} className="text-xs font-medium text-[#F59E0B] pt-2 mt-1 border-t border-amber-100">
-                              第{item.add_more_round}次加餐
-                            </div>
-                          )
-                        }
-                        prevRound = item.add_more_round
-                        elems.push(
-                          <div key={ii} className="flex justify-between items-start mt-2 first:mt-0">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium text-[#0F172A] truncate">
-                                {item.dish_name}
-                                {item.spec_name && <span className="text-[#94A3B8] font-normal">({item.spec_name})</span>}
-                              </div>
-                              <div className="text-xs text-[#64748B] mt-0.5">¥{item.price} × {item.quantity}</div>
-                              {item.added_by_nickname && (
-                                <div className="text-xs text-[#94A3B8] flex items-center gap-1 mt-0.5">
-                                  <User size={9} /> {item.added_by_nickname}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right ml-2">
-                              <div className="text-xs font-semibold text-[#0F172A]">¥{item.subtotal}</div>
-                              {(detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid') && (
-                                <div className="flex items-center gap-1 mt-1 justify-end">
-                                  <button
-                                    onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity - 1)}
-                                    className="p-1 text-[#EF4444] hover:bg-red-50 rounded cursor-pointer"
-                                    disabled={loading}
-                                  >
-                                    <Minus size={12} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleUpdateItemQty(detail.id, item.id, item.quantity + 1)}
-                                    className="p-1 text-[#2563EB] hover:bg-[#EFF6FF] rounded cursor-pointer"
-                                    disabled={loading}
-                                  >
-                                    <Plus size={12} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })
-                      return elems
-                    })()}
+                    <OrderItemsBreakdown
+                      items={detail.order_items}
+                      variant="detail"
+                      editable={detail.status === 'submitted' || detail.status === 'printed' || detail.status === 'unpaid'}
+                      loading={loading}
+                      onChangeQty={(itemId, nextQty) => handleUpdateItemQty(detail.id, itemId, nextQty)}
+                    />
                   </div>
                 ) : (
                   <p className="text-xs text-[#94A3B8] text-center py-3">暂无菜品</p>

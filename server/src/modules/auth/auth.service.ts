@@ -129,10 +129,23 @@ export class AuthService {
   async getOpenIdFromCode(code: string): Promise<string> {
     const appId = process.env.WX_APP_ID || process.env.WECHAT_APPID;
     const appSecret = process.env.WX_APP_SECRET || process.env.WECHAT_APPSECRET;
-    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${appSecret}&js_code=${code}&grant_type=authorization_code`;
+    // 缺失凭据直接报错，避免把 undefined 拼进 URL 后拿到一个无意义的微信错误
+    if (!appId || !appSecret) {
+      throw new BadRequestException('微信登录未配置（缺少 WX_APP_ID / WX_APP_SECRET）');
+    }
+    if (!code) {
+      throw new BadRequestException('缺少 code');
+    }
+    // 参数编码，防止特殊字符破坏 URL
+    const qs =
+      `appid=${encodeURIComponent(appId)}` +
+      `&secret=${encodeURIComponent(appSecret)}` +
+      `&js_code=${encodeURIComponent(code)}` +
+      `&grant_type=authorization_code`;
+    const url = `https://api.weixin.qq.com/sns/jscode2session?${qs}`;
 
     return new Promise((resolve, reject) => {
-      https.get(url, (res) => {
+      const req = https.get(url, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
@@ -147,8 +160,13 @@ export class AuthService {
             reject(e);
           }
         });
-      }).on('error', (err) => {
+      });
+      req.on('error', (err) => {
         reject(err);
+      });
+      // 10s 硬超时：微信 API 无响应时避免请求悬挂
+      req.setTimeout(10_000, () => {
+        req.destroy(new Error('微信 jscode2session 请求超时'));
       });
     });
   }

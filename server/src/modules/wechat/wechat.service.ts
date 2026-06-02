@@ -7,7 +7,10 @@ import * as path from 'path';
 @Injectable()
 export class WechatService {
   private readonly logger = new Logger(WechatService.name);
-  
+
+  // 外部 HTTP 调用硬超时（微信 API 偶发无响应时，避免请求悬挂耗尽连接）
+  private static readonly HTTP_TIMEOUT_MS = 10_000;
+
   private accessToken: string = '';
   private accessTokenExpiresAt: number = 0;
   
@@ -147,11 +150,11 @@ export class WechatService {
   }
 
   /**
-   * 发送HTTP GET请求
+   * 发送HTTP GET请求（带超时，防止微信 API 无响应时请求无限挂起）
    */
   private request(url: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      https.get(url, (res) => {
+      const req = https.get(url, (res) => {
         let data = '';
         res.on('data', (chunk) => {
           data += chunk;
@@ -163,8 +166,13 @@ export class WechatService {
             resolve(data);
           }
         });
-      }).on('error', (err) => {
+      });
+      req.on('error', (err) => {
         reject(err);
+      });
+      // 10s 硬超时：到点 destroy socket 触发 error，避免请求悬挂
+      req.setTimeout(WechatService.HTTP_TIMEOUT_MS, () => {
+        req.destroy(new Error('微信API请求超时（GET）'));
       });
     });
   }
@@ -253,6 +261,10 @@ export class WechatService {
         reject(err);
       });
 
+      req.setTimeout(WechatService.HTTP_TIMEOUT_MS, () => {
+        req.destroy(new Error('微信API请求超时（二进制）'));
+      });
+
       req.write(postData);
       req.end();
     });
@@ -324,6 +336,10 @@ export class WechatService {
 
       req.on('error', (err) => {
         reject(err);
+      });
+
+      req.setTimeout(WechatService.HTTP_TIMEOUT_MS, () => {
+        req.destroy(new Error('微信API请求超时（POST）'));
       });
 
       req.write(postData);

@@ -19,6 +19,19 @@ function hashPayload(data: unknown): string {
 }
 
 /**
+ * 金额按「分」做整数运算，规避 decimal 字符串走 parseFloat 浮点累加的误差。
+ * （与 refunds/statistics 的整数分/SQL DECIMAL 策略保持一致）
+ */
+function toCents(amount: string | number | null | undefined): number {
+  const n = typeof amount === 'number' ? amount : parseFloat(String(amount ?? 0));
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100);
+}
+function centsToDecimal(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
+/**
  * 订单访问者上下文（来自 JWT）。
  * 用于顾客端点的归属校验，杜绝改 URL 里 :id 越权读/改他人订单（IDOR）。
  */
@@ -163,10 +176,10 @@ export class OrdersService {
     let orderId = activeOrder?.id;
     const orderNumber = activeOrder?.order_number || this.generateOrderNumber();
 
-    let totalAmount = 0;
+    let totalCents = 0;
     const itemsToInsert = dto.items.map(item => {
-      const subtotal = item.price * item.quantity;
-      totalAmount += subtotal;
+      const subtotalCents = toCents(item.price) * item.quantity;
+      totalCents += subtotalCents;
       return {
         dish_id: item.dish_id,
         spec_id: item.spec_id,
@@ -174,7 +187,7 @@ export class OrdersService {
         spec_name: item.spec_name,
         quantity: item.quantity,
         price: item.price.toFixed(2),
-        subtotal: subtotal.toFixed(2),
+        subtotal: centsToDecimal(subtotalCents),
         added_by_user_id: item.added_by_user_id || dto.user_id,
         added_by_nickname: item.added_by_nickname || '未知用户',
         phase: 'order' as const,
@@ -187,7 +200,7 @@ export class OrdersService {
       if (orderId && activeOrder) {
         // 更新现有草稿
         await tx.update(orders).set({
-          total_amount: totalAmount.toFixed(2),
+          total_amount: centsToDecimal(totalCents),
           user_id: dto.user_id || activeOrder.user_id,
           remark: dto.remark || activeOrder.remark,
           updated_at: new Date(),
@@ -200,7 +213,7 @@ export class OrdersService {
         const insertResult = await tx.insert(orders).values({
           table_id: tableId,
           order_number: orderNumber,
-          total_amount: totalAmount.toFixed(2),
+          total_amount: centsToDecimal(totalCents),
           user_id: dto.user_id,
           remark: dto.remark,
           status: 'draft',
@@ -246,12 +259,12 @@ export class OrdersService {
     const currentMaxRound = (maxRoundResult[0]?.maxRound as number) || 0;
     const nextRound = currentMaxRound + 1;
 
-    // 计算新金额
-    let totalAmount = parseFloat(order.total_amount || '0');
+    // 计算新金额（整数分累加，避免浮点误差）
+    let totalCents = toCents(order.total_amount || '0');
     const itemsToInsert: any[] = [];
     for (const newItem of dto.items) {
-      const subtotal = newItem.price * newItem.quantity;
-      totalAmount += subtotal;
+      const subtotalCents = toCents(newItem.price) * newItem.quantity;
+      totalCents += subtotalCents;
       itemsToInsert.push({
         order_id: orderId,
         dish_id: newItem.dish_id,
@@ -260,7 +273,7 @@ export class OrdersService {
         spec_name: newItem.spec_name,
         quantity: newItem.quantity,
         price: newItem.price.toFixed(2),
-        subtotal: subtotal.toFixed(2),
+        subtotal: centsToDecimal(subtotalCents),
         added_by_user_id: newItem.added_by_user_id,
         added_by_nickname: newItem.added_by_nickname || '商家',
         phase: 'add_more' as const,
@@ -272,7 +285,7 @@ export class OrdersService {
     await db.transaction(async (tx) => {
       await tx.insert(order_items).values(itemsToInsert);
       await tx.update(orders).set({
-        total_amount: totalAmount.toFixed(2),
+        total_amount: centsToDecimal(totalCents),
         updated_at: new Date(),
       }).where(eq(orders.id, orderId));
 
@@ -453,13 +466,13 @@ export class OrdersService {
     // 必选 / 最少数量校验（仅订单首次提交时校验，加菜不受限）
     await this.assertRequiredAndMinQuantity(dto.items);
 
-    let totalAmount = 0;
+    let totalCents = 0;
     const orderItemsData = dto.items.map(item => {
-      const subtotal = item.price * item.quantity;
-      totalAmount += subtotal;
+      const subtotalCents = toCents(item.price) * item.quantity;
+      totalCents += subtotalCents;
       return {
         ...item,
-        subtotal,
+        subtotalCents,
       };
     });
 
@@ -487,7 +500,7 @@ export class OrdersService {
       const insertResult = await tx.insert(orders).values({
         table_id: finalTableId,
         order_number: orderNumber,
-        total_amount: totalAmount.toFixed(2),
+        total_amount: centsToDecimal(totalCents),
         user_id: dto.user_id,
         remark: dto.remark,
         status: 'submitted',
@@ -505,7 +518,7 @@ export class OrdersService {
         spec_name: item.spec_name,
         quantity: item.quantity,
         price: item.price.toFixed(2),
-        subtotal: item.subtotal.toFixed(2),
+        subtotal: centsToDecimal(item.subtotalCents),
         added_by_user_id: item.added_by_user_id || dto.user_id,
         added_by_nickname: item.added_by_nickname || '未知用户',
       }));
@@ -570,7 +583,7 @@ export class OrdersService {
       throw new BadRequestException('订单状态不允许添加菜品');
     }
 
-    const subtotal = dto.price * dto.quantity;
+    const subtotalCents = toCents(dto.price) * dto.quantity;
 
     // ---- 事务：插入明细 + 更新金额 ----
     await db.transaction(async (tx) => {
@@ -582,12 +595,12 @@ export class OrdersService {
         spec_name: dto.spec_name,
         quantity: dto.quantity,
         price: dto.price.toFixed(2),
-        subtotal: subtotal.toFixed(2),
+        subtotal: centsToDecimal(subtotalCents),
         phase: 'add_more',
       });
 
-      const newTotal = parseFloat(order.total_amount as any) + subtotal;
-      await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+      const newTotalCents = toCents(order.total_amount as any) + subtotalCents;
+      await tx.update(orders).set({ total_amount: centsToDecimal(newTotalCents) }).where(eq(orders.id, orderId));
     });
 
     // ---- 事务外：副作用 ----
@@ -614,19 +627,20 @@ export class OrdersService {
     await db.transaction(async (tx) => {
       if (quantity && quantity < item.quantity) {
         const newQuantity = item.quantity - quantity;
-        const newSubtotal = parseFloat(item.price) * newQuantity;
+        const priceCents = toCents(item.price);
+        const newSubtotalCents = priceCents * newQuantity;
         await tx.update(order_items).set({
           quantity: newQuantity,
-          subtotal: newSubtotal.toFixed(2),
+          subtotal: centsToDecimal(newSubtotalCents),
         }).where(eq(order_items.id, itemId));
 
-        const diff = parseFloat(item.price) * quantity;
-        const newTotal = parseFloat(order.total_amount as any) - diff;
-        await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+        const diffCents = priceCents * quantity;
+        const newTotalCents = toCents(order.total_amount as any) - diffCents;
+        await tx.update(orders).set({ total_amount: centsToDecimal(newTotalCents) }).where(eq(orders.id, orderId));
       } else {
         await tx.delete(order_items).where(eq(order_items.id, itemId));
-        const newTotal = parseFloat(order.total_amount as any) - parseFloat(item.subtotal);
-        await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+        const newTotalCents = toCents(order.total_amount as any) - toCents(item.subtotal);
+        await tx.update(orders).set({ total_amount: centsToDecimal(newTotalCents) }).where(eq(orders.id, orderId));
       }
     });
 
@@ -652,17 +666,17 @@ export class OrdersService {
       if (quantity <= 0) {
         await tx.delete(order_items).where(eq(order_items.id, itemId));
       } else {
-        const newSubtotal = parseFloat(item.price) * quantity;
+        const newSubtotalCents = toCents(item.price) * quantity;
         await tx.update(order_items).set({
           quantity,
-          subtotal: newSubtotal.toFixed(2),
+          subtotal: centsToDecimal(newSubtotalCents),
         }).where(eq(order_items.id, itemId));
       }
 
-      const oldSubtotal = parseFloat(item.subtotal);
-      const newSubtotalValue = quantity <= 0 ? 0 : parseFloat(item.price) * quantity;
-      const newTotal = parseFloat(order.total_amount as any) - oldSubtotal + newSubtotalValue;
-      await tx.update(orders).set({ total_amount: newTotal.toFixed(2) }).where(eq(orders.id, orderId));
+      const oldSubtotalCents = toCents(item.subtotal);
+      const newSubtotalCents = quantity <= 0 ? 0 : toCents(item.price) * quantity;
+      const newTotalCents = toCents(order.total_amount as any) - oldSubtotalCents + newSubtotalCents;
+      await tx.update(orders).set({ total_amount: centsToDecimal(newTotalCents) }).where(eq(orders.id, orderId));
     });
 
     // ---- 事务外：副作用 ----

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsNotEmpty, IsEnum, Min, Max, MaxLength, Matches } from 'class-validator';
+import { IsString, IsNumber, IsNotEmpty, IsEnum, Min, Max, MaxLength, Matches } from 'class-validator';
 
 const NO_XSS = /^[^<>]*$/;
 
@@ -8,7 +8,7 @@ export class CreateRefundDto {
   order_id: number;
 
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   @Max(999999)
   amount: number;
 
@@ -23,8 +23,5 @@ export class UpdateRefundStatusDto {
   @IsString()
   @IsEnum(['approved', 'rejected'])
   status: string;
-
-  @IsNumber()
-  @IsOptional()
-  operator_id?: number;
+  // operator_id 已移除：操作人一律从 JWT 注入，不接受前端传入（防伪造操作人）
 }

@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { RefundsService } from './refunds.service';
+import type { RefundActor } from './refunds.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../merchant-ops/auth/permissions.guard';
 import { Audit, Permissions } from '../merchant-ops/auth/decorators';
@@ -30,8 +31,8 @@ export class RefundsController {
   @Permissions('ORDER_REFUND')
   @Audit('ORDER_REFUND')
   @Post()
-  async createRefund(@Body() dto: CreateRefundDto) {
-    return await this.refundsService.createRefund(dto);
+  async createRefund(@Body() dto: CreateRefundDto, @Req() req: any) {
+    return await this.refundsService.createRefund(dto, this.buildActor(req));
   }
 
   @Permissions('ORDER_REFUND')
@@ -40,7 +41,13 @@ export class RefundsController {
   async updateRefundStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRefundStatusDto,
+    @Req() req: any,
   ) {
-    return await this.refundsService.updateRefundStatus(id, dto);
+    return await this.refundsService.updateRefundStatus(id, dto, this.buildActor(req));
+  }
+
+  /** 从 JWT 提取退款操作人；operator_id 绝不信任前端入参 */
+  private buildActor(req: any): RefundActor {
+    return { userId: req?.user?.userId, role: req?.user?.role };
   }
 }

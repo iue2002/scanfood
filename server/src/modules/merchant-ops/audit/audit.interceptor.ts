@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Observable, tap } from 'rxjs';
 import { AuditCore } from './audit.core';
+import { extractClientIp } from '@/common/client-ip';
 import { AUDIT_KEY } from '../auth/decorators';
 import type { AuditMetadata } from '../auth/decorators';
 import type { ActorContext, AuditPayload, Role } from '../auth/rbac.types';
@@ -44,7 +45,7 @@ export class AuditInterceptor implements NestInterceptor {
     const actor: ActorContext = {
       userId: req?.user?.userId,
       role: (req?.user?.role ?? 'admin') as Role,
-      ip: this.extractIp(req),
+      ip: extractClientIp(req),
       userAgent: (req?.headers?.['user-agent'] as string) ?? 'unknown',
       requestId: (req?.headers?.['x-request-id'] as string) ?? '',
     };

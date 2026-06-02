@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from '@/app.module';
 import * as express from 'express';
 import helmet from 'helmet';
@@ -26,7 +27,13 @@ function parsePort(): number {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // ===== 反代信任（P2-2）=====
+  // 生产拓扑：nginx / cpolar 反代 → 后端。信任「第一跳」反代写入的 X-Forwarded-For，
+  // 使 req.ip / express-rate-limit / 登录锁定 / 审计 IP 取到真实客户端 IP。
+  // 注意：只信任 1 跳，不能设 true（true=信任所有上游，X-Forwarded-For 可被客户端伪造）。
+  app.set('trust proxy', 1);
 
   // cookie 解析：用于 JWT cookie 兜底传输 + 验证码 token 等
   app.use(cookieParser());

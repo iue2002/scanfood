@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Server, WebSocket } from 'ws';
 import * as http from 'http';
 import * as url from 'url';
+import { extractIpFromHeaders } from '@/common/client-ip';
 
 // WebSocket 连接限流：同一 IP 每秒最多 2 个连接
 const ipConnectionCount = new Map<string, { count: number; resetAt: number }>();
@@ -68,9 +69,7 @@ export class OrdersGateway implements OnModuleInit, OnModuleDestroy {
 
       // ===== 安全加固: WebSocket 连接鉴权 =====
       // 从查询参数中提取 token 进行 JWT 验证
-      const clientIp = req.headers['x-forwarded-for'] as string
-        || req.socket.remoteAddress
-        || 'unknown';
+      const clientIp = extractIpFromHeaders(req.headers, req.socket?.remoteAddress);
 
       // 连接限流
       if (!checkConnectionRate(clientIp)) {

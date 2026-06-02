@@ -15,6 +15,7 @@ import {
 import type { Response } from 'express';
 import * as fs from 'fs';
 import { JwtAuthGuard } from '@/modules/auth/jwt-auth.guard';
+import { extractClientIp } from '@/common/client-ip';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Audit, Permissions } from '../auth/decorators';
 import { ExportCore } from './export.core';
@@ -43,18 +44,10 @@ export class ExportController {
     return {
       userId: req?.user?.userId,
       role: req?.user?.role,
-      ip: this.extractIp(req),
+      ip: extractClientIp(req),
       userAgent: req?.headers?.['user-agent'] ?? 'unknown',
       requestId: req?.headers?.['x-request-id'] ?? '',
     };
-  }
-  private extractIp(req: any): string {
-    const xff = req?.headers?.['x-forwarded-for'];
-    if (typeof xff === 'string') {
-      const first = xff.split(',')[0]?.trim();
-      if (first) return first;
-    }
-    return req?.ip ?? req?.connection?.remoteAddress ?? 'unknown';
   }
 
   @Post('orders')

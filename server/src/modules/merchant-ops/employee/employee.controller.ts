@@ -15,6 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/auth/jwt-auth.guard';
+import { extractClientIp } from '@/common/client-ip';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Audit, Permissions, Roles } from '../auth/decorators';
 import { EmployeeCore } from './employee.core';
@@ -36,19 +37,10 @@ export class EmployeeController {
     return {
       userId: req?.user?.userId,
       role: req?.user?.role,
-      ip: this.extractIp(req),
+      ip: extractClientIp(req),
       userAgent: req?.headers?.['user-agent'] ?? 'unknown',
       requestId: req?.headers?.['x-request-id'] ?? '',
     };
-  }
-
-  private extractIp(req: any): string {
-    const xff = req?.headers?.['x-forwarded-for'];
-    if (typeof xff === 'string') {
-      const first = xff.split(',')[0]?.trim();
-      if (first) return first;
-    }
-    return req?.ip ?? req?.connection?.remoteAddress ?? 'unknown';
   }
 
   @Get()

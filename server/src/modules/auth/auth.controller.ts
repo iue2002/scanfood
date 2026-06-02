@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, UseGuards, Request, Req, Logger } from '@n
 import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { extractClientIp } from '@/common/client-ip';
 import { LoginDto, RegisterDto, WechatLoginDto, UpdateProfileDto, BindTableDto } from './dto/auth.dto';
 
 @Controller('auth')
@@ -21,10 +22,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: any) {
-    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-      || req.ip
-      || req.connection?.remoteAddress
-      || '';
+    const ipAddress = extractClientIp(req);
     const userAgent = (req.headers['user-agent'] as string) || '';
     const result = await this.authService.login(dto, ipAddress, userAgent);
     this.logger.debug(`用户登录 userId=${result.user?.id}`);

@@ -16,6 +16,13 @@
 ## 状态图例
 - ⬜ 待办  🟦 进行中  ✅ 已完成（含本地提交）  ⏸ 阻塞/待确认  ⏭ 跳过
 
+## 总进度（截至最新）
+- ✅ **P0 全部完成**（P0-1 退款资金 / P0-2 订单越权 / P0-3 状态机+打印竞态）
+- ✅ **P1 全部完成**（P1-1 金额浮点后端全清 / P1-2 统计 SQL 聚合 / P1-3 订单正确性 / P1-4 外部 HTTP / P1-5 失败计数）
+- ✅ **P2 全部完成**（P2-1 公共工具+脱敏 / P2-2 trust proxy / P2-3 临时密码 / P2-4 排序批量 / P2-5 前端 RBAC / P2-6 OrderManage / P2-7 建桌事务）；P2-8 单实例暂缓
+- ⏳ 剩余可选：P1-5 账户锁定 DoS（IP+账号联合，待评估）；P1-1 前端/小程序展示层 parseFloat（仅显示，低风险）
+- 全程仅本地 commit，**未 push GitHub / 未部署服务器**（等宝宝命令）
+
 ---
 
 ## 模块评级总表（审计结论，基线）
@@ -101,7 +108,7 @@
 - ✅ **P2-3 employee 临时密码**（commit cf5c134）：`genTempPassword` 改 `crypto.randomInt`（CSPRNG），输出契约不变，18 个 PBT 全过
 - ✅ **P2-4 dishes updateSortOrder 包事务**（commit 04c7558）：原循环逐条 await（N 次往返+无事务）改为单条 SQL CASE WHEN 批量原子更新；id 经正整数过滤防御
 - ✅ **P2-5 前端 RBAC 矩阵漂移**（commit 2458abe）：admin-web/rbac/types.ts 补全 13 个缺失 action，AuditAction 类型 + PERMISSION_MATRIX 与后端 merchant-ops/auth 完全一致（31 个 action）；tsc 通过
-- ⬜ **P2-6 OrderManage 重构**：1420 行拆子组件 + WS 事件由全量重拉改增量更新/节流
+- ✅ **P2-6 OrderManage 重构**（commit bb41c63）：WS 事件(orderUpdated/orderStatusChanged/refund*)改 800ms 窗口节流合并刷新，消除高峰期事件风暴抖动+滚动重置；orderDeleted 保持本地增量移除；抽取 `OrderItemsBreakdown` 子组件（按加餐轮次分组），详情弹窗复用；tsc + vite build 通过
 - ✅ **P2-7 tables 建桌三步包事务**（commit 99b33a5）；dishes deleteCategory 悬空校验已在 P2-4 完成 ✅
   - createTable 的 insert tables + insert table_validations 改同事务原子写入；二维码生成保留事务外
 - ⏭ **P2-8 进程内存幂等/限流横向扩展**（单实例部署，暂缓）
@@ -129,3 +136,4 @@
 | - | P2-1/P2-2 trust proxy+公共IP工具 | 1cfeb67 | 7 文件(新增client-ip)；build✅；119/14 一致 |
 | - | P2-1 日志脱敏子串匹配 | 9e194c0 | log-sanitizer 1 文件；build✅；119/14 一致 |
 | - | P2-5 前端RBAC矩阵补全 | 2458abe | admin-web rbac/types 1 文件；tsc✅ |
+| - | P2-6 OrderManage WS节流+组件抽取 | bb41c63 | OrderManage+新子组件 2 文件；tsc+vite build✅ |

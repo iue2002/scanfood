@@ -141,6 +141,10 @@ export const orders = mysqlTable(
     index("orders_status_idx").on(table.status),
     index("orders_user_id_idx").on(table.user_id),
     index("orders_created_at_idx").on(table.created_at),
+    // 复合索引（0011）：等值+范围 / 多等值高频查询
+    index("orders_status_created_idx").on(table.status, table.created_at),
+    index("orders_table_status_idx").on(table.table_id, table.status),
+    index("orders_user_status_idx").on(table.user_id, table.status),
   ]
 );
 
@@ -248,6 +252,8 @@ export const refunds = mysqlTable(
   (table) => [
     index("refunds_order_id_idx").on(table.order_id),
     index("refunds_status_idx").on(table.status),
+    // 复合索引（0011）：按订单聚合可退额度（order_id + status）
+    index("refunds_order_status_idx").on(table.order_id, table.status),
   ]
 );
 

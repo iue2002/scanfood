@@ -17,6 +17,7 @@
  * - Property 6: 临时密码生成
  */
 import * as bcrypt from 'bcryptjs';
+import { randomInt } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -148,12 +149,14 @@ export class EmployeeCore {
   /**
    * R6.1：12 位临时密码生成
    * 仅 [A-Za-z0-9]，且至少含一个数字、一个字母（满足 password policy）
+   *
+   * 安全：使用 crypto.randomInt（CSPRNG，均匀无模偏），替代不安全且可预测的 Math.random。
    */
   static genTempPassword(): string {
     const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; // 去掉易混 0/O/1/I
     const digits = '23456789';
     const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
-    const random = (n: number) => Math.floor(Math.random() * n);
+    const random = (n: number) => randomInt(n); // 密码学安全随机，[0, n)
     const arr: string[] = [];
     // 保证至少 1 数字 + 1 字母
     arr.push(digits[random(digits.length)]);
@@ -161,7 +164,7 @@ export class EmployeeCore {
     while (arr.length < TEMP_PASSWORD_LENGTH) {
       arr.push(charset[random(charset.length)]);
     }
-    // 简单 Fisher-Yates 打乱
+    // Fisher-Yates 打乱（同样用 CSPRNG）
     for (let i = arr.length - 1; i > 0; i--) {
       const j = random(i + 1);
       [arr[i], arr[j]] = [arr[j], arr[i]];

@@ -5,6 +5,19 @@ import { CreateCartDto, SyncCartOpsDto } from './dto/cart.dto';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import { OrdersGateway } from '@/modules/orders/orders.gateway';
 
+/**
+ * 金额按「分」做整数运算，规避 decimal 字符串走 parseFloat 浮点累加的误差。
+ * （与 orders/refunds/statistics 的整数分策略保持一致）
+ */
+function toCents(amount: string | number | null | undefined): number {
+  const n = typeof amount === 'number' ? amount : parseFloat(String(amount ?? 0));
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100);
+}
+function centsToDecimal(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 // 内存级幂等去重：最近 5 分钟内处理过的 idempotencyKey
 // 单进程部署足够；多进程部署需切 Redis，但当前项目规模下内存即可
 const recentOps = new Map<string, number>();
@@ -72,10 +85,10 @@ export class CartsService {
       return null;
     }
 
-    let totalAmount = 0;
+    let totalCents = 0;
     const itemsToInsert = dto.items.map(item => {
-      const subtotal = item.price * item.quantity;
-      totalAmount += subtotal;
+      const subtotalCents = toCents(item.price) * item.quantity;
+      totalCents += subtotalCents;
       return {
         dish_id: item.dish_id,
         spec_id: item.spec_id,
@@ -83,7 +96,7 @@ export class CartsService {
         spec_name: item.spec_name,
         quantity: item.quantity,
         price: item.price.toFixed(2),
-        subtotal: subtotal.toFixed(2),
+        subtotal: centsToDecimal(subtotalCents),
         added_by_user_id: item.added_by_user_id || dto.user_id,
         added_by_nickname: item.added_by_nickname || '未知用户',
       };
@@ -102,7 +115,7 @@ export class CartsService {
 
       if (cid && activeCart) {
         await tx.update(carts).set({
-          total_amount: totalAmount.toFixed(2),
+          total_amount: centsToDecimal(totalCents),
           user_id: dto.user_id || activeCart.user_id,
           updated_at: new Date(),
           version: sql`version + 1`,
@@ -114,7 +127,7 @@ export class CartsService {
         const insertResult = await tx.insert(carts).values({
           table_id: dto.table_id,
           user_id: dto.user_id,
-          total_amount: totalAmount.toFixed(2),
+          total_amount: centsToDecimal(totalCents),
           version: 0,
         });
         cid = (insertResult as any)[0].insertId;
@@ -234,17 +247,18 @@ export class CartsService {
               const dish = dishMap.get(op.dish_id);
               if (!dish) continue;
 
-              const price = parseFloat(dish.price);
-              const subtotal = op.quantity * price;
+              const priceCents = toCents(dish.price);
+              const subtotalCents = op.quantity * priceCents;
 
               // MySQL INSERT ... ON DUPLICATE KEY UPDATE：原子级累加，天然免疫并发竞态
+              // （ON DUPLICATE 分支用 SQL DECIMAL 计算 subtotal，精确无浮点）
               await tx.insert(cart_items).values({
                 cart_id: cartId,
                 dish_id: op.dish_id,
                 dish_name: dish.name,
                 quantity: op.quantity,
-                price: price.toFixed(2),
-                subtotal: subtotal.toFixed(2),
+                price: centsToDecimal(priceCents),
+                subtotal: centsToDecimal(subtotalCents),
                 added_by_user_id: op.added_by_user_id || dto.user_id,
                 added_by_nickname: op.added_by_nickname || '未知用户',
               }).onDuplicateKeyUpdate({
@@ -263,9 +277,9 @@ export class CartsService {
               if (newQty <= 0) {
                 await tx.delete(cart_items).where(eq(cart_items.id, existingItem.id));
               } else {
-                const subtotal = newQty * parseFloat(existingItem.price);
+                const subtotalCents = newQty * toCents(existingItem.price);
                 await tx.update(cart_items)
-                  .set({ quantity: newQty, subtotal: subtotal.toFixed(2) })
+                  .set({ quantity: newQty, subtotal: centsToDecimal(subtotalCents) })
                   .where(eq(cart_items.id, existingItem.id));
               }
             } else if (op.action === 'set') {
@@ -278,21 +292,22 @@ export class CartsService {
                 const existingItem = existing[0];
 
                 if (existingItem) {
-                  const subtotal = op.quantity * parseFloat(existingItem.price);
+                  const subtotalCents = op.quantity * toCents(existingItem.price);
                   await tx.update(cart_items)
-                    .set({ quantity: op.quantity, subtotal: subtotal.toFixed(2) })
+                    .set({ quantity: op.quantity, subtotal: centsToDecimal(subtotalCents) })
                     .where(eq(cart_items.id, existingItem.id));
                 } else {
                   const dish = dishMap.get(op.dish_id);
                   if (dish) {
-                    const subtotal = op.quantity * parseFloat(dish.price);
+                    const priceCents = toCents(dish.price);
+                    const subtotalCents = op.quantity * priceCents;
                     await tx.insert(cart_items).values({
                       cart_id: cartId,
                       dish_id: op.dish_id,
                       dish_name: dish.name,
                       quantity: op.quantity,
-                      price: parseFloat(dish.price).toFixed(2),
-                      subtotal: subtotal.toFixed(2),
+                      price: centsToDecimal(priceCents),
+                      subtotal: centsToDecimal(subtotalCents),
                       added_by_user_id: op.added_by_user_id || dto.user_id,
                       added_by_nickname: op.added_by_nickname || '未知用户',
                     });
@@ -302,14 +317,14 @@ export class CartsService {
             }
           }
 
-          // 2.4 重新计算 total_amount
+          // 2.4 重新计算 total_amount（整数分累加，避免浮点误差）
           const allItems = await tx.select().from(cart_items).where(eq(cart_items.cart_id, cartId));
-          const totalAmount = allItems.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
+          const totalCents = allItems.reduce((sum, item) => sum + toCents(item.subtotal), 0);
 
           // 2.5 乐观锁更新 carts：WHERE version = currentVersion
           await tx.update(carts)
             .set({
-              total_amount: totalAmount.toFixed(2),
+              total_amount: centsToDecimal(totalCents),
               updated_at: new Date(),
               version: sql`version + 1`
             })

@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { db } from '@/storage/database/mysql-client';
 import { dishes, dish_categories, dish_specs } from '@/storage/database/shared/schema';
 import { CreateDishDto, UpdateDishDto, CreateDishSpecDto, CreateCategoryDto, UpdateSortOrderDto } from './dto/dish.dto';
-import { eq, asc, and, sql } from 'drizzle-orm';
+import { eq, asc, and, sql, inArray } from 'drizzle-orm';
 import { LocalImageCleanupService } from '@/modules/merchant-ops/common/image-cleanup';
 import { PrintPlanCore } from '@/modules/merchant-ops/print/plan.core';
 
@@ -30,6 +30,18 @@ export class DishesService {
   }
 
   async deleteCategory(id: number) {
+    // 分类下若仍有菜品，dishes.category_id 是 NOT NULL 外键(RESTRICT)，直接删会抛 FK 错误(1451)
+    // 变成 500；这里先校验给出明确业务提示，引导先迁移/删除菜品
+    const inUse = await db
+      .select({ c: sql<number>`count(*)` })
+      .from(dishes)
+      .where(eq(dishes.category_id, id));
+    if (Number(inUse[0]?.c ?? 0) > 0) {
+      throw new BadRequestException({
+        code: 'CATEGORY_IN_USE',
+        message: '该分类下仍有菜品，请先移动或删除这些菜品后再删除分类',
+      });
+    }
     await db.delete(dish_categories).where(eq(dish_categories.id, id));
     // 删除分类后，把所有打印方案 slice 中的引用清理掉（fire-and-forget；失败不影响主删除）
     void this.printPlanCore.onCategoryDeleted(id).catch(() => undefined);
@@ -149,14 +161,27 @@ export class DishesService {
     if (!Array.isArray(dto.items) || dto.items.length === 0) {
       throw new BadRequestException('排序数据不能为空');
     }
-    // 批量更新：按传入的顺序设置 sort_order（步长 10，方便中间插入）
-    for (let i = 0; i < dto.items.length; i++) {
-      const item = dto.items[i];
-      await db
-        .update(dishes)
-        .set({ sort_order: (i + 1) * 10 })
-        .where(eq(dishes.id, item.id));
+
+    // 防御：id 必须是正整数（DTO 已校验，这里再兜一层，杜绝任何注入风险）
+    const items = dto.items
+      .map((it, idx) => ({ id: Number(it.id), order: (idx + 1) * 10 }))
+      .filter((it) => Number.isInteger(it.id) && it.id > 0);
+    if (items.length === 0) {
+      throw new BadRequestException('排序数据无效');
     }
+
+    // 单条 SQL CASE WHEN 批量更新：一次往返 + 原子（替代原先循环逐条 await，
+    // 既消除 N 次 DB 往返，又避免中途失败留下半排序脏状态）
+    const caseBranches = sql.join(
+      items.map((it) => sql`WHEN ${it.id} THEN ${it.order}`),
+      sql` `,
+    );
+    const ids = items.map((it) => it.id);
+    await db
+      .update(dishes)
+      .set({ sort_order: sql`CASE ${dishes.id} ${caseBranches} ELSE ${dishes.sort_order} END` })
+      .where(inArray(dishes.id, ids));
+
     return { message: '排序已保存' };
   }
 }

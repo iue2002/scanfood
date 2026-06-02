@@ -50,11 +50,11 @@
   - 验证：build ✅；测试失败数 16→14（均为预存在的集成测试环境型 401，与本改动无关，且本改动反而减少 2 个失败）
   - 限流：未加，靠金额上限+防重+状态校验从逻辑杜绝滥用（符合最小化限流原则）
 
-- ⬜ **P0-2 orders 顾客端点越权（IDOR）**
+- ✅ **P0-2 orders 顾客端点越权（IDOR）**（commit 22b560b）
   - 文件：`server/src/modules/orders/orders.controller.ts` + `orders.service.ts`
-  - 问题：getOrderById / addOrderItem / removeOrderItem / updateOrderItemQuantity 只挂 JwtAuthGuard，不校验订单归属，改 URL 的 :id 可读/改他人订单
-  - 改：service 方法接收 actor(userId/role)，校验订单 user_id 归属或员工角色；顾客只能操作自己/本桌订单
-  - 验证：build + 手测越权被拒
+  - 已完成：新增 `assertOrderAccess` 归属校验 —— 员工角色放行；顾客仅可访问「自己创建的订单」或「当前绑定桌台的订单」（保留同桌共享点单红线）；getOrderById/addOrderItem/removeOrderItem/updateOrderItemQuantity 四个顾客端点接入；controller 从 JWT 注入 actor，不信任前端
+  - 验证：build ✅；测试 14 failed/111 passed，与基线一致无新失败
+  - 红线：未破坏既有共享购物车/桌台协作机制
 
 - ⬜ **P0-3 orders 状态机未接入**
   - 文件：`server/src/modules/orders/orders.service.ts` updateOrderStatus
@@ -100,3 +100,4 @@
 |------|------|--------|------|
 | - | 建立 PLAN 文件 | 023482e | 仅 stage 本文件 |
 | - | P0-1 refunds 资金安全加固 | 8532eb0 | 仅 stage refunds 3 文件；build✅；测试失败16→14（预存在环境型） |
+| - | P0-2 orders 顾客端点越权(IDOR) | 22b560b | 仅 stage orders 2 文件；build✅；测试14/111与基线一致 |

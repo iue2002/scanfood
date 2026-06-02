@@ -63,12 +63,14 @@
 
 ### P1 — 正确性
 
-- ⬜ **P1-1 金额浮点 → decimal/整数分（全局专项，影响面大）**
+- 🟦 **P1-1 金额浮点 → decimal/整数分（全局专项，影响面大）**
   - 文件：orders / carts / statistics / refunds / 前端 / 小程序
   - 注意：影响面广，需单独评估，可能拆多次提交。先不动 schema 列类型（红线），在计算层用整数分或 decimal 库
-- ⬜ **P1-2 statistics 全表内存聚合 → SQL GROUP BY**
+  - 进度：refunds 已在 P0-1 改整数分 ✅；statistics 已在 P1-2 改 SQL DECIMAL SUM ✅；**剩余 orders/carts 计算层 + 前端/小程序展示**
+- ✅ **P1-2 statistics 全表内存聚合 → SQL GROUP BY**（commit 2b46e07）
   - 文件：`server/src/modules/statistics/statistics.service.ts`
-  - 改：getStatisticsByCategory/Day/Month/getDishRanking/getOverview 等下沉为 SQL 聚合 + 索引；修 `new Date(end+'-31')` 月边界 + UTC 时区
+  - 已完成：8 个接口全部下沉 SQL 聚合（GROUP BY/SUM/COUNT，参照 mop readonly-orders 范式）；金额用 SQL DECIMAL SUM 精确求和；日期边界改本地时区 00:00:00/23:59:59 修正 UTC 错位；修正按月 `new Date(end+'-31')` 非法月末；返回结构不变
+  - 验证：build ✅；测试 119 passed/14 failed（基线，无新失败）
 - ⬜ **P1-3 orders 其余正确性**
   - syncDraft 草稿复用 bug（getTableCurrentOrder 不含 draft，更新分支永远进不去）
   - markOrderAsPrinted 无条件覆盖状态的竞态
@@ -102,3 +104,4 @@
 | - | P0-1 refunds 资金安全加固 | 8532eb0 | 仅 stage refunds 3 文件；build✅；测试失败16→14（预存在环境型） |
 | - | P0-2 orders 顾客端点越权(IDOR) | 22b560b | 仅 stage orders 2 文件；build✅；测试14/111与基线一致 |
 | - | P0-3 orders 状态机校验+打印竞态 | 1bb4404 | orders 3 文件(含新单测)；build✅；119 passed/14 failed |
+| - | P1-2 statistics SQL聚合重构 | 2b46e07 | statistics 1 文件；build✅；119/14 与基线一致；顺带修浮点+时区+月末 |

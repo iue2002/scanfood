@@ -11,6 +11,7 @@
 4. 改完跑验证：`cd server && npm test`、`cd server && npm run build`、`cd admin-web && npx tsc --noEmit`。
 5. 遵守 AGENTS.md 红线：既有表只能 ADD COLUMN、跨切吞错、mop core 只注入 RepoPort、密钥走 env、WS 新事件 `mop:` 前缀。
 6. 平台：Windows，命令分隔用 `;` 不用 `&&`。
+7. **限流最小化原则（宝宝指令）**：能用优化/改进解决的，绝不靠粗暴限流挡。限流只设在「收益最大、最必要」的地方（如登录防爆破、退款防重等真正涉及安全/资金的入口）。普通业务接口优先通过 SQL/索引/缓存/幂等/并发控制等手段提升承载力，而不是简单加 rate limit。已有的低级粗糙限流（如纯内存计数）在重构时优先替换为更优方案或移除。
 
 ## 状态图例
 - ⬜ 待办  🟦 进行中  ✅ 已完成（含本地提交）  ⏸ 阻塞/待确认  ⏭ 跳过
@@ -43,11 +44,11 @@
 
 ### P0 — 资金 / 安全（最高优先，先修）
 
-- ⬜ **P0-1 refunds 资金安全加固**
-  - 文件：`server/src/modules/refunds/refunds.service.ts`
-  - 问题：createRefund 无金额上限校验、无重复退款防护；operator_id 恒为 0；updateRefundStatus 状态变更无事务；不校验订单状态
-  - 改：① 退款金额 ≤ 订单金额且 ≤ 剩余可退额校验 ② 防重复退款（已退/超额拒绝）③ operator_id 从 JWT actor 真实注入 ④ refunds.status + orders.status 同事务 ⑤ 校验订单当前状态允许退款
-  - 验证：补/跑相关测试 + build
+- ✅ **P0-1 refunds 资金安全加固**（commit 8532eb0）
+  - 文件：`server/src/modules/refunds/refunds.service.ts` + controller + dto
+  - 已完成：① 退款金额 ≤ 订单金额且累计(pending+approved)不超额，防超额/防重复 ② 防重复退款（订单已 refunded 拒绝）③ operator_id 从 JWT actor 注入（DTO 移除可伪造字段）④ refunds.status + orders.status 同事务 + 行锁 ⑤ 校验订单为 settled 才可退 ⑥ 金额改整数分规避浮点
+  - 验证：build ✅；测试失败数 16→14（均为预存在的集成测试环境型 401，与本改动无关，且本改动反而减少 2 个失败）
+  - 限流：未加，靠金额上限+防重+状态校验从逻辑杜绝滥用（符合最小化限流原则）
 
 - ⬜ **P0-2 orders 顾客端点越权（IDOR）**
   - 文件：`server/src/modules/orders/orders.controller.ts` + `orders.service.ts`
@@ -97,4 +98,5 @@
 
 | 日期 | 任务 | commit | 备注 |
 |------|------|--------|------|
-| - | 建立 PLAN 文件 | （待提交） | 仅 stage 本文件 |
+| - | 建立 PLAN 文件 | 023482e | 仅 stage 本文件 |
+| - | P0-1 refunds 资金安全加固 | 8532eb0 | 仅 stage refunds 3 文件；build✅；测试失败16→14（预存在环境型） |

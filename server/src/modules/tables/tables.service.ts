@@ -70,21 +70,23 @@ export class TablesService {
     if (existing.length > 0) {
       throw new BadRequestException('桌台编号已存在');
     }
-    // 先插入数据，设置一个临时URL
-    const insertResult = await db.insert(tables).values({
-      ...dto,
-      qr_code_url: '',
-      status: 'idle',
+    // 桌台 + 桌号验证表：两步必须一致，包进事务原子写入
+    // （二维码生成走外部微信 API、可能慢/失败，放事务外，避免长事务；失败可后续重新生成）
+    const newId = await db.transaction(async (tx) => {
+      const insertResult = await tx.insert(tables).values({
+        ...dto,
+        qr_code_url: '',
+        status: 'idle',
+      });
+      const id = (insertResult as any)[0].insertId;
+      await tx.insert(table_validations).values({
+        table_number: dto.table_number,
+        table_id: id,
+      });
+      return id as number;
     });
-    const newId = (insertResult as any)[0].insertId;
 
-    // 同步写入桌号验证表
-    await db.insert(table_validations).values({
-      table_number: dto.table_number,
-      table_id: newId,
-    });
-
-    // 立即生成真正的二维码
+    // 立即生成真正的二维码（事务外）
     return await this.generateQrCode(newId);
   }
 

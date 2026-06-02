@@ -83,9 +83,11 @@
   - markOrderAsPrinted 无条件覆盖状态的竞态
   - deleteOrder 硬编码状态数组漏 unpaid + 与状态机不一致
   - getOrders 不返回 total
-- ⬜ **P1-4 外部 HTTP 健壮性**
+- ✅ **P1-4 外部 HTTP 健壮性**（commit 10997fc）
   - 文件：`server/src/modules/wechat/wechat.service.ts`、`auth/auth.service.ts` getOpenIdFromCode
-  - 改：https 调用加超时 + URL encodeURIComponent；wechat access_token 集中存储（DB）替代进程内存单例
+  - 已完成：wechat 三个裸 https（request/requestBinary/requestWithPost）加 10s 硬超时；getOpenIdFromCode 补 appId/secret/code 缺失校验 + 参数 encodeURIComponent + 10s 超时
+  - **部署形态确认：单实例（pm2 单进程 scanfood-api:3000）** → wechat access_token 内存缓存安全，集中存储暂不做（多实例时再做）；同理 P2-8 内存幂等/限流单实例下 OK，暂缓
+  - 验证：build ✅；测试 119/14 与基线一致
 - ⬜ **P1-5 auth 失败计数重置不落库**
   - 文件：`server/src/modules/auth/auth.service.ts` isAccountLocked
   - 改：重置后 set 回 store；评估账户锁定 DoS（IP+账号联合）
@@ -99,7 +101,8 @@
 - ⬜ **P2-5 前端 RBAC 矩阵漂移**：admin-web/rbac/types.ts 缺一堆 action，与后端手抄不一致 → 同步/共享
 - ⬜ **P2-6 OrderManage 重构**：1420 行拆子组件 + WS 事件由全量重拉改增量更新/节流
 - ⬜ **P2-7 tables 建桌三步包事务**；dishes deleteCategory 处理菜品悬空
-- ⬜ **P2-8 进程内存幂等/限流横向扩展**（架构级，需先与宝宝确认是否多实例部署再决定是否做）
+- ⏭ **P2-8 进程内存幂等/限流横向扩展**（单实例部署，暂缓）
+  - 部署已确认单实例（pm2 单进程），carts 幂等 / notif 限流 / wechat token 等进程内存方案当前安全。仅当未来切多实例/cluster 时才需改集中存储（Redis/DB）。
 
 ---
 
@@ -115,3 +118,4 @@
 | - | P1-3 orders 正确性(草稿/删单/total) | 0c781d3 | orders 3 文件；build✅；119/14 一致 |
 | - | P1-1(orders) 金额整数分 | f475317 | orders.service 1 文件；build✅；119/14 一致 |
 | - | P1-1(carts) 金额整数分 | fba4823 | carts.service 1 文件；build✅；119/14 一致；后端金额浮点全清 |
+| - | P1-4 外部HTTP超时+编码 | 10997fc | wechat+auth 2 文件；build✅；119/14 一致；确认单实例部署 |

@@ -96,8 +96,8 @@
 
 ### P2 — 工程化 / 可维护性
 
-- ⬜ **P2-1 抽公共工具**：统一 `extractClientIp(req)`（消除 4 处重复）、统一 https 客户端、合并 log-sanitizer 与 AuditCore.redact 两套脱敏
-- ⬜ **P2-2 trust proxy 确认**：main.ts 是否需 `app.set('trust proxy', ...)`（影响所有 IP 限流/锁定准确性）
+- ✅ **P2-1 抽公共工具**（commit 1cfeb67 + 9e194c0）：新增 `common/client-ip.ts`，employee/export/audit/auth controller + orders.gateway 统一改用 `extractClientIp`/`extractIpFromHeaders`，消除 5 处重复；log-sanitizer 由精确 Set 匹配改子串包含匹配（修复 accessToken/smtpPass 等驼峰条目永不命中），与 AuditCore.redact 口径对齐（AuditCore 受 PBT 约束未动）
+- ✅ **P2-2 trust proxy 确认**（commit 1cfeb67）：main.ts `app.set('trust proxy', 1)` 信任第一跳 nginx/cpolar 反代，使 req.ip/限流/登录锁定/审计 IP 取真实客户端 IP（不设 true 防伪造）
 - ✅ **P2-3 employee 临时密码**（commit cf5c134）：`genTempPassword` 改 `crypto.randomInt`（CSPRNG），输出契约不变，18 个 PBT 全过
 - ✅ **P2-4 dishes updateSortOrder 包事务**（commit 04c7558）：原循环逐条 await（N 次往返+无事务）改为单条 SQL CASE WHEN 批量原子更新；id 经正整数过滤防御
 - ⬜ **P2-5 前端 RBAC 矩阵漂移**：admin-web/rbac/types.ts 缺一堆 action，与后端手抄不一致 → 同步/共享
@@ -126,3 +126,5 @@
 | - | P2-3 临时密码crypto随机 | cf5c134 | employee.core 1 文件；build✅；employee PBT 18/18 过 |
 | - | P2-4 排序批量+删分类校验 | 04c7558 | dishes.service 1 文件；build✅；119/14 一致 |
 | - | P2-7 建桌事务 | 99b33a5 | tables.service 1 文件；build✅；119/14 一致 |
+| - | P2-1/P2-2 trust proxy+公共IP工具 | 1cfeb67 | 7 文件(新增client-ip)；build✅；119/14 一致 |
+| - | P2-1 日志脱敏子串匹配 | 9e194c0 | log-sanitizer 1 文件；build✅；119/14 一致 |

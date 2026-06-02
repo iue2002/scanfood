@@ -88,9 +88,11 @@
   - 已完成：wechat 三个裸 https（request/requestBinary/requestWithPost）加 10s 硬超时；getOpenIdFromCode 补 appId/secret/code 缺失校验 + 参数 encodeURIComponent + 10s 超时
   - **部署形态确认：单实例（pm2 单进程 scanfood-api:3000）** → wechat access_token 内存缓存安全，集中存储暂不做（多实例时再做）；同理 P2-8 内存幂等/限流单实例下 OK，暂缓
   - 验证：build ✅；测试 119/14 与基线一致
-- ⬜ **P1-5 auth 失败计数重置不落库**
+- ✅ **P1-5 auth 失败计数重置不落库**（commit ae863db）
   - 文件：`server/src/modules/auth/auth.service.ts` isAccountLocked
-  - 改：重置后 set 回 store；评估账户锁定 DoS（IP+账号联合）
+  - 已完成：超过重置窗口(10min)时改为持久化 `lockStore.delete(key)`，让"失败计数自动重置"真正生效（原先只改内存不落库，从未生效，只靠 30min TTL 兜底）
+  - 验证：build ✅；集成测试失败数 14 与基线一致
+  - 备注（可选未做）：账户锁定 DoS（用他人用户名+乱密码恶意锁定）需 IP+账号联合判定，按最小化原则暂不强行加，留待评估
 
 ### P2 — 工程化 / 可维护性
 
@@ -119,3 +121,4 @@
 | - | P1-1(orders) 金额整数分 | f475317 | orders.service 1 文件；build✅；119/14 一致 |
 | - | P1-1(carts) 金额整数分 | fba4823 | carts.service 1 文件；build✅；119/14 一致；后端金额浮点全清 |
 | - | P1-4 外部HTTP超时+编码 | 10997fc | wechat+auth 2 文件；build✅；119/14 一致；确认单实例部署 |
+| - | P1-5 auth失败计数重置落库 | ae863db | auth.service 1 文件；build✅；集成测试14与基线一致；P1全部完成 |

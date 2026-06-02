@@ -56,10 +56,10 @@
   - 验证：build ✅；测试 14 failed/111 passed，与基线一致无新失败
   - 红线：未破坏既有共享购物车/桌台协作机制
 
-- ⬜ **P0-3 orders 状态机未接入**
-  - 文件：`server/src/modules/orders/orders.service.ts` updateOrderStatus
-  - 问题：OrderLifecycleCore.canSettle 定义了没调用，可把已结账订单改回任意状态
-  - 改：updateOrderStatus 写库前用状态机校验合法流转；接上 nextStatusOnPrint（消除死代码）
+- ✅ **P0-3 orders 状态机未接入**（commit 1bb4404）
+  - 文件：`server/src/modules/orders/orders.service.ts` + `order-lifecycle.core.ts` + 新增 `order-lifecycle.core.spec.ts`
+  - 已完成：① 新增 `OrderLifecycleCore.canTransition` 状态流转矩阵（终态不可转出/settled 仅限可结算态/cancelled 限未终态/refunded 不可手动设置），updateOrderStatus 写库前校验 ② markOrderAsPrinted 改带 `WHERE status='submitted'` 条件更新 + `nextStatusOnPrint`，消除 fire-and-forget 覆盖并发结账/取消的竞态与死代码 ③ 补状态机单测 8 个全过
+  - 验证：build ✅；测试 119 passed（+8 新单测）/14 failed（基线环境型，无新失败）
 
 ### P1 — 正确性
 
@@ -101,3 +101,4 @@
 | - | 建立 PLAN 文件 | 023482e | 仅 stage 本文件 |
 | - | P0-1 refunds 资金安全加固 | 8532eb0 | 仅 stage refunds 3 文件；build✅；测试失败16→14（预存在环境型） |
 | - | P0-2 orders 顾客端点越权(IDOR) | 22b560b | 仅 stage orders 2 文件；build✅；测试14/111与基线一致 |
+| - | P0-3 orders 状态机校验+打印竞态 | 1bb4404 | orders 3 文件(含新单测)；build✅；119 passed/14 failed |

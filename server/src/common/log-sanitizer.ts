@@ -4,23 +4,19 @@
  * 对日志输出中的敏感字段做递归替换为 '[REDACTED]'。
  * 不修改原始对象（immutable 拷贝）。
  *
- * 敏感字段列表（与 AuditCore.redact 保持一致 + 补充）：
- *   password, pwd, token, accessToken, refreshToken,
- *   authorization, openid, secret, webhook_url, webhook,
- *   device_key, devicekey, api_key, apikey, private_key,
- *   smtp_pass, smtpPass, vapid_private_key
+ * 匹配口径：与 AuditCore.redact 对齐，采用「小写子串包含」匹配
+ * （原先用精确 Set 匹配，导致 accessToken/smtpPass 等驼峰条目转小写后永不命中，
+ *   且 userToken / x-api-key 等带前后缀字段漏网）。子串匹配覆盖更全、更稳。
  */
 
-const SENSITIVE_KEYS = new Set([
+// 敏感字段子串（全小写）。key.toLowerCase() 命中任一子串即脱敏。
+const SENSITIVE_SUBSTRINGS = [
   'password',
   'pwd',
   'token',
-  'accessToken',
-  'refreshtoken',
   'authorization',
   'openid',
   'secret',
-  'webhook_url',
   'webhook',
   'device_key',
   'devicekey',
@@ -29,8 +25,13 @@ const SENSITIVE_KEYS = new Set([
   'private_key',
   'smtp_pass',
   'smtppass',
-  'vapid_private_key',
-]);
+  'vapid_private',
+];
+
+function isSensitiveKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  return SENSITIVE_SUBSTRINGS.some((s) => lower.includes(s));
+}
 
 /**
  * 递归脱敏：匹配敏感 key 的值替换为 '[REDACTED]'
@@ -49,7 +50,7 @@ export function sanitizeLog(input: unknown, depth = 0): unknown {
 
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+    if (isSensitiveKey(key)) {
       result[key] = '[REDACTED]';
     } else if (typeof value === 'object' && value !== null && !(value instanceof Date) && !(value instanceof RegExp)) {
       result[key] = sanitizeLog(value, depth + 1);

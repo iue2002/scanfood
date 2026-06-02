@@ -7,7 +7,7 @@ import { OrdersGateway } from './orders.gateway';
 import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
 import { StoreSettingsService } from '../store-settings/store-settings.service';
 import { computeBizDate } from './pickup-no.core';
-import { OrderLifecycleCore } from './order-lifecycle.core';
+import { OrderLifecycleCore, ORDER_STATUS } from './order-lifecycle.core';
 import { IDEMPOTENCY_STORE_TOKEN } from '@/modules/common/adapters/mysql-idempotency-store.adapter';
 import { EVENT_OUTBOX_TOKEN } from '@/modules/common/adapters/mysql-event-outbox.adapter';
 import type { IdempotencyStorePort } from '@/modules/common/ports/idempotency-store.port';
@@ -687,6 +687,14 @@ export class OrdersService {
 
     const order = await this.getOrderById(orderId);
 
+    // P0-3：状态流转合法性校验（防止把已结账/已取消订单改回任意状态，或非法跳转）
+    if (!OrderLifecycleCore.canTransition(order.status, dto.status)) {
+      throw new ConflictException({
+        code: 'ORDER_STATUS_TRANSITION_INVALID',
+        msg: `订单当前状态（${order.status}）不允许变更为「${dto.status}」`,
+      });
+    }
+
     // ---- 事务：订单状态 + 桌台状态 + outbox ----
     await db.transaction(async (tx) => {
       if (dto.status === 'settled') {
@@ -735,10 +743,14 @@ export class OrdersService {
    */
   private async markOrderAsPrinted(orderId: number): Promise<void> {
     try {
+      // P0-3：仅当订单仍处于 submitted 时才翻成 printed（用状态机推导下一态）。
+      // 关键：带 WHERE status='submitted' 条件更新，保证这条 fire-and-forget 调用
+      // 不会覆盖并发发生的结账/取消（那些操作已把 status 改走，本更新命中 0 行）。
+      const nextStatus = OrderLifecycleCore.nextStatusOnPrint(ORDER_STATUS.SUBMITTED);
       await db.update(orders).set({
-        status: 'printed',
+        status: nextStatus,
         printed_at: new Date(),
-      }).where(eq(orders.id, orderId));
+      }).where(and(eq(orders.id, orderId), eq(orders.status, ORDER_STATUS.SUBMITTED)));
     } catch (err) {
       // 状态标记失败不影响主流程；mop 真打印走独立路径不依赖此状态
       const logger = new Logger(OrdersService.name);

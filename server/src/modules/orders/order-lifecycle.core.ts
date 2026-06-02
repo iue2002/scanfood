@@ -120,6 +120,48 @@ export class OrderLifecycleCore {
     return status === ORDER_STATUS.DRAFT;
   }
 
+  /**
+   * 终态：到达后不允许再通过 updateOrderStatus 转出
+   * （refunded 由退款模块单独驱动，不在订单状态接口里手动设置）
+   */
+  static isTerminalStatus(status: string): boolean {
+    return (
+      status === ORDER_STATUS.SETTLED ||
+      status === ORDER_STATUS.CANCELLED ||
+      status === ORDER_STATUS.REFUNDED
+    );
+  }
+
+  /**
+   * 合法状态流转校验（P0-3）：判断 from → to 是否允许。
+   *
+   * 规则：
+   *  - from === to：幂等，允许（重复提交同一目标态不报错）
+   *  - 结算（→ settled）：仅 canSettle 的状态可结算
+   *  - 取消（→ cancelled）：未到终态的订单都可取消（draft/submitted/printed/unpaid）
+   *  - 打印（→ printed）：仅 submitted 可流转（与 nextStatusOnPrint 一致）
+   *  - 其它目标态（draft/submitted/refunded）：不允许通过本接口手动设置
+   *    （refunded 由退款模块驱动；draft/submitted 回退无业务场景）
+   */
+  static canTransition(from: string, to: string): boolean {
+    if (from === to) return true;
+    // 终态不可再转出
+    if (OrderLifecycleCore.isTerminalStatus(from)) return false;
+
+    switch (to) {
+      case ORDER_STATUS.SETTLED:
+        return OrderLifecycleCore.canSettle(from);
+      case ORDER_STATUS.CANCELLED:
+        // 未到终态即可取消
+        return !OrderLifecycleCore.isTerminalStatus(from);
+      case ORDER_STATUS.PRINTED:
+        return from === ORDER_STATUS.SUBMITTED;
+      default:
+        // draft / submitted / refunded 等目标态不允许通过订单状态接口手动设置
+        return false;
+    }
+  }
+
   /** 获取活跃状态列表（供数据库查询使用） */
   static activeStatuses(): readonly string[] {
     return [...ACTIVE_STATUSES];

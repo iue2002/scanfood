@@ -98,11 +98,12 @@
 
 - ⬜ **P2-1 抽公共工具**：统一 `extractClientIp(req)`（消除 4 处重复）、统一 https 客户端、合并 log-sanitizer 与 AuditCore.redact 两套脱敏
 - ⬜ **P2-2 trust proxy 确认**：main.ts 是否需 `app.set('trust proxy', ...)`（影响所有 IP 限流/锁定准确性）
-- ⬜ **P2-3 employee 临时密码**：`genTempPassword` 改 `crypto.randomInt`（密码学安全随机）
-- ⬜ **P2-4 dishes updateSortOrder 包事务**：循环逐条 update → 事务 + 批量
+- ✅ **P2-3 employee 临时密码**（commit cf5c134）：`genTempPassword` 改 `crypto.randomInt`（CSPRNG），输出契约不变，18 个 PBT 全过
+- ✅ **P2-4 dishes updateSortOrder 包事务**（commit 04c7558）：原循环逐条 await（N 次往返+无事务）改为单条 SQL CASE WHEN 批量原子更新；id 经正整数过滤防御
 - ⬜ **P2-5 前端 RBAC 矩阵漂移**：admin-web/rbac/types.ts 缺一堆 action，与后端手抄不一致 → 同步/共享
 - ⬜ **P2-6 OrderManage 重构**：1420 行拆子组件 + WS 事件由全量重拉改增量更新/节流
-- ⬜ **P2-7 tables 建桌三步包事务**；dishes deleteCategory 处理菜品悬空
+- 🟦 **P2-7 tables 建桌三步包事务**；dishes deleteCategory 处理菜品悬空
+  - 进度：dishes deleteCategory 悬空校验已在 P2-4 一并完成 ✅（commit 04c7558）；**剩 tables 建桌三步事务**
 - ⏭ **P2-8 进程内存幂等/限流横向扩展**（单实例部署，暂缓）
   - 部署已确认单实例（pm2 单进程），carts 幂等 / notif 限流 / wechat token 等进程内存方案当前安全。仅当未来切多实例/cluster 时才需改集中存储（Redis/DB）。
 
@@ -122,3 +123,5 @@
 | - | P1-1(carts) 金额整数分 | fba4823 | carts.service 1 文件；build✅；119/14 一致；后端金额浮点全清 |
 | - | P1-4 外部HTTP超时+编码 | 10997fc | wechat+auth 2 文件；build✅；119/14 一致；确认单实例部署 |
 | - | P1-5 auth失败计数重置落库 | ae863db | auth.service 1 文件；build✅；集成测试14与基线一致；P1全部完成 |
+| - | P2-3 临时密码crypto随机 | cf5c134 | employee.core 1 文件；build✅；employee PBT 18/18 过 |
+| - | P2-4 排序批量+删分类校验 | 04c7558 | dishes.service 1 文件；build✅；119/14 一致 |

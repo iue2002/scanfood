@@ -66,7 +66,7 @@
 - 🟦 **P1-1 金额浮点 → decimal/整数分（全局专项，影响面大）**
   - 文件：orders / carts / statistics / refunds / 前端 / 小程序
   - 注意：影响面广，需单独评估，可能拆多次提交。先不动 schema 列类型（红线），在计算层用整数分或 decimal 库
-  - 进度：refunds 已在 P0-1 改整数分 ✅；statistics 已在 P1-2 改 SQL DECIMAL SUM ✅；orders 已在 P1-3 配套改整数分 ✅（commit f475317）；**剩余 carts 计算层 + 前端/小程序展示**
+  - 进度：refunds 已在 P0-1 改整数分 ✅；statistics 已在 P1-2 改 SQL DECIMAL SUM ✅；orders 已在 P1-3 配套改整数分 ✅（commit f475317）；carts 已改整数分 ✅（commit fba4823）；**后端全部完成；剩余仅前端/小程序展示层（展示用 parseFloat 仅显示，风险低，可后置）**
 - ✅ **P1-3 orders 其余正确性**（commit 0c781d3 + 金额 f475317）
   - syncDraft 草稿复用 bug：原 getTableCurrentOrder 不含 draft → 新增 getTableOccupyingOrder（含 draft）正确复用，修复草稿表膨胀 ✅
   - deleteOrder 状态数组漏 unpaid + 冗余 spread → 改用 OrderLifecycleCore.occupyingStatuses() ✅
@@ -114,3 +114,4 @@
 | - | P1-2 statistics SQL聚合重构 | 2b46e07 | statistics 1 文件；build✅；119/14 与基线一致；顺带修浮点+时区+月末 |
 | - | P1-3 orders 正确性(草稿/删单/total) | 0c781d3 | orders 3 文件；build✅；119/14 一致 |
 | - | P1-1(orders) 金额整数分 | f475317 | orders.service 1 文件；build✅；119/14 一致 |
+| - | P1-1(carts) 金额整数分 | fba4823 | carts.service 1 文件；build✅；119/14 一致；后端金额浮点全清 |

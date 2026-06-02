@@ -33,7 +33,8 @@ export class AuthService {
   }
 
   private async isAccountLocked(username: string): Promise<{ locked: boolean; remainingMinutes?: number }> {
-    const entry = await this.lockStore.get<{ failedCount: number; lockedUntil: number; lastFailAt: number }>(this.lockKey(username));
+    const key = this.lockKey(username);
+    const entry = await this.lockStore.get<{ failedCount: number; lockedUntil: number; lastFailAt: number }>(key);
     if (!entry) return { locked: false };
 
     if (entry.lockedUntil > Date.now()) {
@@ -41,8 +42,10 @@ export class AuthService {
       return { locked: true, remainingMinutes };
     }
 
+    // 距上次失败已超过重置窗口：持久化重置（删除 entry），
+    // 修复原先只改内存不落库导致「10 分钟后自动重置失败计数」从未生效的 bug
     if (Date.now() - entry.lastFailAt > AuthService.FAIL_RESET_MS) {
-      entry.failedCount = 0;
+      await this.lockStore.delete(key);
     }
 
     return { locked: false };

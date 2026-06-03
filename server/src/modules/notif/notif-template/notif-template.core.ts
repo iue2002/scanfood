@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { NotifTemplateRepoPort } from './notif-template.repo.port';
-import type { NotifTemplateRow, NotifTemplateDto, TemplateEvent, TemplateChannel, TemplateRenderResult } from './notif-template.types';
+import type { NotifTemplateRow, NotifTemplateDto, TemplateEvent, TemplateChannel, TemplateRenderResult, TemplatePreviewResult } from './notif-template.types';
 import { DEFAULT_TEMPLATES } from './notif-template.defaults';
+import { TEMPLATE_VARIABLES } from './notif-template.types';
 
 export interface TemplateContext {
   [key: string]: string | undefined;
@@ -15,6 +16,20 @@ export interface TemplateContext {
   eventLabel: string;
   recipientName?: string;
 }
+
+const TEMPLATE_VAR_RE = /{{\s*([A-Za-z][A-Za-z0-9_]*)\s*}}/g;
+
+const SAMPLE_CONTEXT: TemplateContext = {
+  storeName: '阿来小馆',
+  tableLabel: '5号桌',
+  orderNumber: 'A20260601001',
+  totalAmount: '128.00',
+  createdAt: '2026-06-01 18:30',
+  itemsSummary: '宫保鸡丁 x1\n米饭 x2\n鲜榨橙汁 x1',
+  detailUrl: 'https://www.ali88.online/admin/orders/A20260601001',
+  eventLabel: '新订单',
+  recipientName: '店长',
+};
 
 @Injectable()
 export class NotifTemplateCore {
@@ -41,26 +56,59 @@ export class NotifTemplateCore {
   }
 
   async render(event: TemplateEvent, channel: TemplateChannel, ctx: TemplateContext): Promise<TemplateRenderResult> {
-    const dbTemplate = await this.repo.findByEventAndChannel(event, channel);
-    const defaults = dbTemplate
-      ? { title_template: dbTemplate.title_template, body_template: dbTemplate.body_template, html_template: dbTemplate.html_template }
-      : DEFAULT_TEMPLATES[event][channel];
+    const resolved = await this.resolveTemplate(event, channel);
 
     return {
-      title: this.interpolate(defaults.title_template, ctx),
-      body: this.interpolate(defaults.body_template, ctx),
-      html: defaults.html_template ? this.interpolate(defaults.html_template, ctx) : null,
+      title: this.interpolate(resolved.template.title_template, ctx),
+      body: this.interpolate(resolved.template.body_template, ctx),
+      html: resolved.template.html_template ? this.interpolate(resolved.template.html_template, ctx) : null,
     };
   }
 
-  interpolate(template: string, ctx: Record<string, string | undefined>): string {
-    let result = template;
-    for (const [key, value] of Object.entries(ctx)) {
-      if (value !== undefined) {
-        result = result.split(`{{${key}}}`).join(value);
+  async preview(
+    event: TemplateEvent,
+    channel: TemplateChannel,
+    draft?: Partial<NotifTemplateDto>,
+    allowedVariables?: string[],
+  ): Promise<TemplatePreviewResult> {
+    const resolved = await this.resolveTemplate(event, channel);
+    const template: NotifTemplateDto = {
+      event_type: event,
+      channel,
+      title_template: draft?.title_template ?? resolved.template.title_template,
+      body_template: draft?.body_template ?? resolved.template.body_template,
+      html_template: draft?.html_template === undefined ? resolved.template.html_template : draft.html_template,
+    };
+    const allowed = new Set(allowedVariables?.length ? allowedVariables : TEMPLATE_VARIABLES.map((v) => v.name));
+
+    return {
+      source: draft ? 'custom' : resolved.source,
+      template,
+      rendered: {
+        title: this.interpolate(template.title_template, SAMPLE_CONTEXT),
+        body: this.interpolate(template.body_template, SAMPLE_CONTEXT),
+        html: template.html_template ? this.interpolate(template.html_template, SAMPLE_CONTEXT) : null,
+      },
+      unknownVariables: this.collectUnknownVariables(template, allowed),
+    };
+  }
+
+  async getDefaults(): Promise<Record<TemplateEvent, Record<TemplateChannel, NotifTemplateDto>>> {
+    const out = {} as Record<TemplateEvent, Record<TemplateChannel, NotifTemplateDto>>;
+    for (const event of Object.keys(DEFAULT_TEMPLATES) as TemplateEvent[]) {
+      out[event] = {} as Record<TemplateChannel, NotifTemplateDto>;
+      for (const channel of Object.keys(DEFAULT_TEMPLATES[event]) as TemplateChannel[]) {
+        out[event][channel] = { event_type: event, channel, ...DEFAULT_TEMPLATES[event][channel] };
       }
     }
-    return result;
+    return out;
+  }
+
+  interpolate(template: string, ctx: Record<string, string | undefined>): string {
+    return template.replace(TEMPLATE_VAR_RE, (full, key: string) => {
+      const value = ctx[key];
+      return value === undefined ? full : value;
+    });
   }
 
   async upsert(dto: NotifTemplateDto, updatedBy: number): Promise<NotifTemplateRow> {
@@ -73,5 +121,31 @@ export class NotifTemplateCore {
 
   async listAll(): Promise<NotifTemplateRow[]> {
     return this.repo.listAll();
+  }
+
+  private async resolveTemplate(event: TemplateEvent, channel: TemplateChannel): Promise<{ source: 'custom' | 'default'; template: NotifTemplateDto }> {
+    const dbTemplate = await this.repo.findByEventAndChannel(event, channel);
+    if (dbTemplate) {
+      return { source: 'custom', template: dbTemplate };
+    }
+    return {
+      source: 'default',
+      template: { event_type: event, channel, ...DEFAULT_TEMPLATES[event][channel] },
+    };
+  }
+
+  private collectUnknownVariables(template: NotifTemplateDto, allowed: Set<string>): string[] {
+    const found = new Set<string>();
+    const scan = (value?: string | null) => {
+      if (!value) return;
+      for (const match of value.matchAll(TEMPLATE_VAR_RE)) {
+        const name = match[1];
+        if (!allowed.has(name)) found.add(name);
+      }
+    };
+    scan(template.title_template);
+    scan(template.body_template);
+    scan(template.html_template);
+    return Array.from(found).sort();
   }
 }

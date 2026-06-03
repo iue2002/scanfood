@@ -46,3 +46,10 @@ export interface TemplateRenderResult {
   body: string;
   html: string | null;
 }
+
+export interface TemplatePreviewResult {
+  source: 'custom' | 'default';
+  template: NotifTemplateDto;
+  rendered: TemplateRenderResult;
+  unknownVariables: string[];
+}

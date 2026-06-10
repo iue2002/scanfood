@@ -159,7 +159,7 @@ Page({
         const parallel = await Promise.all([
           dishesCache.getDishes(),
           request({
-            url: `/orders?page=${page}&page_size=${pageSize}&exclude_draft=true`,
+            url: `/orders/my-orders?page=${page}&page_size=${pageSize}`,
             noLoading: true
           })
         ]);

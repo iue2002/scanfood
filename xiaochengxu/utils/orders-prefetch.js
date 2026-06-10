@@ -12,7 +12,7 @@ function prefetchFirstPage(pageSize = 20) {
   pending = {
     startedAt: Date.now(),
     ordersPromise: request({
-      url: `/orders?page=1&page_size=${pageSize}&exclude_draft=true`,
+      url: `/orders/my-orders?page=1&page_size=${pageSize}`,
       noLoading: true
     }).catch(() => null),
     dishesPromise: dishesCache.getDishes().catch(() => null)

@@ -384,6 +384,43 @@ export class OrdersService {
     return { data, total, page, pageSize };
   }
 
+  /**
+   * 顾客端：获取当前用户的历史订单列表（排除草稿）。
+   */
+  async getMyOrders(userId: number, page: number = 1, pageSize: number = 20) {
+    const offset = (page - 1) * pageSize;
+    const whereClause = and(
+      eq(orders.user_id, userId),
+      sql`${orders.status} != 'draft'`,
+    );
+
+    const [orderList, totalRows] = await Promise.all([
+      db.select().from(orders).where(whereClause).orderBy(desc(orders.created_at)).offset(offset).limit(pageSize),
+      db.select({ count: sql<number>`count(*)` }).from(orders).where(whereClause),
+    ]);
+    const total = Number(totalRows[0]?.count ?? 0);
+
+    const tableIds = [...new Set(orderList.map(o => o.table_id).filter(Boolean))] as number[];
+    const orderIds = orderList.map(o => o.id);
+
+    let tableList: any[] = [];
+    let itemsList: any[] = [];
+    if (tableIds.length > 0) {
+      tableList = await db.select().from(tables).where(inArray(tables.id, tableIds as any));
+    }
+    if (orderIds.length > 0) {
+      itemsList = await db.select().from(order_items).where(inArray(order_items.order_id, orderIds as any));
+    }
+
+    const data = orderList.map(o => ({
+      ...o,
+      tables: tableList.find(t => t.id === o.table_id) || null,
+      order_items: itemsList.filter(item => item.order_id === o.id),
+    }));
+
+    return { data, total, page, pageSize };
+  }
+
   async getOrderById(id: number) {
     const result = await db.select().from(orders).where(eq(orders.id, id));
     const order = result[0];

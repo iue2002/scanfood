@@ -19,7 +19,7 @@ export default function Forbidden() {
         </p>
       </div>
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/admin')}
         className="px-5 py-2.5 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors"
       >
         返回首页

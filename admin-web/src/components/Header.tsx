@@ -28,22 +28,22 @@ interface MoreItem {
  */
 const moreItems: MoreItem[] = [
   // 业务管理
-  { path: '/tables', label: '桌台管理', icon: Armchair, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
-  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
-  { path: '/refunds', label: '退款售后', icon: RotateCcw, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
-  { path: '/store-settings', label: '店铺设置', icon: Settings, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
+  { path: '/admin/tables', label: '桌台管理', icon: Armchair, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
+  { path: '/admin/dishes', label: '菜品管理', icon: UtensilsCrossed, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
+  { path: '/admin/refunds', label: '退款售后', icon: RotateCcw, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
+  { path: '/admin/store-settings', label: '店铺设置', icon: Settings, visibleFor: ['owner', 'manager', 'admin'], group: '业务管理' },
   // 数据中心
-  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, visibleFor: ['owner', 'admin'], group: '数据中心' },
-  { path: '/statistics', label: '数据统计', icon: BarChart3, visibleFor: ['owner', 'admin'], group: '数据中心' },
-  { path: '/data-export', label: '数据导出', icon: Download, visibleFor: ['owner', 'admin'], group: '数据中心' },
+  { path: '/admin/dashboard', label: '数据总览', icon: LayoutDashboard, visibleFor: ['owner', 'admin'], group: '数据中心' },
+  { path: '/admin/statistics', label: '数据统计', icon: BarChart3, visibleFor: ['owner', 'admin'], group: '数据中心' },
+  { path: '/admin/data-export', label: '数据导出', icon: Download, visibleFor: ['owner', 'admin'], group: '数据中心' },
   // 运营中心
-  { path: '/employees', label: '员工管理', icon: Users, visibleFor: ['owner', 'admin'], group: '运营中心' },
-  { path: '/printers', label: '打印设置', icon: Printer, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
-  { path: '/print-plans', label: '打印方案', icon: Layers, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
-  { path: '/audit-logs', label: '审计日志', icon: ScrollText, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
+  { path: '/admin/employees', label: '员工管理', icon: Users, visibleFor: ['owner', 'admin'], group: '运营中心' },
+  { path: '/admin/printers', label: '打印设置', icon: Printer, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
+  { path: '/admin/print-plans', label: '打印方案', icon: Layers, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
+  { path: '/admin/audit-logs', label: '审计日志', icon: ScrollText, visibleFor: ['owner', 'manager', 'admin'], group: '运营中心' },
   // 个人偏好
-  { path: '/notif-settings', label: '通知偏好', icon: Bell, visibleFor: null, group: '个人偏好' },
-  { path: '/account-settings', label: '账户设置', icon: UserCog, visibleFor: null, group: '个人偏好' },
+  { path: '/admin/notif-settings', label: '通知偏好', icon: Bell, visibleFor: null, group: '个人偏好' },
+  { path: '/admin/account-settings', label: '账户设置', icon: UserCog, visibleFor: null, group: '个人偏好' },
 ]
 
 const groupOrder: MoreItem['group'][] = ['业务管理', '数据中心', '运营中心', '个人偏好']
@@ -149,7 +149,7 @@ export default function Header(_: HeaderProps) {
                     type="button"
                     onClick={() => {
                       closeUserMenu()
-                      navigate('/account-settings')
+                      navigate('/admin/account-settings')
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#334155] hover:bg-[#F1F5F9] cursor-pointer"
                   >

@@ -6,8 +6,8 @@ import Badge from './Badge'
 // 移动端 / 平板的底部 TabBar：仅保留两个最高频入口（桌台看板、订单）
 // "更多"按钮已上移到 Header 右上角，避免误触
 const primaryTabs = [
-  { path: '/', label: '桌台看板', icon: LayoutGrid, badgeKey: null as null | 'orders' },
-  { path: '/orders', label: '订单', icon: ClipboardList, badgeKey: 'orders' as const },
+  { path: '/admin', label: '桌台看板', icon: LayoutGrid, badgeKey: null as null | 'orders' },
+  { path: '/admin/orders', label: '订单', icon: ClipboardList, badgeKey: 'orders' as const },
 ]
 
 export default function BottomNav() {

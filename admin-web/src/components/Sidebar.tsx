@@ -34,24 +34,24 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   // 主工作区（全员可见）
-  { path: '/', label: '桌台看板', icon: LayoutGrid, badgeKey: null, visibleFor: null, group: 'main' },
-  { path: '/orders', label: '订单管理', icon: ClipboardList, badgeKey: 'orders', visibleFor: null, group: 'main' },
+  { path: '/admin', label: '桌台看板', icon: LayoutGrid, badgeKey: null, visibleFor: null, group: 'main' },
+  { path: '/admin/orders', label: '订单管理', icon: ClipboardList, badgeKey: 'orders', visibleFor: null, group: 'main' },
   // 业务管理（经理及以上）
-  { path: '/tables', label: '桌台管理', icon: Armchair, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
-  { path: '/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
-  { path: '/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds', visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
-  { path: '/store-settings', label: '店铺设置', icon: Settings, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
+  { path: '/admin/tables', label: '桌台管理', icon: Armchair, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
+  { path: '/admin/dishes', label: '菜品管理', icon: UtensilsCrossed, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
+  { path: '/admin/refunds', label: '退款售后', icon: RotateCcw, badgeKey: 'refunds', visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
+  { path: '/admin/store-settings', label: '店铺设置', icon: Settings, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'business' },
   // 数据中心（仅店主）
-  { path: '/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'data' },
-  { path: '/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'data' },
-  { path: '/data-export', label: '数据导出', icon: Download, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'data' },
+  { path: '/admin/dashboard', label: '数据总览', icon: LayoutDashboard, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'data' },
+  { path: '/admin/statistics', label: '数据统计', icon: BarChart3, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'data' },
+  { path: '/admin/data-export', label: '数据导出', icon: Download, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'data' },
   // 运营中心（mop）
-  { path: '/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'mop' },
-  { path: '/printers', label: '打印设置', icon: Printer, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
-  { path: '/print-plans', label: '打印方案', icon: Layers, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
-  { path: '/audit-logs', label: '审计日志', icon: ScrollText, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
+  { path: '/admin/employees', label: '员工管理', icon: Users, badgeKey: null, visibleFor: ['owner', 'admin'], group: 'mop' },
+  { path: '/admin/printers', label: '打印设置', icon: Printer, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
+  { path: '/admin/print-plans', label: '打印方案', icon: Layers, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
+  { path: '/admin/audit-logs', label: '审计日志', icon: ScrollText, badgeKey: null, visibleFor: ['owner', 'manager', 'admin'], group: 'mop' },
   // 个人偏好（全员）
-  { path: '/notif-settings', label: '通知管理', icon: Bell, badgeKey: null, visibleFor: null, group: 'personal' },
+  { path: '/admin/notif-settings', label: '通知管理', icon: Bell, badgeKey: null, visibleFor: null, group: 'personal' },
 ]
 
 const GROUP_LABEL: Record<MenuGroup, string | null> = {

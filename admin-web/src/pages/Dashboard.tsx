@@ -156,7 +156,7 @@ export default function Dashboard() {
         <h2 className="text-xl sm:text-2xl font-semibold text-[#0F172A]">数据总览</h2>
         {overview && overview.pending_refund > 0 && (
           <button
-            onClick={() => navigate('/refunds')}
+            onClick={() => navigate('/admin/refunds')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FEF3C7] text-[#92400E] rounded-lg text-xs sm:text-sm font-medium hover:bg-[#FDE68A] transition-colors cursor-pointer"
           >
             <AlertTriangle size={14} />
@@ -296,7 +296,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <h3 className="text-sm sm:text-base font-semibold text-[#0F172A]">今日热销 TOP 5</h3>
             <button
-              onClick={() => navigate('/statistics')}
+              onClick={() => navigate('/admin/statistics')}
               className="text-xs text-[#2563EB] hover:underline cursor-pointer"
             >
               查看完整 →
@@ -342,9 +342,9 @@ export default function Dashboard() {
         <h3 className="text-sm sm:text-base font-semibold text-[#0F172A] mb-3 sm:mb-4">快捷操作</h3>
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
-            { label: '桌台看板', icon: LayoutGrid, to: '/' },
-            { label: '订单管理', icon: ClipboardList, to: '/orders' },
-            { label: '退款售后', icon: RotateCcw, to: '/refunds' },
+            { label: '桌台看板', icon: LayoutGrid, to: '/admin' },
+            { label: '订单管理', icon: ClipboardList, to: '/admin/orders' },
+            { label: '退款售后', icon: RotateCcw, to: '/admin/refunds' },
           ].map((item) => {
             const Icon = item.icon
             return (

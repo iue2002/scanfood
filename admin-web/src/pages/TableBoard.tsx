@@ -389,7 +389,7 @@ export default function TableBoard() {
             <p className="text-sm text-[#64748B]">请先新增桌台，再进行点餐</p>
           </div>
           <button
-            onClick={() => navigate('/tables')}
+            onClick={() => navigate('/admin/tables')}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-lg text-sm font-medium hover:bg-[#1D4ED8] transition-colors"
           >
             <PlusCircle size={16} />

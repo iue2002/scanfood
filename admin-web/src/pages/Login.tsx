@@ -117,9 +117,9 @@ export default function Login() {
           navigate('/force-password-change', { replace: true })
         } else if (loginInfo) {
           setLastLoginInfo(loginInfo)
-          setTimeout(() => navigate('/'), 2500)
+          setTimeout(() => navigate('/admin'), 2500)
         } else {
-          navigate('/')
+          navigate('/admin')
         }
       } else {
         // 服务端返回 200 但没 token：异常情况

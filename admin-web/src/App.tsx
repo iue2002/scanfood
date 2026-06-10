@@ -4,6 +4,7 @@ import { WifiOff, Loader2 } from 'lucide-react'
 import request from './api/request'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import LandingPage from './pages/LandingPage'
 import TableBoard from './pages/TableBoard'
 import Dashboard from './pages/Dashboard'
 import TableManage from './pages/TableManage'
@@ -38,6 +39,11 @@ const PageLoader = () => (
 )
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const token = useAuthStore(state => state.token)
+  return token ? <>{children}</> : <Navigate to="/login" replace />
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore(state => state.token)
   return token ? <>{children}</> : <Navigate to="/login" replace />
 }
@@ -121,16 +127,17 @@ export default function App() {
           <NotificationCenter />
           <NotificationClickHandler />
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/force-password-change" element={
               <PrivateRoute><ForcePasswordChange /></PrivateRoute>
             } />
             <Route
-              path="/"
+              path="/admin"
               element={
-                <PrivateRoute>
+                <AdminRoute>
                   <Layout />
-                </PrivateRoute>
+                </AdminRoute>
               }
             >
               <Route index element={<TableBoard />} />

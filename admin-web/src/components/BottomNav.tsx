@@ -24,7 +24,7 @@ export default function BottomNav() {
             <NavLink
               key={tab.path}
               to={tab.path}
-              end={tab.path === '/'}
+              end={tab.path === '/admin'}
               className={({ isActive }) =>
                 `relative flex flex-col items-center gap-0.5 text-xs font-medium px-6 py-2 rounded-lg transition-colors ${
                   isActive

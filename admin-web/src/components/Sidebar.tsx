@@ -130,6 +130,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   <NavLink
                     key={item.path}
                     to={item.path}
+                    end={item.path === '/admin'}
                     onClick={onClose}
                     className={({ isActive }) =>
                       `flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg text-sm font-medium transition-colors ${

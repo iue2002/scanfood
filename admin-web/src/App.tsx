@@ -43,6 +43,12 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return token ? <>{children}</> : <Navigate to="/login" replace />
 }
 
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  // 已登录用户访问首页直接进后台，未登录才显示（ICP 备案要求，不影响已登录用户体验）
+  const token = useAuthStore(state => state.token)
+  return token ? <Navigate to="/admin" replace /> : <>{children}</>
+}
+
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore(state => state.token)
   return token ? <>{children}</> : <Navigate to="/login" replace />
@@ -127,7 +133,7 @@ export default function App() {
           <NotificationCenter />
           <NotificationClickHandler />
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/force-password-change" element={
               <PrivateRoute><ForcePasswordChange /></PrivateRoute>

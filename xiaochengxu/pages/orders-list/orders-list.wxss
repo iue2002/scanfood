@@ -103,8 +103,8 @@
 .om-card {
   background: #FFFFFF;
   border-radius: 20rpx;
-  border: 2rpx solid #F1F5F9;
-  box-shadow: 0 2rpx 4rpx 0 rgba(0, 0, 0, 0.04);
+  border: 2rpx solid #E2E8F0;
+  box-shadow: 0 4rpx 12rpx 0 rgba(0, 0, 0, 0.06);
   overflow: hidden;
   margin-top: 16rpx;
 }

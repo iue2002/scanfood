@@ -1426,9 +1426,36 @@ Page({
   // 进入外带模式：清掉当前桌台 cart 数据（避免堂食 cart 残留），切换到本地独立 cart
   goTakeaway() {
     if (this.data.isTakeaway) {
-      // 已在外带模式：直接走提交
-      this.submitTakeawayOrder();
-      return;
+      // 已在外带模式：弹窗让用户选择退出或提交
+      const exit = () => this.exitTakeaway()
+      const submit = () => this.submitTakeawayOrder()
+      const hasItems = this.data.totalCount > 0
+      if (this.modal) {
+        this.modal.show({
+          title: '外带模式',
+          content: hasItems ? '购物车中有菜品，请选择退出外带或提交订单' : '确定要退出外带模式吗？',
+          confirmText: hasItems ? '提交订单' : '退出',
+          cancelText: hasItems ? '退出外带' : '取消',
+        }).then(confirmed => {
+          if (confirmed) {
+            if (hasItems) submit(); else exit()
+          } else {
+            if (hasItems) exit()
+          }
+        })
+      } else {
+        wx.showActionSheet({
+          itemList: hasItems ? ['提交订单', '退出外带'] : ['退出外带'],
+          success: (res) => {
+            if (res.tapIndex === 0) {
+              if (hasItems) submit(); else exit()
+            } else {
+              exit()
+            }
+          }
+        })
+      }
+      return
     }
 
     const enterTakeaway = () => {

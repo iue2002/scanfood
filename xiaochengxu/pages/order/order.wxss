@@ -108,29 +108,36 @@
 .om-scan-icon {
   width: 28rpx;
   height: 28rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
+  position: relative;
   flex-shrink: 0;
 }
-.om-scan-icon-line {
-  width: 22rpx;
-  height: 2rpx;
+.om-scan-corner {
+  position: absolute;
+  width: 10rpx;
+  height: 10rpx;
+  border-color: #2563EB;
+  border-style: solid;
+  border-width: 0;
+}
+.om-scan-corner-tl { top: 0; left: 0;   border-top-width: 3rpx; border-left-width: 3rpx; border-radius: 2rpx 0 0 0; }
+.om-scan-corner-tr { top: 0; right: 0;  border-top-width: 3rpx; border-right-width: 3rpx; border-radius: 0 2rpx 0 0; }
+.om-scan-corner-bl { bottom: 0; left: 0; border-bottom-width: 3rpx; border-left-width: 3rpx; border-radius: 0 0 0 2rpx; }
+.om-scan-corner-br { bottom: 0; right: 0;border-bottom-width: 3rpx; border-right-width: 3rpx; border-radius: 0 0 2rpx 0; }
+.om-scan-line {
+  position: absolute;
+  top: 50%;
+  left: 4rpx;
+  right: 4rpx;
+  height: 3rpx;
+  margin-top: -1.5rpx;
   background: #2563EB;
   border-radius: 2rpx;
 }
-.om-scan-icon-line-mid { width: 14rpx; }
 .om-scan-hint-text {
   font-size: 26rpx;
   color: #2563EB;
   font-weight: 500;
   white-space: nowrap;
-}
-.om-scan-hint-arrow {
-  font-size: 30rpx;
-  color: #2563EB;
-  line-height: 1;
   flex-shrink: 0;
 }
 
@@ -168,31 +175,59 @@
 .om-takeaway-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6rpx;
+  gap: 8rpx;
   height: 56rpx;
   padding: 0 22rpx;
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-  color: #FFFFFF;
+  background: #EFF6FF;
+  color: #2563EB;
   border-radius: 14rpx;
   font-size: 24rpx;
-  font-weight: 600;
+  font-weight: 500;
   flex-shrink: 0;
-  box-shadow: 0 2rpx 8rpx rgba(16, 185, 129, 0.25);
 }
 .om-takeaway-btn-hover {
-  opacity: 0.85;
+  background: #DBEAFE;
 }
 .om-takeaway-btn-active {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  box-shadow: 0 4rpx 16rpx rgba(5, 150, 105, 0.4);
+  background: #2563EB;
+  color: #FFFFFF;
 }
 .om-takeaway-icon {
-  font-size: 28rpx;
-  line-height: 1;
+  width: 28rpx;
+  height: 28rpx;
+  position: relative;
   flex-shrink: 0;
 }
+.om-takeaway-icon-bag {
+  position: absolute;
+  bottom: 2rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20rpx;
+  height: 15rpx;
+  border: 3rpx solid #2563EB;
+  border-radius: 3rpx;
+  box-sizing: border-box;
+}
+.om-takeaway-btn-active .om-takeaway-icon-bag {
+  border-color: #FFFFFF;
+}
+.om-takeaway-icon-handle {
+  position: absolute;
+  top: 2rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10rpx;
+  height: 8rpx;
+  border: 3rpx solid #2563EB;
+  border-bottom: 0;
+  border-radius: 4rpx 4rpx 0 0;
+  box-sizing: border-box;
+}
+.om-takeaway-btn-active .om-takeaway-icon-handle {
+  border-color: #FFFFFF;
+}
 .om-takeaway-text {
-  letter-spacing: 0.5rpx;
   white-space: nowrap;
 }
 
@@ -252,13 +287,7 @@
   padding: 20rpx 24rpx 0;
   box-sizing: border-box;
 }
-.om-dish-cat-title {
-  font-size: 22rpx;
-  color: #94A3B8;
-  font-weight: 500;
-  padding: 0 4rpx 12rpx;
-  letter-spacing: 0.5rpx;
-}
+
 
 /* 菜品卡 */
 .om-dish-card {

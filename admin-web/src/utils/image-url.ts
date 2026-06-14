@@ -15,6 +15,11 @@
  */
 export function resolveImageUrl(raw: string | null | undefined): string {
   if (!raw) return ''
+  // 纵深防御：拒绝危险协议（即便现代浏览器在 <img> 中已阻止，仍做显式过滤）
+  const lower = raw.trim().toLowerCase()
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('file:')) {
+    return ''
+  }
   // 已是完整 URL（http / https）
   if (/^https?:\/\//i.test(raw)) {
     // dev 环境如果是 http://localhost:3000/uploads/... 这种和当前 https 冲突

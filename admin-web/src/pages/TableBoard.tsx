@@ -104,6 +104,10 @@ export default function TableBoard() {
   const [dishes, setDishes] = useState<Dish[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [addDishCart, setAddDishCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
+  // 手动下单：在空闲桌台上商家主动创建订单
+  const [manualOrderTable, setManualOrderTable] = useState<Table | null>(null)
+  const [manualOrderCart, setManualOrderCart] = useState<Record<number, { dish: Dish; quantity: number }>>({})
+  const [manualOrderSearch, setManualOrderSearch] = useState('')
   const { showToast, showConfirm, markLocalAction } = useModal()
 
   const fetchBoard = useCallback(async () => {
@@ -198,6 +202,12 @@ export default function TableBoard() {
     }
   }, [addDishTable, loadDishes])
 
+  useEffect(() => {
+    if (manualOrderTable) {
+      loadDishes()
+    }
+  }, [manualOrderTable, loadDishes])
+
   const updateCartItem = (dish: Dish, delta: number) => {
     setAddDishCart((prev) => {
       const current = prev[dish.id]
@@ -235,6 +245,87 @@ export default function TableBoard() {
 
   const getCartCount = () => {
     return Object.values(addDishCart).reduce((sum, item) => sum + item.quantity, 0)
+  }
+
+  // ---- 手动下单：购物车操作 ----
+  const updateManualCartItem = (dish: Dish, delta: number) => {
+    setManualOrderCart((prev) => {
+      const current = prev[dish.id]
+      if (current) {
+        const nextQty = current.quantity + delta
+        if (nextQty <= 0) {
+          const next = { ...prev }
+          delete next[dish.id]
+          return next
+        }
+        return { ...prev, [dish.id]: { ...current, quantity: nextQty } }
+      }
+      if (delta > 0) {
+        return { ...prev, [dish.id]: { dish, quantity: 1 } }
+      }
+      return prev
+    })
+  }
+
+  const setManualCartItemQty = (dish: Dish, quantity: number) => {
+    const safeQty = Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 0
+    setManualOrderCart((prev) => {
+      if (safeQty <= 0) {
+        const next = { ...prev }
+        delete next[dish.id]
+        return next
+      }
+      return { ...prev, [dish.id]: { dish, quantity: safeQty } }
+    })
+  }
+
+  const getManualCartTotal = () => {
+    return Object.values(manualOrderCart).reduce((sum, item) => sum + parseFloat(item.dish.price) * item.quantity, 0)
+  }
+
+  const getManualCartCount = () => {
+    return Object.values(manualOrderCart).reduce((sum, item) => sum + item.quantity, 0)
+  }
+
+  const closeManualOrderModal = () => {
+    setManualOrderTable(null)
+    setManualOrderCart({})
+    setManualOrderSearch('')
+  }
+
+  const handleManualOrder = async () => {
+    if (!manualOrderTable) return
+    setLoading(true)
+    try {
+      const cartItems = Object.values(manualOrderCart)
+      const items = cartItems.map((item) => ({
+        dish_id: item.dish.id,
+        dish_name: item.dish.name,
+        quantity: item.quantity,
+        price: item.dish.price,
+        added_by_nickname: '商家',
+      }))
+
+      const payload: any = {
+        table_id: manualOrderTable.id,
+        items,
+        order_type: 'dine_in',
+        idempotency_key: generateIdempotencyKey(),
+      }
+
+      await request.post('/orders', payload)
+
+      // 乐观更新：立即刷新看板 + 关闭弹窗
+      fetchBoard()
+      setSelectedTable(null)
+      closeManualOrderModal()
+      showToast(`${manualOrderTable.table_number}号桌手动下单成功`, 'success')
+    } catch (err: any) {
+      const msg = err?.message || err?.data?.msg || '手动下单失败'
+      showToast(msg, 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAddDish = async () => {
@@ -312,6 +403,7 @@ export default function TableBoard() {
   }
 
   const filteredDishes = dishes.filter((dish) => dish.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredManualDishes = dishes.filter((dish) => dish.name.toLowerCase().includes(manualOrderSearch.toLowerCase()))
   const totalIdle = tables.filter((table) => table.status === 'idle').length
   const totalOccupied = tables.filter((table) => {
     const order = table.current_order
@@ -766,12 +858,134 @@ export default function TableBoard() {
                 </div>
                 <p className="text-[#64748B] text-sm">该桌台当前空闲，可容纳 {selectedTable.capacity} 人</p>
               </div>
-              <button
-                onClick={() => setSelectedTable(null)}
-                className="w-full py-3 bg-gray-100 text-[#334155] rounded-2xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
-              >
-                返回
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => { setManualOrderTable(selectedTable); setSelectedTable(null) }}
+                  className="w-full py-3 bg-[#2563EB] text-white rounded-2xl text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <PlusCircle size={18} /> 手动下单
+                </button>
+                <button
+                  onClick={() => setSelectedTable(null)}
+                  className="w-full py-3 bg-gray-100 text-[#334155] rounded-2xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
+                >
+                  返回
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {manualOrderTable && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={closeManualOrderModal}>
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-lg max-h-[78vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-[#0F172A]">手动下单</h3>
+                <p className="text-xs text-[#94A3B8] mt-1">{manualOrderTable.table_number}号桌 · 可容纳 {manualOrderTable.capacity} 人</p>
+              </div>
+              <button onClick={closeManualOrderModal} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
+                <X size={20} />
               </button>
+            </div>
+
+            <div className="px-5 py-3 border-b border-gray-100 shrink-0">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+                <input
+                  type="text"
+                  placeholder="搜索菜品..."
+                  value={manualOrderSearch}
+                  onChange={(e) => setManualOrderSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-[#F8FAFC] border-0 rounded-lg text-sm placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3 bg-[#F8FAFC]">
+              {filteredManualDishes.length === 0 ? (
+                <div className="text-center text-sm text-[#94A3B8] py-8">
+                  {manualOrderSearch ? '未找到匹配的菜品' : '暂无菜品'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredManualDishes.map((dish) => {
+                    const cartItem = manualOrderCart[dish.id]
+                    const qty = cartItem?.quantity || 0
+                    return (
+                      <div key={dish.id} className="flex items-center justify-between p-3 bg-white border border-[#E2E8F0] rounded-2xl">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <div className="font-medium text-sm text-[#0F172A] truncate">{dish.name}</div>
+                          <div className="text-xs text-[#94A3B8] mt-1">¥{dish.price}</div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            value={qty === 0 ? '' : qty}
+                            placeholder="0"
+                            onChange={(e) => setManualCartItemQty(dish, Number(e.target.value))}
+                            onBlur={(e) => {
+                              if (e.target.value === '') {
+                                setManualCartItemQty(dish, 0)
+                              }
+                            }}
+                            className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-lg text-center bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                          />
+                          <button
+                            onClick={() => updateManualCartItem(dish, -1)}
+                            className="w-8 h-8 flex items-center justify-center bg-gray-200 text-[#334155] rounded-lg hover:bg-gray-300 cursor-pointer"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
+                            onClick={() => updateManualCartItem(dish, 1)}
+                            className="w-8 h-8 flex items-center justify-center bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8] cursor-pointer"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 shrink-0 bg-white">
+              {Object.keys(manualOrderCart).length > 0 && (
+                <div className="mb-3 p-3 bg-[#EFF6FF] rounded-2xl">
+                  <div className="flex items-center justify-between text-xs text-[#1E40AF] mb-2">
+                    <span>已选菜品</span>
+                    <span>合计 ¥{getManualCartTotal().toFixed(2)}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {Object.values(manualOrderCart).map((item) => (
+                      <div key={item.dish.id} className="flex justify-between text-xs text-[#1E40AF]">
+                        <span>{item.dish.name} x{item.quantity}</span>
+                        <span>¥{(parseFloat(item.dish.price) * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <button
+                  onClick={closeManualOrderModal}
+                  className="flex-1 py-3 bg-gray-100 text-[#334155] rounded-2xl text-sm font-medium hover:bg-gray-200 cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleManualOrder}
+                  disabled={loading || Object.keys(manualOrderCart).length === 0}
+                  className="flex-1 py-3 bg-[#2563EB] text-white rounded-2xl text-sm font-medium hover:bg-[#1D4ED8] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <ShoppingCart size={16} />
+                  {loading ? '提交中...' : `确认下单（${getManualCartCount()}件）`}
+                </button>
+              </div>
             </div>
           </div>
         </div>

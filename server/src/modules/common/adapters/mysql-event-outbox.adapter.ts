@@ -5,7 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { EventOutboxPort, OutboxEvent } from '../ports/event-outbox.port';
 import { db } from '@/storage/database/mysql-client';
 import { eventOutbox } from '@/storage/database/shared/schema';
-import { eq, and, lte, sql } from 'drizzle-orm';
+import { eq, and, lte, inArray } from 'drizzle-orm';
 
 export const EVENT_OUTBOX_TOKEN = 'EventOutboxPort';
 
@@ -44,7 +44,7 @@ export class MysqlEventOutbox implements EventOutboxPort {
     if (rows.length > 0) {
       const ids = rows.map((r) => r.id);
       await db.update(eventOutbox).set({ status: 'processing' })
-        .where(sql`${eventOutbox.id} IN (${ids.join(',')})` as any);
+        .where(inArray(eventOutbox.id, ids) as any);
     }
 
     return rows.map((r) => ({

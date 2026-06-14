@@ -29,7 +29,9 @@ export class AuthService {
   private static readonly FAIL_RESET_MS = 10 * 60 * 1000;
 
   private lockKey(username: string): string {
-    return `login:lock:${username}`;
+    // DB 列 collation 为 utf8mb4_unicode_ci（大小写不敏感），登录查询能匹配同一行；
+    // 锁定 key 必须同步归一化，否则攻击者用 admin/Admin/ADMIN 各得 5 次尝试机会
+    return `login:lock:${(username ?? '').toLowerCase()}`;
   }
 
   private async isAccountLocked(username: string): Promise<{ locked: boolean; remainingMinutes?: number }> {
@@ -193,6 +195,8 @@ export class AuthService {
     if (failed >= 1) {
       const passed = await this.captchaService.verify(dto.captchaToken || '', dto.captchaInput || '');
       if (!passed) {
+        // 验证码错误必须计入失败次数，否则攻击者可绕开账户锁定无限试错
+        await this.recordFailedAttempt(username);
         await this.recordLoginLog(null, username, ipAddress || '', userAgent || '', false, '验证码错误');
         // 用对象作为 UnauthorizedException 的 response，NestJS 会原样序列化输出 captchaRequired 字段
         throw new UnauthorizedException({

@@ -426,9 +426,11 @@ export class OrdersService {
     const order = result[0];
     if (!order) throw new NotFoundException('订单不存在');
 
-    const items = await db.select().from(order_items).where(eq(order_items.order_id, id));
-    const tableResult = await db.select().from(tables).where(eq(tables.id, order.table_id));
-    const userResult = order.user_id ? await db.select().from(users).where(eq(users.id, order.user_id)) : [];
+    const [items, tableResult, userResult] = await Promise.all([
+      db.select().from(order_items).where(eq(order_items.order_id, id)),
+      db.select().from(tables).where(eq(tables.id, order.table_id)),
+      order.user_id ? db.select().from(users).where(eq(users.id, order.user_id)) : Promise.resolve([]),
+    ]);
 
     return {
       ...order,

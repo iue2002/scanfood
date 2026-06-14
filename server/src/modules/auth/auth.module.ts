@@ -4,7 +4,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { JwtStrategy } from './jwt.strategy';
-import { LoginRateLimitMiddleware } from './login-rate-limit.middleware';
+import { LoginRateLimitMiddleware, RegisterRateLimitMiddleware } from './login-rate-limit.middleware';
 import { getJwtSecret } from './jwt-secret';
 
 @Module({
@@ -21,5 +21,6 @@ import { getJwtSecret } from './jwt-secret';
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoginRateLimitMiddleware).forRoutes('auth/login');
+    consumer.apply(RegisterRateLimitMiddleware).forRoutes('auth/register');
   }
 }

@@ -82,6 +82,7 @@
             class="om-head-thumb"
             src="{{item.firstDishImage}}"
             mode="aspectFill"
+            lazy-load
           />
           <view wx:else class="om-head-thumb om-head-thumb-empty"></view>
           <view class="om-head-main">

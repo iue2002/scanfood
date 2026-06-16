@@ -63,7 +63,7 @@ export default function LandingPage() {
       </div>
 
       {/* 底部备案信息 */}
-      <div className="py-4 text-center">
+      <div className="py-4 text-center space-x-4">
         <a
           href="https://beian.miit.gov.cn/"
           target="_blank"
@@ -71,6 +71,15 @@ export default function LandingPage() {
           className="text-xs text-[#94A3B8] hover:text-[#2563EB] transition-colors"
         >
           新ICP备2026004458号-1
+        </a>
+        <span className="text-xs text-[#94A3B8]">|</span>
+        <a
+          href="https://www.beian.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-[#94A3B8] hover:text-[#2563EB] transition-colors"
+        >
+          新公网安备65320002653289号
         </a>
       </div>
     </div>

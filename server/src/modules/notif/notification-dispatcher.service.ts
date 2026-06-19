@@ -137,7 +137,7 @@ export class NotificationDispatcherService {
       const userIds = recipients.map((s) => s.userId);
       const title = this.buildTitle(event, ctx);
       const body = this.buildPushBody(event, ctx);
-      const url = `/orders?focus=${ctx.orderId}`;
+      const url = `/admin/orders?focus=${ctx.orderId}`;
       const tag = `${event}-${ctx.orderId}`;
 
       // sendToUsers 内部按 push_subscriptions 表查订阅；没订阅的员工自动跳过
@@ -320,7 +320,7 @@ export class NotificationDispatcherService {
     const baseUrl = process.env.ADMIN_WEB_BASE_URL;
     if (!baseUrl) return undefined;
     const trimmed = baseUrl.replace(/\/$/, '');
-    return `${trimmed}/orders?focus=${orderId}`;
+    return `${trimmed}/admin/orders?focus=${orderId}`;
   }
 
   private formatDate(d: Date | string | null | undefined): string {

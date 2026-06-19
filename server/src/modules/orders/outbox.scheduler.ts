@@ -4,6 +4,9 @@
  * P1-1：事件投递箱的消费端
  * 作为内联副作用的兜底保障（进程崩溃后 pending 事件仍会被重试）
  *
+ * 仅负责 WebSocket 重投——机器人/邮件/推送已在内联链路即时发送，
+ * 此处不再重复触发多通道通知，避免终端收到两条重复消息。
+ *
  * 重试策略：exponential backoff（5s → 2min），最多 5 次
  * 所有派发 fire-and-forget，异常被吞掉并标记 nack
  */
@@ -12,7 +15,6 @@ import { Cron } from '@nestjs/schedule';
 import { EVENT_OUTBOX_TOKEN } from '@/modules/common/adapters/mysql-event-outbox.adapter';
 import type { EventOutboxPort } from '@/modules/common/ports/event-outbox.port';
 import { OrdersGateway } from './orders.gateway';
-import { NotificationDispatcherService } from '../notif/notification-dispatcher.service';
 import { OrdersService } from './orders.service';
 
 @Injectable()
@@ -23,7 +25,6 @@ export class OutboxScheduler {
     @Inject(EVENT_OUTBOX_TOKEN)
     private readonly outbox: EventOutboxPort,
     private readonly ordersGateway: OrdersGateway,
-    private readonly notifDispatcher: NotificationDispatcherService,
     private readonly ordersService: OrdersService,
   ) {}
 
@@ -44,7 +45,6 @@ export class OutboxScheduler {
         }
       }
     } catch (err: any) {
-      // poll 本身失败（DB 异常），下次 cron 会重试
       this.logger.error(`[outbox] flush failed: ${err.message}`);
     }
   }
@@ -58,7 +58,6 @@ export class OutboxScheduler {
         const order = await this.ordersService.getOrderById(orderId);
         this.ordersGateway.notifyOrderStatusChange(order.table_id, order);
         this.ordersGateway.notifyAllAdmins('orderStatusChanged', order);
-        void this.notifDispatcher.notifyOrderEvent('NEW_ORDER', orderId);
         break;
       }
       case 'ORDER_ADD_MORE': {
@@ -66,7 +65,6 @@ export class OutboxScheduler {
         this.ordersGateway.notifyTableUpdate(order.table_id, order);
         this.ordersGateway.notifyOrderUpdate(orderId, order);
         this.ordersGateway.notifyAllAdmins('orderUpdated', order);
-        void this.notifDispatcher.notifyOrderEvent('ADD_ITEM', orderId);
         break;
       }
       case 'ORDER_SETTLED': {

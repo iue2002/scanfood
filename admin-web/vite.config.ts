@@ -69,20 +69,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
         // 注入额外 SW 代码：notificationclick 处理（点通知打开/聚焦 admin + 跳到订单）
         importScripts: ['/notification-click.js'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60,
-              },
-            },
-          },
-        ],
+        // API 请求不做 SW 缓存——与网页版行为一致，避免 token 过期后
+        // SW 持有过期 401/缓存旧响应，导致重试风暴触发 rate limit
+        runtimeCaching: [],
       },
       devOptions: {
         // 开发环境关闭 Service Worker：避免 SW 缓存 API 响应（如登录失败的 401）

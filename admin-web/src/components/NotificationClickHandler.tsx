@@ -1,28 +1,27 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 /**
  * 监听 ServiceWorker 发来的 NOTIFICATION_CLICK 消息
  *
  * 用户点击桌面/锁屏通知 → SW 的 notificationclick 事件触发 → SW 调 client.focus() +
- * postMessage({ type: 'NOTIFICATION_CLICK', url }) → 这里收到 → react-router navigate。
+ * postMessage({ type: 'NOTIFICATION_CLICK', url }) → 这里收到 → 跳转。
  *
- * 这是 YouTube/Twitter/Discord 标准方案：让通知像 native app 推送一样可点击跳转。
+ * 用 window.location.href 而非 react-router navigate，避免
+ * useNavigate 在 PWA standalone 下某些边缘情况失效导致白屏。
  */
 export default function NotificationClickHandler() {
-  const navigate = useNavigate()
-
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const tryNavigate = (url: string) => {
+    const go = (url: string) => {
       try {
         if (url.startsWith('/')) {
-          navigate(url)
+          // 绝对路径直接替换，避免累积
+          window.location.href = url
         } else {
           const u = new URL(url, window.location.origin)
           if (u.origin === window.location.origin) {
-            navigate(u.pathname + u.search + u.hash)
+            window.location.href = u.pathname + u.search + u.hash
           }
         }
       } catch {
@@ -35,14 +34,14 @@ export default function NotificationClickHandler() {
       const data = event.data
       if (!data || data.type !== 'NOTIFICATION_CLICK') return
       const url: string = data.url || '/'
-      tryNavigate(url)
+      go(url)
     }
 
     // 路径 2：legacy Notification onclick（前台 tab 场景）
     const onLegacyClick = (event: Event) => {
       const detail = (event as CustomEvent).detail
       if (!detail || !detail.url) return
-      tryNavigate(detail.url)
+      go(detail.url)
     }
 
     if ('serviceWorker' in navigator) {
@@ -56,7 +55,7 @@ export default function NotificationClickHandler() {
       }
       window.removeEventListener('app:notification-click', onLegacyClick as EventListener)
     }
-  }, [navigate])
+  }, [])
 
   return null
 }

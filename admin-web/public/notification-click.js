@@ -3,7 +3,7 @@
 //
 // 作用：
 //   1. 接收 Web Push 推送事件 → 弹通知
-//   2. 处理用户点击通知（桌面 / 锁屏） → focus 已有 admin tab 或新开
+//   2. 处理用户点击通知（桌面 / 锁屏） → focus 已有 tab 并跳转
 //
 // 数据约定：
 //   服务端发的 push payload JSON：{ title, body, url, tag, icon }
@@ -45,25 +45,24 @@ self.addEventListener('notificationclick', (event) => {
         includeUncontrolled: true,
       });
 
-      // 计算完整 target URL（基于 SW scope）
       const baseUrl = new URL(self.registration.scope);
       const fullTargetUrl = new URL(targetUrl, baseUrl).href;
 
-      // 优先复用已打开的 admin tab
+      // 优先复用已打开的 tab，用 navigate() 直接跳转（Chrome 121+）
       for (const client of allClients) {
         const clientUrl = new URL(client.url);
-        // 同源 admin tab → focus + 通过 postMessage 让前端 navigate
-        if (clientUrl.origin === baseUrl.origin) {
-          try {
-            await client.focus();
-            client.postMessage({
-              type: 'NOTIFICATION_CLICK',
-              url: targetUrl,
-            });
-            return;
-          } catch (e) {
-            // focus 失败（多窗口竞争）继续 fallback
+        if (clientUrl.origin !== baseUrl.origin) continue;
+        try {
+          await client.focus();
+          if (typeof (client as any).navigate === 'function') {
+            (client as any).navigate(fullTargetUrl);
+          } else {
+            // 旧浏览器回退：postMessage → 前端 navigate
+            client.postMessage({ type: 'NOTIFICATION_CLICK', url: targetUrl });
           }
+          return;
+        } catch (e) {
+          // focus 失败继续尝试下一个
         }
       }
 

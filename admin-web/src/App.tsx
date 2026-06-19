@@ -14,7 +14,7 @@ import StoreSettings from './pages/StoreSettings'
 import EmployeeManage from './pages/EmployeeManage'
 import AuditLogs from './pages/AuditLogs'
 import NotifSettings from './pages/NotifSettings'
-import PrintPlanManage from './pages/PrintPlanManage'
+
 import Forbidden from './pages/Forbidden'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import AccountSettings from './pages/AccountSettings'
@@ -196,11 +196,6 @@ export default function App() {
               <Route path="printers" element={
                 <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
                   <Suspense fallback={<PageLoader />}><PrinterManage /></Suspense>
-                </RoleGuard>
-              } />
-              <Route path="print-plans" element={
-                <RoleGuard requiredRoles={['owner', 'manager', 'admin']}>
-                  <PrintPlanManage />
                 </RoleGuard>
               } />
               <Route path="notif-settings" element={<NotifSettings />} />

@@ -27,7 +27,7 @@ export default function RefundManage() {
   const { markAllRead } = useUnread()
 
   const fetchRefunds = () => {
-    request.get('/refunds').then((res: any) => setRefunds(res || []))
+    request.get('/refunds').then((res: any) => setRefunds(res?.data?.data || []))
   }
 
   useEffect(() => {

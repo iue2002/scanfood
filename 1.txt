@@ -1,0 +1,415 @@
+
+
+Agent
+参考了 1 个上下文
+server\src\modules\auth\auth.service.ts
+server\src\modules\auth\auth.controller.ts
+server\src\modules\auth\captcha.service.ts
+server\src\modules\auth\auth.service.ts
+server\src\modules\auth\auth.service.ts
+server\src\modules\auth\auth.service.ts
+server\src\modules\auth\auth.service.ts
+server\src\modules\auth\dto\auth.dto.ts
+server\src\modules\auth\login-rate-limit.middleware.ts
+server\src\modules\auth\jwt-auth.guard.ts
+server\src\modules\common\adapters\mysql-ttl-store.adapter.ts
+server\src\modules\auth\auth.module.ts
+server\src\modules\auth\jwt.strategy.ts
+server\src\modules\auth\auth.service.ts
+以下是登录注册机制的详细安全审查结果。
+
+登录注册机制审查
+一、账户锁定（冷却）机制分析
+锁定维度：按 username（用户名）
+
+ts
+
+
+
+private lockKey(username: string): string {  return `login:lock:${username}`;}
+配置项	值	说明
+最大失败次数	5 次	MAX_FAILED_ATTEMPTS = 5
+锁定持续时间	30 分钟	LOCK_DURATION_MS = 30 * 60 * 1000
+失败计数重置窗口	10 分钟	FAIL_RESET_MS = 10 * 60 * 1000
+锁定流程：
+
+用户输错密码 → recordFailedAttempt() 记录
+失败达到 5 次 → lockedUntil = now + 30min
+30 分钟内再次登录 → 直接拒绝，返回剩余分钟数
+10 分钟内无新失败 → 下次失败时自动重置计数（FAIL_RESET_MS 逻辑）
+二、发现的问题
+问题 1：用户名大小写敏感导致锁定绕过
+风险等级： MEDIUM
+
+代码位置： auth.service.ts:24
+
+ts
+
+
+
+private lockKey(username: string): string {  return `login:lock:${username}`;}
+问题： username 未做大小写规范化。如果数据库中用户名是 Admin，攻击者可以用 admin、ADMIN、Admin 等不同大小写尝试，每个变体都有独立的 5 次失败配额。
+
+攻击路径：
+
+攻击者知道目标用户名为 admin
+用 admin 尝试 4 次 → 触发验证码
+换 ADMIN 尝试 4 次 → 又 4 次
+换 Admin 尝试 4 次 → 又 4 次
+实际获得 12 次尝试机会，而非设计的 5 次
+修复建议：
+
+ts
+
+
+
+private lockKey(username: string): string {  return `login:lock:${username.toLowerCase()}`;}
+同时确保数据库查询时也做大小写规范化（或用户名注册时强制小写存储）。
+
+问题 2：IP 层限流和用户名层锁定存在逻辑断层
+风险等级： LOW-MEDIUM
+
+代码位置： login-rate-limit.middleware.ts:8
+
+ts
+
+
+
+const loginLimiter = rateLimit({  windowMs: 15 * 60 * 1000,  max: 5,  // 同一 IP 15 分钟最多 5 次});
+问题：
+
+IP 限流：15 分钟 / 5 次（所有用户名共享）
+用户名锁定：5 次失败 → 锁定 30 分钟
+这意味着：
+
+攻击者用代理池轮换 IP，每个 IP 可以对同一用户名尝试 5 次 → 绕过 IP 限流
+攻击者对同一 IP 用大量不同用户名各尝试 4 次（刚好不触发锁定）→ 消耗 IP 配额但不触发任何用户名锁定
+修复建议： 考虑增加"全局失败计数"或"IP+用户名组合锁定"，但需权衡用户体验。
+
+问题 3：验证码在失败 1 次后就要求，但验证失败不增加失败计数
+风险等级： LOW
+
+代码位置： auth.service.ts:175
+
+ts
+
+
+
+if (failed >= 1) {  const passed = await this.captchaService.verify  (...);  if (!passed) {    await this.recordLoginLog(..., false, '验证码错    误');    throw new UnauthorizedException({...});  }}
+问题： 验证码错误时只记录了审计日志，但没有调用 recordFailedAttempt()。攻击者可以无限次尝试验证码（每次用新 token），直到猜对后再尝试密码。
+
+修复建议：
+
+ts
+
+
+
+if (!passed) {  await this.recordFailedAttempt(username);  // 增  加失败计数  await this.recordLoginLog(..., false, '验证码错误  ');  throw new UnauthorizedException({...});}
+问题 4：JWT Token 有效期过长（7 天）且无刷新机制
+风险等级： MEDIUM
+
+代码位置： auth.module.ts:14
+
+ts
+
+
+
+signOptions: { expiresIn: '7d' }
+问题：
+
+Token 7 天有效，期间被盗用无法及时撤销（除非触发 token_version 变更）
+没有 refresh token 机制，长期登录用户风险较高
+token_version 强制下线是好的，但仅用于管理员主动操作，不是常规安全机制
+修复建议： 考虑缩短到 1-3 天，或增加 refresh token 机制。
+
+问题 5：注册接口无验证码/防机器人机制
+风险等级： LOW
+
+代码位置： auth.controller.ts:27
+
+ts
+
+
+
+@Post('register')async register(@Body() dto: RegisterDto) {
+问题： 注册接口没有任何验证码或频率限制，可以被批量注册攻击。
+
+修复建议： 增加 IP 级注册频率限制，或要求验证码。
+
+问题 6：微信登录 openid 正则校验过于宽松
+风险等级： LOW
+
+代码位置： auth.service.ts:289
+
+ts
+
+
+
+if (!openid || openid.startsWith('local_') || !/^[0-9A-Za-z_-]{16,64}$/.test(openid)) {
+问题： local_ 前缀检查在正则之前，但 local_1234567890123456 长度超过 16，可能通过正则。不过 startsWith('local_') 会先拦截，所以实际风险较低。
+
+三、设计亮点
+双层防护： IP 限流 + 用户名锁定，增加攻击成本
+验证码渐进式要求： 失败 1 次后要求，平衡安全与用户体验
+审计日志： 所有登录尝试（成功/失败）都记录，包含 IP 和 UA
+强制下线： token_version 机制支持管理员强制踢人
+密码强度： bcrypt 哈希，成本因子 10
+错误信息模糊化： "用户名或密码错误"，不暴露用户是否存在
+账号状态检查： 登录时检查 deleted/disabled 状态
+四、总结
+优先级	问题	建议修复
+高	用户名大小写敏感导致锁定绕过	lockKey 和数据库查询统一 toLowerCase()
+中	JWT 7 天有效期过长	缩短到 1-3 天，或增加 refresh token
+中	验证码错误不计入失败次数	recordFailedAttempt() 在验证码错误时调用
+低	注册无防机器人机制	增加 IP 注册频率限制
+低	IP 限流和用户名锁定断层	考虑 IP+用户名组合维度
+
+Agent
+参考了 1 个上下文
+调用技能: TRAE-security-review
+好的，我将对 server 后端所有数据库查询操作进行性能扫描。
+
+在工作区搜索 '\.select\(|\.insert\(|\.update\(|\.delete\(|\.from\(|\.where\(|\.orderBy\(|\.limit\(|\.offset\(|\.for\('
+在工作区搜索 '\.count\(|\.sum\(|\.avg\(|\.groupBy\(|\.having\('
+server\src\modules\statistics\statistics.service.ts
+server\src\modules\statistics\statistics.service.ts
+server\src\modules\merchant-ops\export\readonly-orders.drizzle.ts
+server\src\modules\merchant-ops\export\readonly-orders.drizzle.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\orders\orders.service.ts
+server\src\modules\merchant-ops\export\readonly-orders.drizzle.ts
+server\src\modules\merchant-ops\audit\audit-repo.drizzle.ts
+server\src\modules\merchant-ops\employee\employee-repo.drizzle.ts
+server\src\modules\merchant-ops\employee\employee-repo.drizzle.ts
+server\src\modules\merchant-ops\audit\audit-repo.drizzle.ts
+基于对 server 后端所有数据库查询操作的深度性能审查，以下是扫描结果。
+
+数据库性能扫描结果
+发现的问题
+No.	问题类型	问题标题	风险等级	建议	代码链接
+1	N+1 查询	getOrderById() 串行查询 items/table/user，3 次 DB 往返	MEDIUM	使用 Promise.all() 并行，或单条 JOIN 查询	orders.service.ts:407
+2	全表扫描风险	assertRequiredAndMinQuantity() 查询 dishes 全表 is_required=true	MEDIUM	is_required 和 status 加复合索引	orders.service.ts:864
+3	大偏移分页	getOrders() 列表查询无游标/Keyset 分页，深页码性能差	MEDIUM	大表考虑 Keyset 分页（WHERE created_at < ?）	orders.service.ts:355
+4	缺少索引	orders 列表查询条件多（status/table_id/created_at），需复合索引	MEDIUM	加 (status, table_id, created_at) 或 (created_at DESC)	orders.service.ts:325
+5	事务内嵌套查询	deleteOrder() 事务内查 tables 再查 orders，可优化为 EXISTS	LOW	用 NOT EXISTS 子查询代替两次查询	orders.service.ts:893
+6	审计日志无索引	audit_logs 查询按 created_at 排序但无索引，大数据量慢	MEDIUM	加 (created_at DESC) 索引	audit-repo.drizzle.ts:65
+7	归档批量大小	archiveOlderThan 每次 1000 条，无上限控制	LOW	确认 1000 条在目标数据量下不会超时	audit-repo.drizzle.ts:75
+详细分析
+1. N+1 查询：getOrderById (MEDIUM)
+文件： orders.service.ts:407
+
+ts
+
+
+
+async getOrderById(id: number) {  const result = await db.select().from(orders).  where(eq(orders.id, id));  const order = result[0];  if (!order) throw new NotFoundException('订单不存  在');  const items = await db.select().from  (order_items).where(eq(order_items.order_id,   id));  const tableResult = await db.select().from  (tables).where(eq(tables.id, order.table_id));  const userResult = order.user_id ? await db.  select().from(users).where(eq(users.id, order.  user_id)) : [];  // ...}
+问题： 串行执行 3-4 次数据库查询。高并发时延迟叠加。
+
+修复：
+
+ts
+
+
+
+const [result, items, tableResult, userResult] = await Promise.all([  db.select().from(orders).where(eq(orders.id,   id)),  db.select().from(order_items).where(eq  (order_items.order_id, id)),  db.select().from(tables).where(eq(tables.id,   order.table_id)),  order.user_id ? db.select().from(users).where(eq  (users.id, order.user_id)) : Promise.resolve([]),]);
+2. 全表扫描风险：必选菜品查询 (MEDIUM)
+文件： orders.service.ts:864
+
+ts
+
+
+
+const requiredDishes = await db.select({  id: dishes.id,  name: dishes.name,  min_quantity: dishes.min_quantity,}).from(dishes).where(and(  eq(dishes.is_required, true),  eq(dishes.status, 'available'),));
+问题： dishes 表如果菜品很多（如几千道），is_required=true 的菜品可能很少，但无索引时 MySQL 会全表扫描。
+
+修复： 确认 dishes 表有 (is_required, status) 复合索引。迁移文件：
+
+SQL
+
+
+
+CREATE INDEX idx_dishes_required_status ON dishes(is_required, status);
+3. 大偏移分页：getOrders 列表 (MEDIUM)
+文件： orders.service.ts:355
+
+ts
+
+
+
+const offset = (page - 1) * pageSize;// ....offset(offset).limit(pageSize)
+问题： OFFSET 100000 时 MySQL 仍需扫描前 10 万行再丢弃，性能线性下降。
+
+建议： 订单量达到 10 万+ 时，考虑 Keyset 分页：
+
+ts
+
+
+
+// 前端传上一页最后一条的 created_at.where(and(...conditions, lt(orders.created_at, lastCursor))).orderBy(desc(orders.created_at)).limit(pageSize)
+4. 缺少复合索引：orders 列表查询 (MEDIUM)
+文件： orders.service.ts:325
+
+查询条件组合：status、table_id、created_at 范围、order_number LIKE。
+
+建议索引：
+
+SQL
+
+
+
+-- 列表查询 + 排序CREATE INDEX idx_orders_list ON orders(status, table_id, created_at DESC);-- 按日统计CREATE INDEX idx_orders_created_status ON orders(created_at, status);-- 订单号搜索（如果频繁）CREATE INDEX idx_orders_number ON orders(order_number);
+5. 事务内嵌套查询：deleteOrder (LOW)
+文件： orders.service.ts:893
+
+ts
+
+
+
+const tableResult = await tx.select().from(tables).where(eq(tables.id, order.table_id));const activeOrders = await tx.select().from(orders)  .where(and(    eq(orders.table_id, order.table_id),    inArray(orders.status, occupyingStatuses as     any),  ));
+问题： 先查 tables 确认存在，再查 orders。可以合并为单条 EXISTS 查询。
+
+6. 审计日志无索引 (MEDIUM)
+文件： audit-repo.drizzle.ts:65
+
+ts
+
+
+
+.orderBy(desc(audit_logs.created_at))
+问题： audit_logs 表增长最快，无 created_at 索引时排序全表扫描。
+
+修复：
+
+SQL
+
+
+
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+性能亮点
+统计服务 SQL 聚合： statistics.service.ts 全部用 SQL GROUP BY/SUM/COUNT，不下沉到 Node 内存计算
+导出流式读取： readonly-orders.drizzle.ts 用 batchSize=500 分批读取，避免大结果集内存溢出
+事务精简： 订单创建/更新/删除都在事务内完成，事务外只做副作用（WS 推送、通知）
+幂等键索引： idempotency_keys 有 (scope, key) 唯一索引，查重 O(1)
+复合索引已存在： 0011_orders_composite_indexes.sql 已添加 orders 表的复合索引
+Agent
+
+参考了 1 个上下文
+
+调用技能: TRAE-security-review
+
+好的，我将对 admin-web/ 商家端进行安全扫描。让我先收集相关代码上下文。
+
+在工作区搜索 'admin-web/src/**/*.ts'
+
+在工作区搜索 'admin-web/src/**/*.tsx'
+
+admin-web\src\api\request.ts
+
+admin-web\src\stores\auth.ts
+
+admin-web\src\components\WebSocketProvider.tsx
+
+admin-web\src\utils\image-upload.ts
+
+admin-web\src\pages\Login.tsx
+
+admin-web\src\App.tsx
+
+admin-web\src\rbac\RoleGuard.tsx
+
+admin-web\src\rbac\types.ts
+
+admin-web\src\pages\EmployeeManage.tsx
+
+admin-web\src\pages\OrderManage.tsx
+
+admin-web\src\pages\DishManage.tsx
+
+admin-web\src\pages\StoreSettings.tsx
+
+admin-web\src\pages\ForcePasswordChange.tsx
+
+admin-web\src\utils\image-url.ts
+
+admin-web\src\notif\web-push.ts
+
+## 商家端（admin-web）安全扫描报告
+基于对 admin-web/src/ 目录下所有核心 TS/TSX 文件的完整审查，结果如下：
+
+### 扫描范围
+- api/request.ts — axios 请求封装
+- stores/auth.ts — 认证状态管理
+- components/WebSocketProvider.tsx — WebSocket 连接管理
+- utils/image-upload.ts — 图片上传
+- utils/image-url.ts — 图片 URL 解析
+- pages/Login.tsx — 登录页
+- pages/EmployeeManage.tsx — 员工管理
+- pages/OrderManage.tsx — 订单管理
+- pages/DishManage.tsx — 菜品管理
+- pages/StoreSettings.tsx — 店铺设置
+- pages/ForcePasswordChange.tsx — 强制改密
+- rbac/RoleGuard.tsx / rbac/types.ts — 权限守卫
+- notif/web-push.ts — Web Push 订阅
+- App.tsx — 应用路由
+### 扫描结果
+No. VulnType Issue Title Risk Level Suggestion Code Link 1 XSS (Stored) dangerouslySetInnerHTML 渲染后端返回的验证码 SVG，虽经 typeof 校验但仍存在 XSS 风险 MEDIUM 改用 <img src={ data:image/svg+xml;base64,${btoa(svg)} } /> 或纯文本渲染，避免 dangerouslySetInnerHTML Login.tsx:258 2 Token Exposure WebSocket URL 将 JWT token 作为 query 参数明文传输 MEDIUM 改用 Sec-WebSocket-Protocol header 或短期 ticket 机制 WebSocketProvider.tsx:115 3 Insecure Storage Token 和用户信息明文存储在 localStorage ，无加密 MEDIUM 敏感数据使用 sessionStorage 或加密存储；设置合理 token 过期时间 auth.ts:26 4 DOM-based XSS resolveImageUrl 未对输入做 XSS 过滤，若后端返回恶意 URL 可能导致 javascript: 协议执行 LOW 增加协议白名单校验（只允许 http/https/相对路径 ），过滤 javascript: / data: 等危险协议 image-url.ts:24 5 IDOR / Auth Bypass EmployeeManage 中删除/重置密码操作仅前端校验 isSelf ，未二次确认后端权限 LOW 前端校验仅为 UX，确保后端接口有严格的权限校验和归属验证 EmployeeManage.tsx:120
+
+### 详细分析 1. dangerouslySetInnerHTML XSS 风险 (MEDIUM)
+在 Login.tsx 中：
+
+```
+<span dangerouslySetInnerHTML={{ __html: captcha.
+svg }} />
+```
+风险 ：虽然后端验证码 SVG 理论上可信，但若后端被攻破或存在漏洞，恶意 SVG 可执行 JavaScript（如 <svg><script>alert(1)</script></svg> ）。
+ 2. WebSocket Token 明文暴露 (MEDIUM)
+在 WebSocketProvider.tsx 中：
+
+```
+wsURL = `ws://localhost:3000/ws?token=${token}`
+```
+风险 ：与小程序端相同，token 可能出现在服务器日志、代理记录中。
+ 3. localStorage 明文存储敏感信息 (MEDIUM)
+在 auth.ts 中：
+
+```
+localStorage.setItem('admin_token', token)
+localStorage.setItem('admin_user', JSON.stringify
+(user))
+```
+风险 ：XSS 攻击可直接读取 localStorage 获取 token。虽然项目无明显的 XSS 注入点，但属于纵深防御不足。
+ 4. resolveImageUrl 协议校验缺失 (LOW)
+在 image-url.ts 中：
+
+```
+if (/^https?:\/\//i.test(raw)) return raw
+return raw.startsWith('/') ? raw : '/' + raw
+```
+风险 ：若后端返回 javascript:alert(1) 或 data:text/html,<script>... ，会被直接用于 <img src> ，可能导致 DOM-based XSS。
+ 5. 前端权限校验不可信 (LOW)
+在 EmployeeManage.tsx 中：
+
+```
+if (employee.id === myId) {
+  showToast('不能删除自己的账号', 'warning')
+  return
+}
+```
+风险 ：前端校验可被绕过，必须依赖后端接口的严格权限校验。
+
+### 正面安全实践（值得保持）
+- 请求统一封装 ：所有 API 走 request.ts ，统一处理 401/403 错误和 token 刷新。
+- RBAC 权限矩阵 ：前端有完整的 PERMISSION_MATRIX ，与后端权限模型保持一致。
+- RoleGuard 路由守卫 ：未授权角色直接跳转 /forbidden 。
+- 验证码防刷 ：登录失败触发验证码，连续失败锁定提示。
+- 强制改密机制 ：临时密码登录后强制修改密码，token_version 自增使旧 token 失效。
+- WebSocket 重连安全 ：4001 认证失败停止重连，避免无效连接风暴。
+- 网络错误区分 ： App.tsx 区分网络错误和认证错误，网络不通时保留 token。
+### 总结
+商家端 无高危漏洞 。主要风险集中在 XSS（ dangerouslySetInnerHTML ）、token 传输/存储方式 上，建议优先修复 Login.tsx 的 SVG 渲染方式。

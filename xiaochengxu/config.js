@@ -17,7 +17,7 @@ const ENV = {
   },
   // 生产环境
   PROD: {
-    SERVER_URL: 'https://www.ali88.online',
+    SERVER_URL: 'https://sc.ali88.online',
     desc: '生产环境'
   }
 };

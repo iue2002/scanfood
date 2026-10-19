@@ -35,6 +35,8 @@ export default function Login() {
   const [captcha, setCaptcha] = useState<CaptchaResp | null>(null)
   const [captchaInput, setCaptchaInput] = useState('')
   const [captchaLoading, setCaptchaLoading] = useState(false)
+  // 验证码输入框 ref：一键登录触发验证码时聚焦到输入框
+  const captchaInputRef = useRef<HTMLInputElement>(null)
 
   // 用 ref 避免并发请求互相覆盖（refresh in-flight 时第二次调用直接跳过）
   const captchaInflight = useRef(false)
@@ -77,10 +79,9 @@ export default function Login() {
     }
   }, [captchaRequired, captcha, refreshCaptcha])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const doLogin = async (uname: string, pwd: string) => {
     if (loading) return
-    if (!username.trim() || !password) {
+    if (!uname.trim() || !pwd) {
       showToast('请输入账号和密码', 'warning')
       return
     }
@@ -99,8 +100,8 @@ export default function Login() {
 
     try {
       const payload: any = {
-        username: username.trim(),
-        password,
+        username: uname.trim(),
+        password: pwd,
       }
       if (captchaRequired && captcha) {
         payload.captchaToken = captcha.token
@@ -143,6 +144,32 @@ export default function Login() {
       setLoading(false)
     }
   }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await doLogin(username, password)
+  }
+
+  // 一键登录：只自动填账号密码，不绕过后端鉴权/验证码/锁定
+  // 验证码未触发时直接提交；验证码已触发时仅填充并聚焦输入框，等待人工输入
+  const quickLogin = (uname: string, pwd: string) => {
+    setUsername(uname)
+    setPassword(pwd)
+    if (captchaRequired) {
+      setCaptchaInput('')
+      setTimeout(() => captchaInputRef.current?.focus(), 50)
+      showToast('请输入图形验证码后登录', 'info')
+      return
+    }
+    void doLogin(uname, pwd)
+  }
+
+  // 演示账号清单（仅供演示，安全机制与普通账号完全一致）
+  const demoAccounts = [
+    { role: '店主', username: 'test_owner', password: 'Scanfood@123', desc: '全部权限' },
+    { role: '店长', username: 'test_manager', password: 'Scanfood@123', desc: '菜单/桌台/退款' },
+    { role: '员工', username: 'test_waiter', password: 'Scanfood@123', desc: '接单/上菜' },
+  ]
 
   // 已登录态：展示上次登录信息后跳转
   if (lastLoginInfo) {
@@ -266,6 +293,7 @@ export default function Login() {
                     type="text"
                     value={captchaInput}
                     onChange={(e) => setCaptchaInput(e.target.value)}
+                    ref={captchaInputRef}
                     placeholder="请输入图中字符"
                     maxLength={8}
                     autoComplete="off"
@@ -313,6 +341,33 @@ export default function Login() {
           <p className="text-xs text-[#94A3B8] text-center mt-4">
             连续输错 5 次密码，账户将临时锁定 30 分钟
           </p>
+
+          {/* 演示账号一键登录：仅自动填充账号密码，鉴权/验证码/锁定机制照旧 */}
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-medium text-[#334155]">演示账号一键登录</p>
+              <span className="text-[11px] text-[#94A3B8]">密码统一 Scanfood@123</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {demoAccounts.map((acc) => (
+                <button
+                  key={acc.username}
+                  type="button"
+                  onClick={() => quickLogin(acc.username, acc.password)}
+                  title={`${acc.username} / ${acc.password}`}
+                  className="group px-2 py-2.5 rounded-lg border border-gray-200 bg-[#F8FAFC] hover:border-[#2563EB] hover:bg-blue-50 transition-all cursor-pointer"
+                >
+                  <div className="text-sm font-semibold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                    {acc.role}
+                  </div>
+                  <div className="text-[11px] text-[#94A3B8] mt-0.5 truncate">{acc.username}</div>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-[#94A3B8] mt-2.5 leading-relaxed">
+              点击自动填入账号密码并登录；若需输入图形验证码，请按提示手动完成，不会绕过安全校验。
+            </p>
+          </div>
         </div>
       </div>
       <div className="py-4 text-center space-x-4">

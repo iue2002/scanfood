@@ -282,4 +282,3 @@ if (employee.id === myId) {
 
 ---
 
-*报告生成完毕。建议按优先级逐项修复，并在修复后重新运行 `cd server && npm test` 和 `cd admin-web && npx tsc --noEmit` 验证。*
